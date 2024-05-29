@@ -36,7 +36,7 @@ services:
 
   solace-server:
     container_name: "solace"
-    image: "solace/solace-pubsub-standard:10.4"
+    image: "solace/solace-pubsub-standard:10.8"
     environment:
       - "username_admin_globalaccesslevel=admin"
       - "username_admin_password=admin"
@@ -63,7 +63,7 @@ services:
         max_attempts: 1
 
   solace:
-    image: "solace/solace-pubsub-standard:10.4"
+    image: "solace/solace-pubsub-standard:10.8"
     entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
     volumes:
       - "./data/solace:/opt/app"
