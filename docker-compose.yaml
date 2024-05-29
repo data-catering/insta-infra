@@ -102,7 +102,7 @@ services:
 
   kafka-server:
     container_name: "kafka"
-    image: "confluentinc/confluent-local:7.4.1"
+    image: "confluentinc/confluent-local:7.6.1"
     environment:
       - "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
       - "KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT"
@@ -121,7 +121,7 @@ services:
       - "29092"
 
   kafka:
-    image: "confluentinc/confluent-local:7.4.1"
+    image: "confluentinc/confluent-local:7.6.1"
     entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
     volumes:
       - "./data/kafka:/opt/app"
