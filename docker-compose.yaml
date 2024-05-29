@@ -1,0 +1,130 @@
+version: "3.9"
+services:
+  postgres:
+    container_name: "postgres"
+    image: "postgres:14.5"
+    environment:
+      - "POSTGRES_USER=postgres"
+      - "POSTGRES_PASSWORD=postgres"
+      - "PGDATA=/data/postgres"
+    volumes:
+      - "${HOME}/data/postgres:/data/postgres"
+      - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  mysql:
+    container_name: "mysql"
+    image: "mysql:8.0.33"
+    environment:
+      MYSQL_ROOT_PASSWORD: "root"
+    command: "--default-authentication-plugin=mysql_native_password"
+    volumes:
+      - "${HOME}/data/mysql:/var/lib/mysql"
+      - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
+      timeout: 20s
+      retries: 10
+    ports:
+      - "3306:3306"
+
+  solace-server:
+    container_name: "solace"
+    image: "solace/solace-pubsub-standard:10.4"
+    environment:
+      - "username_admin_globalaccesslevel=admin"
+      - "username_admin_password=admin"
+      - "system_scaling_maxconnectioncount=100"
+    volumes:
+      - "${HOME}/data/solace:/var/lib/solace"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080" ]
+      interval: "30s"
+      timeout: "5s"
+      retries: 3
+    ports:
+      - "8080:8080"
+      - "55554:55555"
+    shm_size: "1g"
+    ulimits:
+      core: -1
+      nofile:
+        soft: 2448
+        hard: 6592
+    deploy:
+      restart_policy:
+        condition: "on-failure"
+        max_attempts: 1
+
+  solace:
+    image: "solace/solace-pubsub-standard:10.4"
+    entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
+    volumes:
+      - "./data/solace:/opt/app"
+    depends_on:
+      solace-server:
+        condition: "service_healthy"
+
+  cassandra:
+    container_name: "cassandra"
+    image: "datastax/dse-server:6.8.37"
+    environment:
+      - "DS_LICENSE=accept"
+    volumes:
+      - "${HOME}/data/cassandra:/var/lib/cassandra"
+      - "./data/cassandra/my_data.cql:/docker-entrypoint-initdb.d/my_data.cql"
+    healthcheck:
+      test: [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    ports:
+      - "9042:9042"
+    # Allow DSE to lock memory with mlock
+    cap_add:
+      - IPC_LOCK
+    ulimits:
+      memlock: -1
+
+  http:
+    container_name: "http"
+    image: "kennethreitz/httpbin:latest"
+    ports:
+      - "80:80"
+    environment:
+      - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
+
+  kafka-server:
+    container_name: "kafka"
+    image: "confluentinc/confluent-local:7.4.1"
+    environment:
+      - "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      - "KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT"
+      - "KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
+      - "KAFKA_LISTENERS=PLAINTEXT://kafka:29092,CONTROLLER://localhost:29093,PLAINTEXT_HOST://0.0.0.0:9092"
+    volumes:
+      - "${HOME}/data/kafka:/var/lib/kafka/data"
+    healthcheck:
+      test: [ "CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list" ]
+      interval: "15s"
+      timeout: "5s"
+      retries: 3
+    ports:
+      - "9092:9092"
+    expose:
+      - "29092"
+
+  kafka:
+    image: "confluentinc/confluent-local:7.4.1"
+    entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
+    volumes:
+      - "./data/kafka:/opt/app"
+    depends_on:
+      kafka-server:
+        condition: "service_healthy"
