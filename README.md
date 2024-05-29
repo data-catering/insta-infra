@@ -10,9 +10,18 @@ Spin up any tool or service straight away. Tells you how to connect to it.
 
 ## How
 
+### Start
+
 ```shell
 ./run.sh <services>
 ./run.sh postgres mysql
+```
+
+### Connect
+
+```shell
+./connect.sh <service>
+./connect.sh postgres
 ```
 
 ### Custom data
@@ -24,13 +33,14 @@ Alter data in [`data`](data) folder.
 | Service Type     | Service       | Supported |
 |------------------|---------------|-----------|
 | Database         | cassandra     | ✅         |
-| Database         | elasticsearch | ❌         |
+| Database         | elasticsearch | ✅         |
 | Database         | mariadb       | ❌         |
 | Database         | mongodb       | ❌         |
 | Database         | mysql         | ✅         |
 | Database         | postgres      | ✅         |
 | Data Catalog     | marquez       | ❌         |
 | Data Catalog     | openmetadata  | ❌         |
+| HTTP             | httpbin       | ✅         |
 | Job Orchestrator | airflow       | ❌         |
 | Messaging        | kafka         | ✅         |
 | Messaging        | solace        | ✅         |

@@ -92,7 +92,7 @@ services:
     ulimits:
       memlock: -1
 
-  http:
+  httpbin:
     container_name: "http"
     image: "kennethreitz/httpbin:latest"
     ports:
@@ -128,3 +128,19 @@ services:
     depends_on:
       kafka-server:
         condition: "service_healthy"
+
+  elasticsearch:
+    container_name: "elasticsearch"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:8.13.4"
+    volumes:
+      - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
+      - "${HOME}/data/elasticsearch:/usr/share/elasticsearch/data:Z"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      node.name: "elasticsearch"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      ELASTIC_PASSWORD: "elasticsearch"
+      discovery.type: "single-node"
+    restart: "unless-stopped"
