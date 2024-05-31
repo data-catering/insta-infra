@@ -2,11 +2,11 @@
 
 Spin up any tool or service straight away on your local laptop. Tells you how to connect to it.
 
-- Single command
+- Simple commands
 - Add custom data (i.e startup SQL scripts)
 - Works anywhere
-- Don't think about where to get image or version from
-- Don't think about what hostname and port to use to connect
+- Don't worry about startup configuration
+- Don't think about what hostname, port, or credentials to use to connect
 
 ## How
 
@@ -15,6 +15,15 @@ Spin up any tool or service straight away on your local laptop. Tells you how to
 ```shell
 ./run.sh <services>
 ./run.sh postgres mysql
+```
+
+#### Example Output
+
+```shell
+How to connect:
+Service   Container To Container  Host To Container  Container To Host
+postgres  postgres:5432           localhost:5432     host.docker.internal:5432
+mysql     mysql:3306              localhost:3306     host.docker.internal:3306
 ```
 
 ### Connect
