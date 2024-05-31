@@ -160,7 +160,7 @@ services:
 
   mongodb:
     container_name: "mongodb-connect"
-    image: "mongodb/mongodb-community-server:7.0.8-ubi8"
+    image: "mongodb/mongodb-community-server:7.0.11-ubi8"
     environment:
       - "CONN_STR=mongodb://user:password@mongodb-server"
     volumes:
