@@ -63,6 +63,7 @@ services:
         max_attempts: 1
 
   solace:
+    container_name: "solace-data"
     image: "solace/solace-pubsub-standard:10.8"
     entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
     volumes:
@@ -95,10 +96,10 @@ services:
   httpbin:
     container_name: "http"
     image: "kennethreitz/httpbin:latest"
-    ports:
-      - "80:80"
     environment:
       - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
+    ports:
+      - "80:80"
 
   kafka-server:
     container_name: "kafka"
@@ -121,6 +122,7 @@ services:
       - "29092"
 
   kafka:
+    container_name: "kafka-data"
     image: "confluentinc/confluent-local:7.6.1"
     entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
     volumes:
@@ -132,15 +134,37 @@ services:
   elasticsearch:
     container_name: "elasticsearch"
     image: "docker.elastic.co/elasticsearch/elasticsearch:8.13.4"
+    environment:
+      node.name: "elasticsearch"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      ELASTIC_PASSWORD: "elasticsearch"
+      discovery.type: "single-node"
     volumes:
       - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
       - "${HOME}/data/elasticsearch:/usr/share/elasticsearch/data:Z"
     ports:
       - "9200:9200"
       - "9300:9300"
-    environment:
-      node.name: "elasticsearch"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-      ELASTIC_PASSWORD: "elasticsearch"
-      discovery.type: "single-node"
     restart: "unless-stopped"
+
+  mongodb-server:
+    container_name: "mongodb"
+    image: "mongo:7.0.11"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "user"
+      MONGO_INITDB_ROOT_PASSWORD: "password"
+    volumes:
+      - "${HOME}/data/mongodb:/data/db"
+    ports:
+      - "27017:27017"
+
+  mongodb:
+    container_name: "mongodb-connect"
+    image: "mongodb/mongodb-community-server:7.0.8-ubi8"
+    environment:
+      - "CONN_STR=mongodb://user:password@mongodb-server"
+    volumes:
+      - "./data/mongodb:/opt/app"
+    command: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
+    depends_on:
+      - "mongodb-server"

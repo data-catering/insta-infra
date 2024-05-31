@@ -1,6 +1,6 @@
 # insta-infra
 
-Spin up any tool or service straight away. Tells you how to connect to it.
+Spin up any tool or service straight away on your local laptop. Tells you how to connect to it.
 
 - Single command
 - Add custom data (i.e startup SQL scripts)
@@ -24,6 +24,12 @@ Spin up any tool or service straight away. Tells you how to connect to it.
 ./connect.sh postgres
 ```
 
+### Shutdown
+
+```shell
+docker-compose down
+```
+
 ### Custom data
 
 Alter data in [`data`](data) folder.
@@ -34,8 +40,8 @@ Alter data in [`data`](data) folder.
 |------------------|---------------|-----------|
 | Database         | cassandra     | ✅         |
 | Database         | elasticsearch | ✅         |
+| Database         | mongodb       | ✅         |
 | Database         | mariadb       | ❌         |
-| Database         | mongodb       | ❌         |
 | Database         | mysql         | ✅         |
 | Database         | postgres      | ✅         |
 | Data Catalog     | marquez       | ❌         |

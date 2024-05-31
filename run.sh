@@ -19,6 +19,10 @@ fi
 all_services=("$@")
 echo -e "${GREEN}Starting up services...${NC}"
 docker-compose up -d "$@"
+if [ $? != 0 ]; then
+  echo -e "${RED}Failed to start up services${NC}"
+  exit 1
+fi
 sleep 2
 
 echo -e "${GREEN}How to connect:${NC}"

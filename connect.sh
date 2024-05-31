@@ -15,16 +15,20 @@ fi
 connection_commands="
 cassandra=cqlsh
 elasticsearch=elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200
+mongodb-connect=mongosh mongodb://root:root@mongodb
 mysql=mysql -u root -proot
 postgres=PGPASSWORD=postgres psql -Upostgres
 "
 
 echo -e "${GREEN}Connecting to $1...${NC}"
-connection_command=$(echo "$connection_commands" | grep "$1=" | sed -nr 's/.*=(.*)/\1/p')
+base_command=$(echo "$connection_commands" | grep "^$1")
+IFS=$'\t' read -r container_name connection_command \
+  < <(sed -nr 's/(.*)=(.*)/\1\t\2/p' <<< "$base_command")
+
 if [ -z "$connection_command" ]
 then
   echo -e "${RED}Error: Failed to find connection command for $1${NC}"
   exit 1
 fi
 
-docker exec -it "$1" bash -c "$connection_command"
+docker exec -it "$container_name" bash -c "$connection_command"
