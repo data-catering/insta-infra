@@ -186,15 +186,15 @@ services:
       - "8080:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
+      interval: "30s"
+      timeout: "10s"
       retries: 5
-      start_period: 30s
-    restart: always
+      start_period: "30s"
+    restart: "always"
     user: "50000:0"
     depends_on:
       airflow-init:
-        condition: service_completed_successfully
+        condition: "service_completed_successfully"
 
   airflow-init:
     container_name: "airflow-init"
@@ -204,15 +204,6 @@ services:
     command:
       - -c
       - |
-        if [[ -z "${AIRFLOW_UID}" ]]; then
-          echo
-          echo -e "\033[1;33mWARNING!!!: AIRFLOW_UID not set!\e[0m"
-          echo "If you are on Linux, you SHOULD follow the instructions below to set "
-          echo "AIRFLOW_UID environment variable, otherwise files will be owned by root."
-          echo "For other operating systems you can get rid of the warning with manually created .env file:"
-          echo "    See: https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html#setting-the-right-airflow-user"
-          echo
-        fi
         one_meg=1048576
         mem_available=$$(($$(getconf _PHYS_PAGES) * $$(getconf PAGE_SIZE) / one_meg))
         cpus_available=$$(grep -cE 'cpu[0-9]+' /proc/stat)
@@ -247,7 +238,7 @@ services:
           echo
         fi
         mkdir -p /sources/logs /sources/dags /sources/plugins
-        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+        chown -R "50000:0" /sources/{logs,dags,plugins}
         exec /entrypoint airflow version
     # yamllint enable rule:line-length
     environment:
@@ -261,4 +252,19 @@ services:
     user: "0:0"
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: "service_healthy"
+
+  mariadb:
+    container_name: "mariadb"
+    image: "mariadb:11.4.2"
+    environment:
+      - "MARIADB_USER=user"
+      - "MARIADB_PASSWORD=password"
+      - "MARIADB_ROOT_PASSWORD=root"
+      - "MARIADB_DATABASE=customer"
+    volumes:
+      - "${HOME}/data/mariadb:/var/lib/mysql:Z"
+      - "./data/mariadb:/opt/app"
+    ports:
+      - "3306:3306"
+    restart: "always"

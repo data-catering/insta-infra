@@ -15,6 +15,7 @@ fi
 connection_commands="
 cassandra='cqlsh'
 elasticsearch='elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200'
+mariadb='mariadb --user=user --password=password'
 mongodb-connect='mongosh mongodb://root:root@mongodb'
 mysql='mysql -u root -proot'
 postgres='PGPASSWORD=postgres psql -Upostgres'

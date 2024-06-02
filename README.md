@@ -49,8 +49,8 @@ Alter data in [`data`](data) folder.
 |------------------|---------------|-----------|
 | Database         | cassandra     | ✅         |
 | Database         | elasticsearch | ✅         |
+| Database         | mariadb       | ✅         |
 | Database         | mongodb       | ✅         |
-| Database         | mariadb       | ❌         |
 | Database         | mysql         | ✅         |
 | Database         | postgres      | ✅         |
 | Data Catalog     | marquez       | ❌         |
