@@ -56,6 +56,6 @@ Alter data in [`data`](data) folder.
 | Data Catalog     | marquez       | ❌         |
 | Data Catalog     | openmetadata  | ❌         |
 | HTTP             | httpbin       | ✅         |
-| Job Orchestrator | airflow       | ❌         |
+| Job Orchestrator | airflow       | ✅         |
 | Messaging        | kafka         | ✅         |
 | Messaging        | solace        | ✅         |
