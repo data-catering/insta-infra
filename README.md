@@ -53,7 +53,7 @@ Alter data in [`data`](data) folder.
 | Database            | mongodb       | ✅         |
 | Database            | mysql         | ✅         |
 | Database            | postgres      | ✅         |
-| Data Catalog        | marquez       | ❌         |
+| Data Catalog        | marquez       | ✅         |
 | Data Catalog        | openmetadata  | ❌         |
 | HTTP                | httpbin       | ✅         |
 | Identity Management | keycloak      | ✅         |

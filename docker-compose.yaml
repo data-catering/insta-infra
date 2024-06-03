@@ -12,9 +12,9 @@ services:
       - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
     ports:
       - "5432:5432"
 
@@ -29,8 +29,8 @@ services:
       - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
     healthcheck:
       test: [ "CMD-SHELL", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
-      timeout: 20s
-      retries: 10
+      timeout: "20s"
+      retries: 3
     ports:
       - "3306:3306"
 
@@ -82,14 +82,14 @@ services:
       - "./data/cassandra/my_data.cql:/docker-entrypoint-initdb.d/my_data.cql"
     healthcheck:
       test: [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      interval: "30s"
+      timeout: "10s"
+      retries: 3
     ports:
       - "9042:9042"
     # Allow DSE to lock memory with mlock
     cap_add:
-      - IPC_LOCK
+      - "IPC_LOCK"
     ulimits:
       memlock: -1
 
@@ -351,3 +351,54 @@ services:
       postgres:
         condition: "service_healthy"
     restart: "unless-stopped"
+
+  marquez-server:
+    container_name: "marquez"
+    image: "marquezproject/marquez:0.47.0"
+    environment:
+      - "MARQUEZ_CONFIG=/opt/app/marquez.yaml"
+      - "MARQUEZ_PORT=5000"
+      - "MARQUEZ_ADMIN_PORT=5001"
+      - "POSTGRES_HOST=postgres"
+      - "POSTGRES_PORT=5432"
+      - "POSTGRES_DB=marquez"
+      - "POSTGRES_USER=postgres"
+      - "POSTGRES_PASSWORD=postgres"
+    volumes:
+      - "${HOME}/data/marquez:/opt/marquez"
+      - "./data/marquez:/opt/app"
+    ports:
+      - "5002:5000"
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:5001/healthcheck" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  marquez-data:
+    container_name: "marquez-data"
+    image: "marquezproject/marquez:0.47.0"
+    entrypoint: "/bin/bash"
+    command: [ "-c", "/opt/app/seed.sh" ]
+    environment:
+      - "MARQUEZ_URL=http://marquez:5000"
+    volumes:
+      - "./data/marquez:/opt/app"
+    depends_on:
+      marquez-server:
+        condition: "service_healthy"
+
+  marquez:
+    container_name: "marquez-web"
+    image: "marquezproject/marquez-web:0.47.0"
+    environment:
+      - "MARQUEZ_HOST=host.docker.internal"
+      - "MARQUEZ_PORT=5002"
+    ports:
+      - "3001:3000"
+    depends_on:
+      - "marquez-data"
