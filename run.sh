@@ -30,7 +30,8 @@ connect_result=("${YELLOW}Service,${YELLOW}Container To Container,Host To Contai
 for service in "${all_services[@]}"; do
   ports=$(docker inspect "$service" | grep HostPort | sed -nr 's/.*\: "([0-9]+)"/\1/p' | sort -u)
   for port in $ports; do
-    current_service="${RED}$service,${LIGHT_BLUE}$service:$port,localhost:$port,host.docker.internal:$port"
+    container_port=$(docker inspect "$service" | grep -B 3 "HostPort\": \"${port}\"" | sed -nr 's/.*\"([0-9]+)\/tcp\".*/\1/p' | head -1)
+    current_service="${RED}$service,${LIGHT_BLUE}$service:$container_port,localhost:$port,host.docker.internal:$port"
     connect_result+=("$current_service")
   done
 done

@@ -46,3 +46,6 @@ CREATE TABLE IF NOT EXISTS account.mapping
 );
 
 CREATE DATABASE airflow;
+CREATE DATABASE dagster;
+CREATE DATABASE prefect;
+CREATE DATABASE keycloak;

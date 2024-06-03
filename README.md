@@ -45,17 +45,21 @@ Alter data in [`data`](data) folder.
 
 ## Services
 
-| Service Type     | Service       | Supported |
-|------------------|---------------|-----------|
-| Database         | cassandra     | ✅         |
-| Database         | elasticsearch | ✅         |
-| Database         | mariadb       | ✅         |
-| Database         | mongodb       | ✅         |
-| Database         | mysql         | ✅         |
-| Database         | postgres      | ✅         |
-| Data Catalog     | marquez       | ❌         |
-| Data Catalog     | openmetadata  | ❌         |
-| HTTP             | httpbin       | ✅         |
-| Job Orchestrator | airflow       | ✅         |
-| Messaging        | kafka         | ✅         |
-| Messaging        | solace        | ✅         |
+| Service Type        | Service       | Supported |
+|---------------------|---------------|-----------|
+| Database            | cassandra     | ✅         |
+| Database            | elasticsearch | ✅         |
+| Database            | mariadb       | ✅         |
+| Database            | mongodb       | ✅         |
+| Database            | mysql         | ✅         |
+| Database            | postgres      | ✅         |
+| Data Catalog        | marquez       | ❌         |
+| Data Catalog        | openmetadata  | ❌         |
+| HTTP                | httpbin       | ✅         |
+| Identity Management | keycloak      | ✅         |
+| Job Orchestrator    | airflow       | ✅         |
+| Job Orchestrator    | dagster       | ✅         |
+| Job Orchestrator    | mage-ai       | ✅         |
+| Job Orchestrator    | prefect       | ✅         |
+| Messaging           | kafka         | ✅         |
+| Messaging           | solace        | ✅         |

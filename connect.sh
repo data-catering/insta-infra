@@ -19,6 +19,7 @@ mariadb='mariadb --user=user --password=password'
 mongodb-connect='mongosh mongodb://root:root@mongodb'
 mysql='mysql -u root -proot'
 postgres='PGPASSWORD=postgres psql -Upostgres'
+prefect-data='bash'
 "
 
 echo -e "${GREEN}Connecting to $1...${NC}"

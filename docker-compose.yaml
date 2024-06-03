@@ -183,7 +183,7 @@ services:
     volumes:
       - "./data/airflow/dags:/opt/airflow/dags"
     ports:
-      - "8080:8080"
+      - "8081:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: "30s"
@@ -254,6 +254,68 @@ services:
       postgres:
         condition: "service_healthy"
 
+  mage-ai:
+    container_name: "mage-ai"
+    image: "mageai/mageai:0.9.71"
+    command: "mage start your_first_project"
+    environment:
+      - "USER_CODE_PATH=/home/src/your_first_project"
+    ports:
+      - "6789:6789"
+    volumes:
+      - "${HOME}/data/mage-ai:/home/src/"
+    restart: "on-failure"
+
+  dagster:
+    container_name: "dagster"
+    image: "dagster/dagster-k8s:1.7.8"
+    entrypoint: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml"]
+    environment:
+      - "DAGSTER_POSTGRES_HOST=postgres"
+      - "DAGSTER_POSTGRES_USER=postgres"
+      - "DAGSTER_POSTGRES_PASSWORD=postgres"
+      - "DAGSTER_POSTGRES_DB=dagster"
+      - "DAGSTER_HOME=/opt/dagster/dagster_home/"
+    volumes:
+      - "${HOME}/data/dagster:/opt/dagster/dagster_home/"
+      - "./data/dagster:/opt/dagster/app/"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+
+  prefect-server:
+    container_name: "prefect"
+    image: "prefecthq/prefect:2.19.3-python3.11"
+    entrypoint: ["/opt/prefect/entrypoint.sh", "prefect", "server", "start"]
+    environment:
+      - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
+      - "PREFECT_API_URL=http://127.0.0.1:4200/api"
+      - "PREFECT_SERVER_API_HOST=0.0.0.0"
+      - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect"
+    volumes:
+      - "${HOME}/data/prefect:/root/.prefect"
+    ports:
+      - "4200:4200"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+    restart: "always"
+
+  prefect:
+    container_name: "prefect-data"
+    image: "prefecthq/prefect:2.19.3-python3.11"
+    entrypoint: [ "/opt/prefect/app/start_flows.sh" ]
+    environment:
+      - "PREFECT_API_URL=http://host.docker.internal:4200/api"
+    volumes:
+      - "./data/prefect/flows:/root/flows"
+      - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
+    working_dir: "/root/flows"
+    depends_on:
+      - "prefect-server"
+
   mariadb:
     container_name: "mariadb"
     image: "mariadb:11.4.2"
@@ -268,3 +330,24 @@ services:
     ports:
       - "3306:3306"
     restart: "always"
+
+  keycloak:
+    container_name: "keycloak"
+    image: "quay.io/keycloak/keycloak:24.0.4"
+    command: ["start-dev", "--import-realm"]
+    environment:
+      - "KC_DB=postgres"
+      - "KC_DB_USERNAME=postgres"
+      - "KC_DB_PASSWORD=postgres"
+      - "KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak"
+      - "KC_REALM_NAME=myrealm"
+      - "KEYCLOAK_ADMIN=admin"
+      - "KEYCLOAK_ADMIN_PASSWORD=admin"
+    ports:
+      - "8082:8080"
+    volumes:
+      - "./data/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+    restart: "unless-stopped"

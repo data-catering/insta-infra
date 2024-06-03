@@ -1,0 +1,49 @@
+{
+  "id": "myrealm",
+  "realm": "myrealm",
+  "sslRequired": "none",
+  "enabled": true,
+  "eventsEnabled": true,
+  "eventsExpiration": 900,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "attributes": {
+    "adminEventsExpiration": "900"
+  },
+  "clients": [
+    {
+      "id": "airflow",
+      "clientId": "airflow",
+      "name": "airflow",
+      "enabled": true,
+      "publicClient": true,
+      "rootUrl": "http://airflow:8080",
+      "adminUrl": "http://airflow:8080",
+      "baseUrl": "http://airflow:8080",
+      "redirectUris": [
+        "http://airflow:8080/*"
+      ],
+      "webOrigins": [
+        "http://airflow:8080"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "airflow_devops",
+      "email": "devops@airflow.com",
+      "username": "airflow_devops",
+      "firstName": "DevOps",
+      "lastName": "SRE",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "admin"
+        }
+      ]
+    }
+  ]
+}
