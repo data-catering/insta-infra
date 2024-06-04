@@ -287,7 +287,7 @@ services:
 
   prefect-server:
     container_name: "prefect"
-    image: "prefecthq/prefect:2.19.3-python3.11"
+    image: "prefecthq/prefect:2.19.4-python3.11"
     entrypoint: ["/opt/prefect/entrypoint.sh", "prefect", "server", "start"]
     environment:
       - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
@@ -305,7 +305,7 @@ services:
 
   prefect:
     container_name: "prefect-data"
-    image: "prefecthq/prefect:2.19.3-python3.11"
+    image: "prefecthq/prefect:2.19.4-python3.11"
     entrypoint: [ "/opt/prefect/app/start_flows.sh" ]
     environment:
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
