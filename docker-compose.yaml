@@ -1,77 +1,6 @@
 version: "3.9"
 services:
-  postgres:
-    container_name: "postgres"
-    image: "postgres:16.3"
-    environment:
-      - "POSTGRES_USER=postgres"
-      - "POSTGRES_PASSWORD=postgres"
-      - "PGDATA=/data/postgres"
-    volumes:
-      - "${HOME}/data/postgres:/data/postgres"
-      - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready" ]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-    ports:
-      - "5432:5432"
-
-  mysql:
-    container_name: "mysql"
-    image: "mysql:8.4.0"
-    environment:
-      - "MYSQL_ROOT_PASSWORD=root"
-    command: "--default-authentication-plugin=mysql_native_password"
-    volumes:
-      - "${HOME}/data/mysql:/var/lib/mysql"
-      - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
-    healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
-      timeout: "20s"
-      retries: 3
-    ports:
-      - "3306:3306"
-
-  solace-server:
-    container_name: "solace"
-    image: "solace/solace-pubsub-standard:10.8"
-    environment:
-      - "username_admin_globalaccesslevel=admin"
-      - "username_admin_password=admin"
-      - "system_scaling_maxconnectioncount=100"
-    volumes:
-      - "${HOME}/data/solace:/var/lib/solace"
-    healthcheck:
-      test: [ "CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080" ]
-      interval: "30s"
-      timeout: "5s"
-      retries: 3
-    ports:
-      - "8080:8080"
-      - "55554:55555"
-    shm_size: "1g"
-    ulimits:
-      core: -1
-      nofile:
-        soft: 2448
-        hard: 6592
-    deploy:
-      restart_policy:
-        condition: "on-failure"
-        max_attempts: 1
-
-  solace:
-    container_name: "solace-data"
-    image: "solace/solace-pubsub-standard:10.8"
-    entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
-    volumes:
-      - "./data/solace:/opt/app"
-    depends_on:
-      solace-server:
-        condition: "service_healthy"
-
+  #database
   cassandra:
     container_name: "cassandra"
     image: "datastax/dse-server:6.8.48"
@@ -87,49 +16,10 @@ services:
       retries: 3
     ports:
       - "9042:9042"
-    # Allow DSE to lock memory with mlock
     cap_add:
       - "IPC_LOCK"
     ulimits:
       memlock: -1
-
-  httpbin:
-    container_name: "http"
-    image: "kennethreitz/httpbin:latest"
-    environment:
-      - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
-    ports:
-      - "80:80"
-
-  kafka-server:
-    container_name: "kafka"
-    image: "confluentinc/confluent-local:7.6.1"
-    environment:
-      - "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
-      - "KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT"
-      - "KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
-      - "KAFKA_LISTENERS=PLAINTEXT://kafka:29092,CONTROLLER://localhost:29093,PLAINTEXT_HOST://0.0.0.0:9092"
-    volumes:
-      - "${HOME}/data/kafka:/var/lib/kafka/data"
-    healthcheck:
-      test: [ "CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list" ]
-      interval: "15s"
-      timeout: "5s"
-      retries: 3
-    ports:
-      - "9092:9092"
-    expose:
-      - "29092"
-
-  kafka:
-    container_name: "kafka-data"
-    image: "confluentinc/confluent-local:7.6.1"
-    entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
-    volumes:
-      - "./data/kafka:/opt/app"
-    depends_on:
-      kafka-server:
-        condition: "service_healthy"
 
   elasticsearch:
     container_name: "elasticsearch"
@@ -146,6 +36,21 @@ services:
       - "9200:9200"
       - "9300:9300"
     restart: "unless-stopped"
+
+  mariadb:
+    container_name: "mariadb"
+    image: "mariadb:11.4.2"
+    environment:
+      - "MARIADB_USER=user"
+      - "MARIADB_PASSWORD=password"
+      - "MARIADB_ROOT_PASSWORD=root"
+      - "MARIADB_DATABASE=customer"
+    volumes:
+      - "${HOME}/data/mariadb:/var/lib/mysql:Z"
+      - "./data/mariadb:/opt/app"
+    ports:
+      - "3306:3306"
+    restart: "always"
 
   mongodb-server:
     container_name: "mongodb"
@@ -169,6 +74,124 @@ services:
     depends_on:
       - "mongodb-server"
 
+  mysql:
+    container_name: "mysql"
+    image: "mysql:8.4.0"
+    environment:
+      - "MYSQL_ROOT_PASSWORD=root"
+    command: "--default-authentication-plugin=mysql_native_password"
+    volumes:
+      - "${HOME}/data/mysql:/var/lib/mysql"
+      - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
+      timeout: "20s"
+      retries: 3
+    ports:
+      - "3306:3306"
+
+  postgres:
+    container_name: "postgres"
+    image: "postgres:16.3"
+    environment:
+      - "POSTGRES_USER=postgres"
+      - "POSTGRES_PASSWORD=postgres"
+      - "PGDATA=/data/postgres"
+    volumes:
+      - "${HOME}/data/postgres:/data/postgres"
+      - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+    ports:
+      - "5432:5432"
+
+  #data catalog
+  marquez-server:
+    container_name: "marquez"
+    image: "marquezproject/marquez:0.47.0"
+    environment:
+      - "MARQUEZ_CONFIG=/opt/app/marquez.yaml"
+      - "MARQUEZ_PORT=5000"
+      - "MARQUEZ_ADMIN_PORT=5001"
+      - "POSTGRES_HOST=postgres"
+      - "POSTGRES_PORT=5432"
+      - "POSTGRES_DB=marquez"
+      - "POSTGRES_USER=postgres"
+      - "POSTGRES_PASSWORD=postgres"
+    volumes:
+      - "${HOME}/data/marquez:/opt/marquez"
+      - "./data/marquez:/opt/app"
+    ports:
+      - "5002:5000"
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:5001/healthcheck" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  marquez-data:
+    container_name: "marquez-data"
+    image: "marquezproject/marquez:0.47.0"
+    entrypoint: "/bin/bash"
+    command: [ "-c", "/opt/app/seed.sh" ]
+    environment:
+      - "MARQUEZ_URL=http://marquez:5000"
+    volumes:
+      - "./data/marquez:/opt/app"
+    depends_on:
+      marquez-server:
+        condition: "service_healthy"
+
+  marquez:
+    container_name: "marquez-web"
+    image: "marquezproject/marquez-web:0.47.0"
+    environment:
+      - "MARQUEZ_HOST=host.docker.internal"
+      - "MARQUEZ_PORT=5002"
+    ports:
+      - "3001:3000"
+    depends_on:
+      - "marquez-data"
+
+  #http
+  httpbin:
+    container_name: "http"
+    image: "kennethreitz/httpbin:latest"
+    environment:
+      - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
+    ports:
+      - "80:80"
+
+  #identity management
+  keycloak:
+    container_name: "keycloak"
+    image: "quay.io/keycloak/keycloak:24.0.5"
+    command: [ "start-dev", "--import-realm" ]
+    environment:
+      - "KC_DB=postgres"
+      - "KC_DB_USERNAME=postgres"
+      - "KC_DB_PASSWORD=postgres"
+      - "KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak"
+      - "KC_REALM_NAME=myrealm"
+      - "KEYCLOAK_ADMIN=admin"
+      - "KEYCLOAK_ADMIN_PASSWORD=admin"
+    ports:
+      - "8082:8080"
+    volumes:
+      - "./data/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+    restart: "unless-stopped"
+
+  #job orchestrator
   airflow:
     container_name: "airflow"
     image: "apache/airflow:2.9.1"
@@ -254,18 +277,6 @@ services:
       postgres:
         condition: "service_healthy"
 
-  mage-ai:
-    container_name: "mage-ai"
-    image: "mageai/mageai:0.9.71"
-    command: "mage start your_first_project"
-    environment:
-      - "USER_CODE_PATH=/home/src/your_first_project"
-    ports:
-      - "6789:6789"
-    volumes:
-      - "${HOME}/data/mage-ai:/home/src/"
-    restart: "on-failure"
-
   dagster:
     container_name: "dagster"
     image: "dagster/dagster-k8s:1.7.8"
@@ -284,6 +295,18 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
+
+  mage-ai:
+    container_name: "mage-ai"
+    image: "mageai/mageai:0.9.71"
+    command: "mage start your_first_project"
+    environment:
+      - "USER_CODE_PATH=/home/src/your_first_project"
+    ports:
+      - "6789:6789"
+    volumes:
+      - "${HOME}/data/mage-ai:/home/src/"
+    restart: "on-failure"
 
   prefect-server:
     container_name: "prefect"
@@ -316,89 +339,71 @@ services:
     depends_on:
       - "prefect-server"
 
-  mariadb:
-    container_name: "mariadb"
-    image: "mariadb:11.4.2"
+  #messaging
+  kafka-server:
+    container_name: "kafka"
+    image: "confluentinc/confluent-local:7.6.1"
     environment:
-      - "MARIADB_USER=user"
-      - "MARIADB_PASSWORD=password"
-      - "MARIADB_ROOT_PASSWORD=root"
-      - "MARIADB_DATABASE=customer"
+      - "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      - "KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT"
+      - "KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
+      - "KAFKA_LISTENERS=PLAINTEXT://kafka:29092,CONTROLLER://localhost:29093,PLAINTEXT_HOST://0.0.0.0:9092"
     volumes:
-      - "${HOME}/data/mariadb:/var/lib/mysql:Z"
-      - "./data/mariadb:/opt/app"
-    ports:
-      - "3306:3306"
-    restart: "always"
-
-  keycloak:
-    container_name: "keycloak"
-    image: "quay.io/keycloak/keycloak:24.0.5"
-    command: ["start-dev", "--import-realm"]
-    environment:
-      - "KC_DB=postgres"
-      - "KC_DB_USERNAME=postgres"
-      - "KC_DB_PASSWORD=postgres"
-      - "KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak"
-      - "KC_REALM_NAME=myrealm"
-      - "KEYCLOAK_ADMIN=admin"
-      - "KEYCLOAK_ADMIN_PASSWORD=admin"
-    ports:
-      - "8082:8080"
-    volumes:
-      - "./data/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-    restart: "unless-stopped"
-
-  marquez-server:
-    container_name: "marquez"
-    image: "marquezproject/marquez:0.47.0"
-    environment:
-      - "MARQUEZ_CONFIG=/opt/app/marquez.yaml"
-      - "MARQUEZ_PORT=5000"
-      - "MARQUEZ_ADMIN_PORT=5001"
-      - "POSTGRES_HOST=postgres"
-      - "POSTGRES_PORT=5432"
-      - "POSTGRES_DB=marquez"
-      - "POSTGRES_USER=postgres"
-      - "POSTGRES_PASSWORD=postgres"
-    volumes:
-      - "${HOME}/data/marquez:/opt/marquez"
-      - "./data/marquez:/opt/app"
-    ports:
-      - "5002:5000"
-      - "5001:5001"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
+      - "${HOME}/data/kafka:/var/lib/kafka/data"
     healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:5001/healthcheck" ]
-      interval: "10s"
+      test: [ "CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list" ]
+      interval: "15s"
       timeout: "5s"
       retries: 3
+    ports:
+      - "9092:9092"
+    expose:
+      - "29092"
 
-  marquez-data:
-    container_name: "marquez-data"
-    image: "marquezproject/marquez:0.47.0"
-    entrypoint: "/bin/bash"
-    command: [ "-c", "/opt/app/seed.sh" ]
-    environment:
-      - "MARQUEZ_URL=http://marquez:5000"
+  kafka:
+    container_name: "kafka-data"
+    image: "confluentinc/confluent-local:7.6.1"
+    entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
     volumes:
-      - "./data/marquez:/opt/app"
+      - "./data/kafka:/opt/app"
     depends_on:
-      marquez-server:
+      kafka-server:
         condition: "service_healthy"
 
-  marquez:
-    container_name: "marquez-web"
-    image: "marquezproject/marquez-web:0.47.0"
+  solace-server:
+    container_name: "solace"
+    image: "solace/solace-pubsub-standard:10.8"
     environment:
-      - "MARQUEZ_HOST=host.docker.internal"
-      - "MARQUEZ_PORT=5002"
+      - "username_admin_globalaccesslevel=admin"
+      - "username_admin_password=admin"
+      - "system_scaling_maxconnectioncount=100"
+    volumes:
+      - "${HOME}/data/solace:/var/lib/solace"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080" ]
+      interval: "30s"
+      timeout: "5s"
+      retries: 3
     ports:
-      - "3001:3000"
+      - "8080:8080"
+      - "55554:55555"
+    shm_size: "1g"
+    ulimits:
+      core: -1
+      nofile:
+        soft: 2448
+        hard: 6592
+    deploy:
+      restart_policy:
+        condition: "on-failure"
+        max_attempts: 1
+
+  solace:
+    container_name: "solace-data"
+    image: "solace/solace-pubsub-standard:10.8"
+    entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
+    volumes:
+      - "./data/solace:/opt/app"
     depends_on:
-      - "marquez-data"
+      solace-server:
+        condition: "service_healthy"

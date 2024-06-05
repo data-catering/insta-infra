@@ -54,6 +54,8 @@ Alter data in [`data`](data) folder.
 | Database            | mysql         | ✅         |
 | Database            | postgres      | ✅         |
 | Data Catalog        | marquez       | ✅         |
+| Data Catalog        | amundsen      | ❌         |
+| Data Catalog        | datahub       | ❌         |
 | Data Catalog        | openmetadata  | ❌         |
 | HTTP                | httpbin       | ✅         |
 | Identity Management | keycloak      | ✅         |
@@ -63,3 +65,9 @@ Alter data in [`data`](data) folder.
 | Job Orchestrator    | prefect       | ✅         |
 | Messaging           | kafka         | ✅         |
 | Messaging           | solace        | ✅         |
+| Messaging           | activemq      | ❌         |
+| Messaging           | rabbitmq      | ❌         |
+| Query Engine        | clickhouse    | ❌         |
+| Query Engine        | duckdb        | ❌         |
+| Query Engine        | presto        | ❌         |
+| Query Engine        | trino         | ❌         |
