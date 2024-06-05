@@ -20,6 +20,8 @@ mongodb-connect='mongosh mongodb://root:root@mongodb'
 mysql='mysql -u root -proot'
 postgres='PGPASSWORD=postgres psql -Upostgres'
 prefect-data='bash'
+presto='presto-cli'
+trino='trino'
 "
 
 echo -e "${GREEN}Connecting to $1...${NC}"

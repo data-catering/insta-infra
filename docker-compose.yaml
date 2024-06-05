@@ -208,7 +208,7 @@ services:
     ports:
       - "8081:8080"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
       interval: "30s"
       timeout: "10s"
       retries: 5
@@ -280,7 +280,7 @@ services:
   dagster:
     container_name: "dagster"
     image: "dagster/dagster-k8s:1.7.8"
-    entrypoint: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml"]
+    entrypoint: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml" ]
     environment:
       - "DAGSTER_POSTGRES_HOST=postgres"
       - "DAGSTER_POSTGRES_USER=postgres"
@@ -311,7 +311,7 @@ services:
   prefect-server:
     container_name: "prefect"
     image: "prefecthq/prefect:2.19.4-python3.11"
-    entrypoint: ["/opt/prefect/entrypoint.sh", "prefect", "server", "start"]
+    entrypoint: [ "/opt/prefect/entrypoint.sh", "prefect", "server", "start" ]
     environment:
       - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
@@ -407,3 +407,58 @@ services:
     depends_on:
       solace-server:
         condition: "service_healthy"
+
+  #object storage
+  minio:
+    container_name: "minio"
+    image: "quay.io/minio/minio:RELEASE.2024-06-04T19-20-08Z"
+    command: [ "server", "/data", "--console-address", ":9001" ]
+    environment:
+      - "MINIO_ROOT_USER=minioadmin"
+      - "MINIO_ROOT_PASSWORD=minioadmin"
+    volumes:
+      - "${HOME}/data/minio:/data"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  #query engine
+  presto:
+    container_name: "presto"
+    image: "prestodb/presto:0.287"
+    volumes:
+      - "./data/presto/etc:/opt/presto-server/etc"
+      - "./data/presto/catalog:/opt/presto-server/etc/catalog"
+    ports:
+      - "8083:8080"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+
+  trino:
+    container_name: "trino"
+    image: "trinodb/trino:449"
+    volumes:
+      - "./data/trino/etc:/usr/lib/trino/etc:ro"
+      - "./data/trino/catalog:/etc/trino/catalog"
+    ports:
+      - "8084:8080"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+
+  #real-time OLAP
+
+  #test data management
+  data-caterer:
+    container_name: "data-caterer"
+    image: "datacatering/data-caterer-basic:0.10.6"
+    environment:
+      - "DEPLOY_MODE=standalone"
+    ports:
+      - "9898:9898"
