@@ -7,7 +7,7 @@ services:
     environment:
       - "DS_LICENSE=accept"
     volumes:
-      - "${HOME}/data/cassandra:/var/lib/cassandra"
+      - "./data/cassandra:/var/lib/cassandra"
       - "./data/cassandra/my_data.cql:/docker-entrypoint-initdb.d/my_data.cql"
     healthcheck:
       test: [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
@@ -31,7 +31,7 @@ services:
       - "discovery.type=single-node"
     volumes:
       - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
-      - "${HOME}/data/elasticsearch:/usr/share/elasticsearch/data:Z"
+      - "./data/elasticsearch:/usr/share/elasticsearch/data:Z"
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -46,7 +46,7 @@ services:
       - "MARIADB_ROOT_PASSWORD=root"
       - "MARIADB_DATABASE=customer"
     volumes:
-      - "${HOME}/data/mariadb:/var/lib/mysql:Z"
+      - "./data/mariadb:/var/lib/mysql:Z"
       - "./data/mariadb:/opt/app"
     ports:
       - "3306:3306"
@@ -59,7 +59,7 @@ services:
       - "MONGO_INITDB_ROOT_USERNAME=user"
       - "MONGO_INITDB_ROOT_PASSWORD=password"
     volumes:
-      - "${HOME}/data/mongodb:/data/db"
+      - "./data/mongodb:/data/db"
     ports:
       - "27017:27017"
 
@@ -81,7 +81,7 @@ services:
       - "MYSQL_ROOT_PASSWORD=root"
     command: "--default-authentication-plugin=mysql_native_password"
     volumes:
-      - "${HOME}/data/mysql:/var/lib/mysql"
+      - "./data/mysql:/var/lib/mysql"
       - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
     healthcheck:
       test: [ "CMD-SHELL", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
@@ -98,7 +98,7 @@ services:
       - "POSTGRES_PASSWORD=postgres"
       - "PGDATA=/data/postgres"
     volumes:
-      - "${HOME}/data/postgres:/data/postgres"
+      - "./data/postgres:/data/postgres"
       - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
@@ -122,7 +122,7 @@ services:
       - "POSTGRES_USER=postgres"
       - "POSTGRES_PASSWORD=postgres"
     volumes:
-      - "${HOME}/data/marquez:/opt/marquez"
+      - "./data/marquez:/opt/marquez"
       - "./data/marquez:/opt/app"
     ports:
       - "5002:5000"
@@ -288,7 +288,7 @@ services:
       - "DAGSTER_POSTGRES_DB=dagster"
       - "DAGSTER_HOME=/opt/dagster/dagster_home/"
     volumes:
-      - "${HOME}/data/dagster:/opt/dagster/dagster_home/"
+      - "./data/dagster:/opt/dagster/dagster_home/"
       - "./data/dagster:/opt/dagster/app/"
     ports:
       - "3000:3000"
@@ -305,7 +305,7 @@ services:
     ports:
       - "6789:6789"
     volumes:
-      - "${HOME}/data/mage-ai:/home/src/"
+      - "./data/mage-ai:/home/src/"
     restart: "on-failure"
 
   prefect-server:
@@ -318,7 +318,7 @@ services:
       - "PREFECT_SERVER_API_HOST=0.0.0.0"
       - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect"
     volumes:
-      - "${HOME}/data/prefect:/root/.prefect"
+      - "./data/prefect:/root/.prefect"
     ports:
       - "4200:4200"
     depends_on:
@@ -349,7 +349,7 @@ services:
       - "KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
       - "KAFKA_LISTENERS=PLAINTEXT://kafka:29092,CONTROLLER://localhost:29093,PLAINTEXT_HOST://0.0.0.0:9092"
     volumes:
-      - "${HOME}/data/kafka:/var/lib/kafka/data"
+      - "./data/kafka:/var/lib/kafka/data"
     healthcheck:
       test: [ "CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list" ]
       interval: "15s"
@@ -378,7 +378,7 @@ services:
       - "username_admin_password=admin"
       - "system_scaling_maxconnectioncount=100"
     volumes:
-      - "${HOME}/data/solace:/var/lib/solace"
+      - "./data/solace:/var/lib/solace"
     healthcheck:
       test: [ "CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080" ]
       interval: "30s"
@@ -417,7 +417,7 @@ services:
       - "MINIO_ROOT_USER=minioadmin"
       - "MINIO_ROOT_PASSWORD=minioadmin"
     volumes:
-      - "${HOME}/data/minio:/data"
+      - "./data/minio:/data"
     ports:
       - "9000:9000"
       - "9001:9001"
