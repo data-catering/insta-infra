@@ -428,6 +428,16 @@ services:
       retries: 5
 
   #query engine
+  duckdb:
+    container_name: "duckdb"
+    image: "datacatering/duckdb:v1.0.0"
+    entrypoint: [ "tail", "-F", "anything" ]
+    volumes:
+      - "./data/duckdb:/opt/data"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+
   presto:
     container_name: "presto"
     image: "prestodb/presto:0.287"

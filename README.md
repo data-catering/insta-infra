@@ -39,6 +39,20 @@ mysql     mysql:3306              localhost:3306     host.docker.internal:3306
 docker-compose down
 ```
 
+### Run from anywhere
+
+In your `.bashrc, .zshrc, ...`, add:
+
+```shell
+alias insta=<checkout directory>/insta-infra/run.sh
+```
+
+Run `source ~/.bashrc` or `source ~/.zshrc` or open a new terminal session. Then you can run:
+
+```shell
+insta postgres
+```
+
 ### Custom data
 
 Alter data in [`data`](data) folder.
@@ -74,7 +88,7 @@ If any data is persisted from the services to carry across sessions, it gets pus
 | Messaging            | activemq      | ❌         |
 | Messaging            | rabbitmq      | ❌         |
 | Object Storage       | minio         | ✅         |
-| Query Engine         | duckdb        | ❌         |
+| Query Engine         | duckdb        | ✅         |
 | Query Engine         | presto        | ✅         |
 | Query Engine         | trino         | ✅         |
 | Real-time OLAP       | clickhouse    | ❌         |

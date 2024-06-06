@@ -2,8 +2,6 @@
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-LIGHT_BLUE='\033[1;34m'
 NC='\033[0m'
 
 if [ -z "$1" ]
@@ -14,6 +12,7 @@ fi
 
 connection_commands="
 cassandra='cqlsh'
+duckdb='./duckdb'
 elasticsearch='elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200'
 mariadb='mariadb --user=user --password=password'
 mongodb-connect='mongosh mongodb://root:root@mongodb'
