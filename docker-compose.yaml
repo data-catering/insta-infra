@@ -79,7 +79,7 @@ services:
     image: "mysql:8.4.0"
     environment:
       - "MYSQL_ROOT_PASSWORD=root"
-    command: "--default-authentication-plugin=mysql_native_password"
+    command: "--mysql-native-password=ON"
     volumes:
       - "${HOME}/data/mysql:/var/lib/mysql"
       - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
