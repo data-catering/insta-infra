@@ -3,7 +3,7 @@ services:
   #database
   cassandra:
     container_name: "cassandra"
-    image: "datastax/dse-server:6.8.48"
+    image: "datacatering/dse-server:6.8.48"
     environment:
       - "DS_LICENSE=accept"
     volumes:
