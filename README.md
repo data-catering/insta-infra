@@ -61,7 +61,7 @@ Alter data in [`data`](data) folder.
 
 If any data is persisted from the services to carry across sessions, it gets pushed to folder:
 
-`${HOME}/data/<service>`
+`./data/<service>/persist`
 
 ## Services
 
@@ -85,8 +85,8 @@ If any data is persisted from the services to carry across sessions, it gets pus
 | Job Orchestrator     | prefect       | ✅         |
 | Messaging            | kafka         | ✅         |
 | Messaging            | solace        | ✅         |
-| Messaging            | activemq      | ❌         |
-| Messaging            | rabbitmq      | ❌         |
+| Messaging            | activemq      | ✅         |
+| Messaging            | rabbitmq      | ✅         |
 | Object Storage       | minio         | ✅         |
 | Query Engine         | duckdb        | ✅         |
 | Query Engine         | presto        | ✅         |

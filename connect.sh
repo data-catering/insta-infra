@@ -11,6 +11,7 @@ then
 fi
 
 connection_commands="
+activemq='/var/lib/artemis-instance/bin/artemis shell --user artemis --password artemis'
 cassandra='cqlsh'
 duckdb='./duckdb'
 elasticsearch='elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200'

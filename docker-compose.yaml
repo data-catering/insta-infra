@@ -7,7 +7,7 @@ services:
     environment:
       - "DS_LICENSE=accept"
     volumes:
-      - "${HOME}/data/cassandra:/var/lib/cassandra"
+      - "./data/cassandra/persist:/var/lib/cassandra"
       - "./data/cassandra/my_data.cql:/docker-entrypoint-initdb.d/my_data.cql"
     healthcheck:
       test: [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
@@ -31,7 +31,7 @@ services:
       - "discovery.type=single-node"
     volumes:
       - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
-      - "${HOME}/data/elasticsearch:/usr/share/elasticsearch/data:Z"
+      - "./data/elasticsearch/persist:/usr/share/elasticsearch/data:Z"
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -46,7 +46,7 @@ services:
       - "MARIADB_ROOT_PASSWORD=root"
       - "MARIADB_DATABASE=customer"
     volumes:
-      - "${HOME}/data/mariadb:/var/lib/mysql:Z"
+      - "./data/mariadb/persist:/var/lib/mysql:Z"
       - "./data/mariadb:/opt/app"
     ports:
       - "3306:3306"
@@ -59,7 +59,7 @@ services:
       - "MONGO_INITDB_ROOT_USERNAME=user"
       - "MONGO_INITDB_ROOT_PASSWORD=password"
     volumes:
-      - "${HOME}/data/mongodb:/data/db"
+      - "./data/mongodb/persist:/data/db"
     ports:
       - "27017:27017"
 
@@ -81,7 +81,7 @@ services:
       - "MYSQL_ROOT_PASSWORD=root"
     command: "--mysql-native-password=ON"
     volumes:
-      - "${HOME}/data/mysql:/var/lib/mysql"
+      - "./data/mysql/persist:/var/lib/mysql"
       - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
     healthcheck:
       test: [ "CMD-SHELL", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
@@ -98,7 +98,7 @@ services:
       - "POSTGRES_PASSWORD=postgres"
       - "PGDATA=/data/postgres"
     volumes:
-      - "${HOME}/data/postgres:/data/postgres"
+      - "./data/postgres/persist:/data/postgres"
       - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready" ]
@@ -122,7 +122,7 @@ services:
       - "POSTGRES_USER=postgres"
       - "POSTGRES_PASSWORD=postgres"
     volumes:
-      - "${HOME}/data/marquez:/opt/marquez"
+      - "./data/marquez/persist:/opt/marquez"
       - "./data/marquez:/opt/app"
     ports:
       - "5002:5000"
@@ -288,7 +288,7 @@ services:
       - "DAGSTER_POSTGRES_DB=dagster"
       - "DAGSTER_HOME=/opt/dagster/dagster_home/"
     volumes:
-      - "${HOME}/data/dagster:/opt/dagster/dagster_home/"
+      - "./data/dagster/persist:/opt/dagster/dagster_home/"
       - "./data/dagster:/opt/dagster/app/"
     ports:
       - "3000:3000"
@@ -305,7 +305,7 @@ services:
     ports:
       - "6789:6789"
     volumes:
-      - "${HOME}/data/mage-ai:/home/src/"
+      - "./data/mage-ai/persist:/home/src/"
     restart: "on-failure"
 
   prefect-server:
@@ -318,7 +318,7 @@ services:
       - "PREFECT_SERVER_API_HOST=0.0.0.0"
       - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect"
     volumes:
-      - "${HOME}/data/prefect:/root/.prefect"
+      - "./data/prefect/persist:/root/.prefect"
     ports:
       - "4200:4200"
     depends_on:
@@ -340,6 +340,23 @@ services:
       - "prefect-server"
 
   #messaging
+  activemq:
+    container_name: "activemq"
+    image: "apache/activemq-artemis:2.34.0"
+    environment:
+      - "ARTEMIS_USER=artemis"
+      - "ARTEMIS_PASSWORD=artemis"
+    volumes:
+      - "./data/activemq/persist:/var/lib/artemis-instance"
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -k -f http://localhost:8161/admin" ]
+      interval: "15s"
+      timeout: "5s"
+      retries: 3
+
   kafka-server:
     container_name: "kafka"
     image: "confluentinc/confluent-local:7.6.1"
@@ -349,7 +366,7 @@ services:
       - "KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
       - "KAFKA_LISTENERS=PLAINTEXT://kafka:29092,CONTROLLER://localhost:29093,PLAINTEXT_HOST://0.0.0.0:9092"
     volumes:
-      - "${HOME}/data/kafka:/var/lib/kafka/data"
+      - "./data/kafka/persist:/var/lib/kafka/data"
     healthcheck:
       test: [ "CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list" ]
       interval: "15s"
@@ -370,6 +387,24 @@ services:
       kafka-server:
         condition: "service_healthy"
 
+  rabbitmq:
+    container_name: "rabbitmq"
+    image: "rabbitmq:3.13.3-management"
+    environment:
+      - "RABBITMQ_DEFAULT_USER=guest"
+      - "RABBITMQ_DEFAULT_PASS=guest"
+    volumes:
+      - "./data/rabbitmq/persist:/var/lib/rabbitmq"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: "rabbitmq-diagnostics -q ping"
+      interval: "30s"
+      timeout: "30s"
+      retries: 3
+    hostname: "my-rabbit"
+
   solace-server:
     container_name: "solace"
     image: "solace/solace-pubsub-standard:10.8"
@@ -378,7 +413,7 @@ services:
       - "username_admin_password=admin"
       - "system_scaling_maxconnectioncount=100"
     volumes:
-      - "${HOME}/data/solace:/var/lib/solace"
+      - "./data/solace/persist:/var/lib/solace"
     healthcheck:
       test: [ "CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080" ]
       interval: "30s"
@@ -417,7 +452,7 @@ services:
       - "MINIO_ROOT_USER=minioadmin"
       - "MINIO_ROOT_PASSWORD=minioadmin"
     volumes:
-      - "${HOME}/data/minio:/data"
+      - "./data/minio/persist:/data"
     ports:
       - "9000:9000"
       - "9001:9001"
