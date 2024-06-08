@@ -507,3 +507,58 @@ services:
       - "DEPLOY_MODE=standalone"
     ports:
       - "9898:9898"
+
+  # Debezium for change data capture
+  debezium:
+    container_name: "debezium"
+    image: "debezium/connect:latest"
+    platform: linux/amd64
+    depends_on:
+      - mariadb
+      - redpanda
+    environment:
+      - "BOOTSTRAP_SERVERS=redpanda:9092"
+      - "GROUP_ID=1"
+      - "CONFIG_STORAGE_TOPIC=my_connect_configs"
+      - "OFFSET_STORAGE_TOPIC=my_connect_offsets"
+      - "STATUS_STORAGE_TOPIC=my_connect_statuses"
+      - "CONNECT_KEY_CONVERTER=org.apache.kafka.connect.storage.StringConverter"
+      - "CONNECT_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
+      - "CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE=false"
+      - "CONNECT_INTERNAL_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
+      - "CONNECT_INTERNAL_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
+      - "CONNECT_REST_ADVERTISED_HOST_NAME=debezium"
+      - "CONNECT_GROUP_ID=1"
+      - "CONNECT_CONFIG_STORAGE_TOPIC=my_connect_configs"
+      - "CONNECT_OFFSET_STORAGE_TOPIC=my_connect_offsets"
+      - "CONNECT_STATUS_STORAGE_TOPIC=my_connect_statuses"
+      - "CONNECT_LOG4J_LOGGERS=org.apache.kafka.connect.runtime.rest=WARN,org.reflections=WARN"
+    ports:
+      - "8083:8083"
+    volumes:
+      - "./data/debezium:/kafka/config"
+
+  redpanda:
+    container_name: "redpanda"
+    image: "docker.redpanda.com/redpandadata/redpanda:v23.3.9"
+    command:
+      - "redpanda start --overprovisioned --smp 1 --memory 1G --reserve-memory 0M --node-id 0 --check=false --kafka-addr PLAINTEXT://0.0.0.0:9092 --advertise-kafka-addr PLAINTEXT://redpanda:9092"
+    ports:
+      - "9092:9092"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+
+  redpanda-console:
+    container_name: "redpanda-console"
+    image: "docker.redpanda.com/redpandadata/console:latest"
+    environment:
+      - "KAFKA_BROKERS=redpanda:9092"
+      - "SCHEMA_REGISTRY_URL=http://redpanda:8081"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redpanda
+
+volumes:
+  redpanda_data:
+
