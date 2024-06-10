@@ -38,7 +38,7 @@ mysql     mysql:3306              localhost:3306     host.docker.internal:3306
 
 ```shell
 ./run.sh [down|-d] <services>
-./run.sh down #bring all services down
+./run.sh -d #bring all services down
 ./run.sh down postgres
 ```
 
@@ -72,6 +72,7 @@ If any data is persisted from the services to carry across sessions, it gets pus
 
 | Service Type             | Service       | Supported |
 |--------------------------|---------------|-----------|
+| Change Data Capture      | debezium      | ✅         |
 | Database                 | cassandra     | ✅         |
 | Database                 | elasticsearch | ✅         |
 | Database                 | mariadb       | ✅         |

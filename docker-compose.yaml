@@ -1,5 +1,45 @@
 version: "3.9"
 services:
+  #change data capture
+  debezium-connect:
+    container_name: "debezium-connect"
+    image: "debezium/connect:2.6.2.Final"
+    environment:
+      - "BOOTSTRAP_SERVERS=kafka:29092"
+      - "GROUP_ID=1"
+      - "CONFIG_STORAGE_TOPIC=my_connect_configs"
+      - "OFFSET_STORAGE_TOPIC=my_connect_offsets"
+      - "STATUS_STORAGE_TOPIC=my_connect_statuses"
+      - "KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
+      - "VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
+      - "CONNECT_REST_ADVERTISED_HOST_NAME=debezium-connect"
+      - "CONNECT_REST_PORT=8083"
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8083" ]
+      interval: "10s"
+      timeout: "10s"
+      retries: 3
+    depends_on:
+      - "kafka"
+
+  debezium:
+    container_name: "debezium"
+    image: "debezium/debezium-ui:2.1.2.Final"
+    ports:
+      - "8080:8080"
+    environment:
+      - "KAFKA_CONNECT_URIS=http://debezium-connect:8083"
+    depends_on:
+      debezium-connect:
+        condition: "service_healthy"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8080" ]
+      interval: "10s"
+      timeout: "10s"
+      retries: 3
+
   #database
   cassandra:
     container_name: "cassandra"
