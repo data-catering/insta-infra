@@ -87,6 +87,7 @@ If any data is persisted from the services to carry across sessions, it gets pus
 | Database                 | mariadb       | ✅         |
 | Database                 | mongodb       | ✅         |
 | Database                 | mysql         | ✅         |
+| Database                 | neo4j         | ✅         |
 | Database                 | postgres      | ✅         |
 | Database                 | opensearch    | ❌         |
 | Data Catalog             | marquez       | ✅         |
