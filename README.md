@@ -82,6 +82,7 @@ If any data is persisted from the services to carry across sessions, it gets pus
 |--------------------------|---------------|-----------|
 | Change Data Capture      | debezium      | ✅         |
 | Database                 | cassandra     | ✅         |
+| Database                 | cockroachdb   | ✅         |
 | Database                 | elasticsearch | ✅         |
 | Database                 | mariadb       | ✅         |
 | Database                 | mongodb       | ✅         |
