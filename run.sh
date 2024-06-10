@@ -8,6 +8,62 @@ NC='\033[0m'
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+connection_commands="
+activemq='/var/lib/artemis-instance/bin/artemis shell --user artemis --password artemis'
+cassandra='cqlsh'
+clickhouse='clickhouse-client'
+doris='mysql -uroot -P9030 -h127.0.0.1'
+duckdb='./duckdb'
+elasticsearch='elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200'
+mariadb='mariadb --user=user --password=password'
+mongodb-connect='mongosh mongodb://root:root@mongodb'
+mysql='mysql -u root -proot'
+postgres='PGPASSWORD=postgres psql -Upostgres'
+prefect-data='bash'
+presto='presto-cli'
+trino='trino'
+"
+
+usage() {
+  supported_services=$(awk '/## Services/{y=1;next}y' README.md | grep '✅' | awk -F'|' '{print $3}' | sort | xargs)
+  echo "Usage: $(basename "$0") [service...] [-h][--help]"
+  echo
+  echo "    service: name of service to run"
+  echo "      supported services: $supported_services"
+  exit 0
+}
+
+connect_to_service() {
+  if [ -z "$1" ]
+  then
+    echo -e "${RED}Error: No service name passed as argument${NC}"
+    exit 1
+  fi
+
+  echo -e "${GREEN}Connecting to $1...${NC}"
+  base_command=$(echo "$connection_commands" | grep "^$1")
+  IFS=$'\t' read -r container_name connection_command \
+    < <(sed -nr "s/(.*)='(.*)'/\1\t\2/p" <<< "$base_command")
+
+  if [ -z "$connection_command" ]
+  then
+    echo -e "${RED}Error: Failed to find connection command for $1${NC}"
+    exit 1
+  fi
+
+  docker exec -it "$container_name" bash -c "$connection_command"
+}
+
+shutdown_service() {
+  if [ -z "$1" ]; then
+    echo "Shutting down all services..."
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" down
+  else
+    echo "Shutting down services: $*..."
+    docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" down "$@"
+  fi
+}
+
 check_docker_installed() {
   echo -e "${GREEN}Checking for docker and docker-compose...${NC}"
   if ! command -v docker &>/dev/null; then
@@ -48,14 +104,24 @@ log_how_to_connect() {
   done | column -t -s ','
 }
 
-if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-  echo "Usage: $(basename "$0") [service...] [-h][--help]"
-  echo
-  echo "    service: name of service to run"
-  exit 0
-fi
-
-check_docker_installed
-startup_services "$@"
-log_how_to_connect
+case $1 in
+  "--help"|"-h")
+    usage
+    ;;
+  "-c"|"connect")
+    connect_to_service "$2"
+    ;;
+  "-d"|"down")
+    shutdown_service "${@:2}"
+    ;;
+  *)
+    if [ $# -eq 0 ]; then
+      usage
+    else
+      check_docker_installed
+      startup_services "$@"
+      log_how_to_connect
+    fi
+    ;;
+esac
 

@@ -160,6 +160,20 @@ services:
     depends_on:
       - "marquez-data"
 
+  #distributed coordination
+  zookeeper:
+    container_name: "zookeeper"
+    image: "zookeeper:3.5.10"
+    environment:
+      - "ZOO_MY_ID=1"
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: "nc -z localhost 2181 || exit -1"
+      interval: "5s"
+      timeout: "5s"
+      retries: 3
+
   #http
   httpbin:
     container_name: "http"
@@ -458,9 +472,9 @@ services:
       - "9001:9001"
     healthcheck:
       test: [ "CMD", "mc", "ready", "local" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      interval: "5s"
+      timeout: "5s"
+      retries: 3
 
   #query engine
   duckdb:
@@ -498,6 +512,202 @@ services:
         condition: "service_healthy"
 
   #real-time OLAP
+  clickhouse:
+    container_name: "clickhouse"
+    image: "clickhouse/clickhouse-server:24.4.2"
+    volumes:
+      - "./data/clickhouse/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    hostname: "clickhouse"
+    user: "101:101"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+
+  doris:
+    container_name: "doris"
+    image: "apache/doris:doris-all-in-one-2.1.0"
+    ports:
+      - "8030:8030"
+      - "8040:8040"
+      - "9030:9030"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+
+  druid-coordinator:
+    container_name: "druid-coordinator"
+    image: "apache/druid:29.0.1"
+    command: [ "coordinator" ]
+    volumes:
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/coordinator_var:/opt/druid/var"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+      zookeeper:
+        condition: "service_healthy"
+    ports:
+      - "8081:8081"
+    env_file: "data/druid/environment"
+    healthcheck:
+      test: "wget --no-verbose --tries=1 --spider http://localhost:8081/status/health || exit 1"
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  druid-broker:
+    container_name: "druid-broker"
+    image: "apache/druid:29.0.1"
+    command: [ "broker" ]
+    volumes:
+      - "./data/druid/persist/broker_var:/opt/druid/var"
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+      zookeeper:
+        condition: "service_healthy"
+      druid-coordinator:
+        condition: "service_healthy"
+    env_file: "data/druid/environment"
+    healthcheck:
+      test: "wget --no-verbose --tries=1 --spider http://localhost:8082/druid/broker/v1/loadstatus || exit 1"
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  druid-historical:
+    container_name: "druid-historical"
+    image: "apache/druid:29.0.1"
+    command: [ "historical" ]
+    volumes:
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/historical_var:/opt/druid/var"
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+      zookeeper:
+        condition: "service_healthy"
+      druid-coordinator:
+        condition: "service_healthy"
+    env_file: "data/druid/environment"
+    healthcheck:
+      test: "wget --no-verbose --tries=1 --spider http://localhost:8083/druid/historical/v1/readiness || exit 1"
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  druid-middlemanager:
+    container_name: "druid-middlemanager"
+    image: "apache/druid:29.0.1"
+    command: [ "middleManager" ]
+    volumes:
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/middle_var:/opt/druid/var"
+    ports:
+      - "8091:8091"
+      - "8100-8105:8100-8105"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+      zookeeper:
+        condition: "service_healthy"
+      druid-coordinator:
+        condition: "service_healthy"
+    env_file: "data/druid/environment"
+    healthcheck:
+      test: "wget --no-verbose --tries=1 --spider http://localhost:8091/status/health || exit 1"
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  druid:
+    container_name: "druid"
+    image: "apache/druid:29.0.1"
+    command: [ "router" ]
+    volumes:
+      - "./data/druid/persist/router_var:/opt/druid/var"
+    ports:
+      - "8888:8888"
+    depends_on:
+      druid-broker:
+        condition: "service_healthy"
+      druid-coordinator:
+        condition: "service_healthy"
+      druid-historical:
+        condition: "service_healthy"
+      druid-middlemanager:
+        condition: "service_healthy"
+      zookeeper:
+        condition: "service_healthy"
+      postgres:
+        condition: "service_healthy"
+    env_file: "data/druid/environment"
+    healthcheck:
+      test: "wget --no-verbose --tries=1 --spider http://localhost:8888/status/health || exit 1"
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  pinot-controller:
+    container_name: "pinot"
+    image: "apachepinot/pinot:1.1.0"
+    command: "StartController -zkAddress zookeeper:2181"
+    ports:
+      - "9000:9000"
+    environment:
+      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms1G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-controller.log"
+    restart: "unless-stopped"
+    depends_on:
+      zookeeper:
+        condition: "service_healthy"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:9000/pinot-controller/admin" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  pinot-broker:
+    container_name: "pinot-broker"
+    image: "apachepinot/pinot:1.1.0"
+    command: "StartBroker -zkAddress zookeeper:2181"
+    ports:
+      - "8099:8099"
+    environment:
+      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms4G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-broker.log"
+    restart: "unless-stopped"
+    depends_on:
+      pinot-controller:
+        condition: "service_healthy"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8099/health" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+
+  pinot:
+    container_name: "pinot-server"
+    image: "apachepinot/pinot:1.1.0"
+    command: "StartServer -zkAddress zookeeper:2181"
+    ports:
+      - "8098:8098"
+    environment:
+      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms4G -Xmx16G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-server.log"
+    restart: "unless-stopped"
+    depends_on:
+      pinot-broker:
+        condition: "service_healthy"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8098/health/readiness" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
 
   #test data management
   data-caterer:
@@ -505,5 +715,11 @@ services:
     image: "datacatering/data-caterer-basic:0.10.6"
     environment:
       - "DEPLOY_MODE=standalone"
+    volumes:
+      - "./data/data-caterer/connection:/opt/DataCaterer/connection"
+      - "./data/data-caterer/plan:/opt/DataCaterer/plan"
     ports:
       - "9898:9898"
+    depends_on:
+      postgres:
+        condition: "service_healthy"

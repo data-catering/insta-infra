@@ -1,0 +1,1 @@
+customer-postgres||postgres||dataSource||url:jdbc:postgresql://postgres:5432/customer||user:postgres||password:postgres

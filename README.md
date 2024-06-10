@@ -29,14 +29,17 @@ mysql     mysql:3306              localhost:3306     host.docker.internal:3306
 ### Connect
 
 ```shell
-./connect.sh <service>
-./connect.sh postgres
+./run.sh [connect|-c] <service>
+./run.sh -c postgres
+./run.sh connect postgres
 ```
 
 ### Shutdown
 
 ```shell
-docker-compose down
+./run.sh [down|-d] <services>
+./run.sh down #bring all services down
+./run.sh down postgres
 ```
 
 ### Run from anywhere
@@ -51,6 +54,8 @@ Run `source ~/.bashrc` or `source ~/.zshrc` or open a new terminal session. Then
 
 ```shell
 insta postgres
+insta -c postgres
+insta -d
 ```
 
 ### Custom data
@@ -65,34 +70,36 @@ If any data is persisted from the services to carry across sessions, it gets pus
 
 ## Services
 
-| Service Type         | Service       | Supported |
-|----------------------|---------------|-----------|
-| Database             | cassandra     | ✅         |
-| Database             | elasticsearch | ✅         |
-| Database             | mariadb       | ✅         |
-| Database             | mongodb       | ✅         |
-| Database             | mysql         | ✅         |
-| Database             | postgres      | ✅         |
-| Data Catalog         | marquez       | ✅         |
-| Data Catalog         | amundsen      | ❌         |
-| Data Catalog         | datahub       | ❌         |
-| Data Catalog         | openmetadata  | ❌         |
-| HTTP                 | httpbin       | ✅         |
-| Identity Management  | keycloak      | ✅         |
-| Job Orchestrator     | airflow       | ✅         |
-| Job Orchestrator     | dagster       | ✅         |
-| Job Orchestrator     | mage-ai       | ✅         |
-| Job Orchestrator     | prefect       | ✅         |
-| Messaging            | kafka         | ✅         |
-| Messaging            | solace        | ✅         |
-| Messaging            | activemq      | ✅         |
-| Messaging            | rabbitmq      | ✅         |
-| Object Storage       | minio         | ✅         |
-| Query Engine         | duckdb        | ✅         |
-| Query Engine         | presto        | ✅         |
-| Query Engine         | trino         | ✅         |
-| Real-time OLAP       | clickhouse    | ❌         |
-| Real-time OLAP       | doris         | ❌         |
-| Real-time OLAP       | druid         | ❌         |
-| Real-time OLAP       | pinot         | ❌         |
-| Test Data Management | data-caterer  | ✅         |
+| Service Type             | Service       | Supported |
+|--------------------------|---------------|-----------|
+| Database                 | cassandra     | ✅         |
+| Database                 | elasticsearch | ✅         |
+| Database                 | mariadb       | ✅         |
+| Database                 | mongodb       | ✅         |
+| Database                 | mysql         | ✅         |
+| Database                 | postgres      | ✅         |
+| Database                 | opensearch    | ❌         |
+| Data Catalog             | marquez       | ✅         |
+| Data Catalog             | amundsen      | ❌         |
+| Data Catalog             | datahub       | ❌         |
+| Data Catalog             | openmetadata  | ❌         |
+| Distributed Coordination | zookeeper     | ✅         |
+| HTTP                     | httpbin       | ✅         |
+| Identity Management      | keycloak      | ✅         |
+| Job Orchestrator         | airflow       | ✅         |
+| Job Orchestrator         | dagster       | ✅         |
+| Job Orchestrator         | mage-ai       | ✅         |
+| Job Orchestrator         | prefect       | ✅         |
+| Messaging                | kafka         | ✅         |
+| Messaging                | solace        | ✅         |
+| Messaging                | activemq      | ✅         |
+| Messaging                | rabbitmq      | ✅         |
+| Object Storage           | minio         | ✅         |
+| Query Engine             | duckdb        | ✅         |
+| Query Engine             | presto        | ✅         |
+| Query Engine             | trino         | ✅         |
+| Real-time OLAP           | clickhouse    | ✅         |
+| Real-time OLAP           | doris         | ✅         |
+| Real-time OLAP           | druid         | ✅         |
+| Real-time OLAP           | pinot         | ✅         |
+| Test Data Management     | data-caterer  | ✅         |
