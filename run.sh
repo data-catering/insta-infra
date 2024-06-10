@@ -25,11 +25,12 @@ trino='trino'
 "
 
 usage() {
-  supported_services=$(awk '/## Services/{y=1;next}y' README.md | grep '✅' | awk -F'|' '{print $3}' | sort | xargs)
-  echo "Usage: $(basename "$0") [service...] [-h][--help]"
+  echo "Usage: $(basename "$0") [options...] [services...]"
   echo
-  echo "    service: name of service to run"
-  echo "      supported services: $supported_services"
+  echo "    <services>              Name of services to run"
+  echo "    -c, connect [service]   Connect to service"
+  echo "    -d, down [services...]  Shutdown services (if empty, shutdown all services)"
+  echo "    -l, list                List supported services"
   exit 0
 }
 
@@ -64,6 +65,11 @@ shutdown_service() {
   fi
 }
 
+list_supported_services() {
+  supported_services=$(awk '/## Services/{y=1;next}y' "$SCRIPT_DIR/README.md" | grep '✅' | awk -F'|' '{print $3}' | sort | xargs)
+  echo -e "Supported services: ${GREEN}$supported_services${NC}"
+}
+
 check_docker_installed() {
   echo -e "${GREEN}Checking for docker and docker-compose...${NC}"
   if ! command -v docker &>/dev/null; then
@@ -81,7 +87,7 @@ startup_services() {
   echo -e "${GREEN}Starting up services...${NC}"
   docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" up -d "$@"
   if [ $? != 0 ]; then
-    echo -e "${RED}Failed to start up services${NC}"
+    echo -e "${RED}Error: Failed to start up services${NC}"
     exit 1
   fi
   sleep 2
@@ -113,6 +119,9 @@ case $1 in
     ;;
   "-d"|"down")
     shutdown_service "${@:2}"
+    ;;
+  "-l"|"list")
+    list_supported_services
     ;;
   *)
     if [ $# -eq 0 ]; then

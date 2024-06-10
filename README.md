@@ -42,6 +42,13 @@ mysql     mysql:3306              localhost:3306     host.docker.internal:3306
 ./run.sh down postgres
 ```
 
+### List supported services
+
+```shell
+./run.sh -l
+./run.sh list
+```
+
 ### Run from anywhere
 
 In your `.bashrc, .zshrc, ...`, add:
@@ -53,6 +60,7 @@ alias insta=<checkout directory>/insta-infra/run.sh
 Run `source ~/.bashrc` or `source ~/.zshrc` or open a new terminal session. Then you can run:
 
 ```shell
+insta -l
 insta postgres
 insta -c postgres
 insta -d
