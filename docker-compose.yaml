@@ -248,7 +248,7 @@ services:
   #job orchestrator
   airflow:
     container_name: "airflow"
-    image: "apache/airflow:2.9.1"
+    image: "apache/airflow:2.9.2"
     command: "standalone"
     environment:
       - "AIRFLOW_UID=50000"
@@ -275,7 +275,7 @@ services:
 
   airflow-init:
     container_name: "airflow-init"
-    image: "apache/airflow:2.9.1"
+    image: "apache/airflow:2.9.2"
     entrypoint: "/bin/bash"
     # yamllint disable rule:line-length
     command:
