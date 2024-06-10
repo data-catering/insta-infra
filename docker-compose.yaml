@@ -166,6 +166,37 @@ services:
       timeout: 10s
       retries: 5
 
+  # OpenSearch
+  opensearch:
+    container_name: opensearch
+    image: opensearchproject/opensearch:2.5.0
+    environment:
+      - discovery.type=single-node
+      - plugins.security.ssl.http.enabled=false
+      - plugins.security.disabled=true
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./data/opensearch:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+
+  # OpenSearch Dashboards
+  opensearch-dashboards:
+    container_name: opensearch-dashboards
+    image: opensearchproject/opensearch-dashboards:2.5.0
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - opensearch
+
   postgres:
     container_name: "postgres"
     image: "postgres:16.3"
