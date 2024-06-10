@@ -163,7 +163,7 @@ services:
   #distributed coordination
   zookeeper:
     container_name: "zookeeper"
-    image: "zookeeper:3.5.10"
+    image: "zookeeper:3.9.2"
     environment:
       - "ZOO_MY_ID=1"
     ports:
