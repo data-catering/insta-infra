@@ -11,6 +11,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 connection_commands="
 activemq='/var/lib/artemis-instance/bin/artemis shell --user artemis --password artemis'
 cassandra='cqlsh'
+cockroachdb='./cockroach sql --insecure'
 clickhouse='clickhouse-client'
 doris='mysql -uroot -P9030 -h127.0.0.1'
 duckdb='./duckdb'
@@ -18,6 +19,7 @@ elasticsearch='elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200
 mariadb='mariadb --user=user --password=password'
 mongodb-connect='mongosh mongodb://root:root@mongodb'
 mysql='mysql -u root -proot'
+neo4j='cypher-shell -u neo4j -p test'
 postgres='PGPASSWORD=postgres psql -Upostgres'
 prefect-data='bash'
 presto='presto-cli'
