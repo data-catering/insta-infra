@@ -11,7 +11,6 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 connection_commands="
 activemq='/var/lib/artemis-instance/bin/artemis shell --user artemis --password artemis'
 cassandra='cqlsh'
-cockroachdb='./cockroach sql --insecure'
 clickhouse='clickhouse-client'
 doris='mysql -uroot -P9030 -h127.0.0.1'
 duckdb='./duckdb'
