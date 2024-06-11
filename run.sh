@@ -12,6 +12,7 @@ connection_commands="
 activemq='/var/lib/artemis-instance/bin/artemis shell --user artemis --password artemis'
 cassandra='cqlsh'
 clickhouse='clickhouse-client'
+cockroachdb='./cockroach sql --insecure'
 doris='mysql -uroot -P9030 -h127.0.0.1'
 duckdb='./duckdb'
 elasticsearch='elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200'
