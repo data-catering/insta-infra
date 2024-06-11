@@ -752,7 +752,7 @@ services:
   #test data management
   data-caterer:
     container_name: "data-caterer"
-    image: "datacatering/data-caterer-basic:0.10.8"
+    image: "datacatering/data-caterer-basic:0.10.10"
     environment:
       - "DEPLOY_MODE=standalone"
     volumes:
