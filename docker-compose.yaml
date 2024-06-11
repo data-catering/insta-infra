@@ -147,24 +147,23 @@ services:
     ports:
       - "3306:3306"
 
-  # Neo4j
-  neo4j:
-    container_name: neo4j
-    image: neo4j:4.4.10
+  postgres:
+    container_name: "postgres"
+    image: "postgres:16.3"
     environment:
-      - NEO4J_AUTH=none
-      - NEO4J_dbms_connector_http_advertised__address=localhost:7474
-      - NEO4J_dbms_connector_bolt_advertised__address=localhost:7687
+      - "POSTGRES_USER=postgres"
+      - "POSTGRES_PASSWORD=postgres"
+      - "PGDATA=/data/postgres"
     volumes:
-      - ./data/neo4j:/data
-    ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "./data/postgres/persist:/data/postgres"
+      - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+    ports:
+      - "5432:5432"
 
   # OpenSearch
   opensearch:
@@ -172,7 +171,6 @@ services:
     image: opensearchproject/opensearch:2.5.0
     environment:
       - discovery.type=single-node
-      - plugins.security.ssl.http.enabled=false
       - plugins.security.disabled=true
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -196,24 +194,6 @@ services:
       - "5601:5601"
     depends_on:
       - opensearch
-
-  postgres:
-    container_name: "postgres"
-    image: "postgres:16.3"
-    environment:
-      - "POSTGRES_USER=postgres"
-      - "POSTGRES_PASSWORD=postgres"
-      - "PGDATA=/data/postgres"
-    volumes:
-      - "./data/postgres/persist:/data/postgres"
-      - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready" ]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-    ports:
-      - "5432:5432"
 
   #data catalog
   marquez-server:
@@ -830,3 +810,4 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
+  
