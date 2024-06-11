@@ -41,6 +41,22 @@ services:
       retries: 3
 
   #database
+  cockroachdb:
+    container_name: "cockroachdb"
+    image: "cockroachdb/cockroach:v22.1.8"
+    platform: "linux/amd64"
+    command: ["start-single-node", "--insecure"]
+    volumes:
+      - "./data/cockroachdb:/cockroach/cockroach-data"
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   cassandra:
     container_name: "cassandra"
     image: "datacatering/dse-server:6.8.48"
