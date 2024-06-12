@@ -33,6 +33,12 @@ usage() {
   echo "    -c, connect [service]   Connect to service"
   echo "    -d, down [services...]  Shutdown services (if empty, shutdown all services)"
   echo "    -l, list                List supported services"
+  echo
+  echo "Examples:"
+  echo "    $(basename "$0") -l"
+  echo "    $(basename "$0") postgres         Spin up Postgres"
+  echo "    $(basename "$0") -c postgres      Connect to Postgres"
+  echo "    $(basename "$0") -d               Bring Postgres down"
   exit 0
 }
 
