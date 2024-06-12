@@ -130,6 +130,24 @@ services:
     ports:
       - "3306:3306"
 
+  neo4j:
+    container_name: neo4j
+    image: neo4j:4.4.10
+    environment:
+      - NEO4J_AUTH=none
+      - NEO4J_dbms_connector_http_advertised__address=localhost:7474
+      - NEO4J_dbms_connector_bolt_advertised__address=localhost:7687
+    volumes:
+      - ./data/neo4j:/data
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   postgres:
     container_name: "postgres"
     image: "postgres:16.3"
@@ -763,3 +781,4 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
+  
