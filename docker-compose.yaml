@@ -132,7 +132,7 @@ services:
 
   neo4j:
     container_name: neo4j
-    image: neo4j:4.4.10
+    image: neo4j:4.4.34
     environment:
       - NEO4J_AUTH=none
       - NEO4J_dbms_connector_http_advertised__address=localhost:7474
