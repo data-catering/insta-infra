@@ -43,8 +43,7 @@ services:
   #database
   cockroachdb:
     container_name: "cockroachdb"
-    image: "cockroachdb/cockroach:v22.1.8"
-    platform: "linux/amd64"
+    image: "cockroachdb/cockroach:v24.1.0"
     command: ["start-single-node", "--insecure"]
     volumes:
       - "./data/cockroachdb/persist:/cockroach/cockroach-data"
