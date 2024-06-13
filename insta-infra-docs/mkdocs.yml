@@ -1,0 +1,14 @@
+site_name: insta-infra
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Commands:
+      - Start: commands/start.md
+      - Connect: commands/connect.md
+      - Shutdown: commands/shutdown.md
+      - List: commands/list.md
+  - Customization: customization.md
+  - Services: services.md
+
