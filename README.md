@@ -90,6 +90,8 @@ If any data is persisted from the services to carry across sessions, it gets pus
 | Database                 | neo4j         | ✅         |
 | Database                 | postgres      | ✅         |
 | Database                 | opensearch    | ❌         |
+| Database                 | spanner       | ✅         |
+| Database                 | sqlite        | ✅         |
 | Data Catalog             | marquez       | ✅         |
 | Data Catalog             | amundsen      | ❌         |
 | Data Catalog             | datahub       | ❌         |
@@ -107,6 +109,7 @@ If any data is persisted from the services to carry across sessions, it gets pus
 | Messaging                | rabbitmq      | ✅         |
 | Object Storage           | minio         | ✅         |
 | Query Engine             | duckdb        | ✅         |
+| Query Engine             | flight-sql    | ✅         |
 | Query Engine             | presto        | ✅         |
 | Query Engine             | trino         | ✅         |
 | Real-time OLAP           | clickhouse    | ✅         |
