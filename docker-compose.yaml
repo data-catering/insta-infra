@@ -247,6 +247,12 @@ services:
       timeout: "5s"
       retries: 3
 
+  unitycatalog:
+    container_name: "unitycatalog"
+    image: "datacatering/unitycatalog:0.1.0"
+    ports:
+      - "8081:8081"
+
   #http
   httpbin:
     container_name: "http"

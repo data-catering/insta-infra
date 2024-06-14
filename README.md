@@ -91,6 +91,7 @@ If any data is persisted from the services to carry across sessions, it gets pus
 | Database                 | postgres      | ✅         |
 | Database                 | opensearch    | ❌         |
 | Data Catalog             | marquez       | ✅         |
+| Data Catalog             | unitycatalog  | ✅         |
 | Data Catalog             | amundsen      | ❌         |
 | Data Catalog             | datahub       | ❌         |
 | Data Catalog             | openmetadata  | ❌         |
