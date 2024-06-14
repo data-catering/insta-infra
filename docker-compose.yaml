@@ -1,23 +1,6 @@
 version: "3.9"
 services:
 
-  #flight SQL
-  flight-sql:
-    container_name: "flight-sql"
-    image: "voltrondata/flight-sql:latest"
-    ports:
-      - "31337:31337"
-    environment:
-      - TLS_ENABLED=1
-      - FLIGHT_PASSWORD=flight_password
-      - PRINT_QUERIES=1
-    command: ["tail", "-f", "/dev/null"]
-    volumes:
-      - "./data/flight-sql:/opt/data"
-    depends_on:
-      - duckdb
-      - sqlite
-
   #change data capture
   debezium-connect:
     container_name: "debezium-connect"
@@ -585,6 +568,22 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
+
+  flight-sql:
+    container_name: "flight-sql"
+    image: "voltrondata/flight-sql:latest"
+    ports:
+      - "31337:31337"
+    environment:
+      - TLS_ENABLED=1
+      - FLIGHT_PASSWORD=flight_password
+      - PRINT_QUERIES=1
+    command: ["tail", "-f", "/dev/null"]
+    volumes:
+      - "./data/flight-sql:/opt/data"
+    depends_on:
+      - duckdb
+      - sqlite
 
   presto:
     container_name: "presto"
