@@ -612,7 +612,7 @@ services:
 
   druid-coordinator:
     container_name: "druid-coordinator"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "coordinator" ]
     volumes:
       - "./data/druid/persist/shared:/opt/shared"
@@ -633,7 +633,7 @@ services:
 
   druid-broker:
     container_name: "druid-broker"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "broker" ]
     volumes:
       - "./data/druid/persist/broker_var:/opt/druid/var"
@@ -655,7 +655,7 @@ services:
 
   druid-historical:
     container_name: "druid-historical"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "historical" ]
     volumes:
       - "./data/druid/persist/shared:/opt/shared"
@@ -678,7 +678,7 @@ services:
 
   druid-middlemanager:
     container_name: "druid-middlemanager"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "middleManager" ]
     volumes:
       - "./data/druid/persist/shared:/opt/shared"
@@ -702,7 +702,7 @@ services:
 
   druid:
     container_name: "druid"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "router" ]
     volumes:
       - "./data/druid/persist/router_var:/opt/druid/var"
