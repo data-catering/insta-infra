@@ -593,7 +593,7 @@ services:
   #real-time OLAP
   clickhouse:
     container_name: "clickhouse"
-    image: "clickhouse/clickhouse-server:24.5.1"
+    image: "clickhouse/clickhouse-server:24.5.3"
     volumes:
       - "./data/clickhouse/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
     ports:
