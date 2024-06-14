@@ -1,5 +1,23 @@
 version: "3.9"
 services:
+
+  #flight SQL
+  flight-sql:
+    container_name: "flight-sql"
+    image: "voltrondata/flight-sql:latest"
+    ports:
+      - "31337:31337"
+    environment:
+      - TLS_ENABLED=1
+      - FLIGHT_PASSWORD=flight_password
+      - PRINT_QUERIES=1
+    command: ["tail", "-f", "/dev/null"]
+    volumes:
+      - "./data/flight-sql:/opt/data"
+    depends_on:
+      - duckdb
+      - sqlite
+
   #change data capture
   debezium-connect:
     container_name: "debezium-connect"
@@ -233,6 +251,13 @@ services:
       - "3001:3000"
     depends_on:
       - "marquez-data"
+
+  spanner-emulator:
+    image: gcr.io/cloud-spanner-emulator/emulator
+    container_name: spanner-emulator
+    ports:
+      - "9010:9010"
+      - "9020:9020"
 
   #distributed coordination
   zookeeper:
@@ -572,6 +597,14 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
+
+  sqlite:
+    container_name: "sqlite"
+    image: "nouchka/sqlite3:latest"
+    platform: "linux/amd64"
+    volumes:
+      - "./data/sqlite:/opt/data"
+    command: ["tail", "-f", "/dev/null"]
 
   trino:
     container_name: "trino"
