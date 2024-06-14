@@ -1,6 +1,10 @@
 site_name: insta-infra
 theme:
   name: material
+  features:
+    - content.code.copy
+    - content.code.select
+    - content.tabs.link
   palette:
     # Palette toggle for automatic mode
     - media: "(prefers-color-scheme)"
