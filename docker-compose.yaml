@@ -372,7 +372,7 @@ services:
 
   dagster:
     container_name: "dagster"
-    image: "dagster/dagster-k8s:1.7.9"
+    image: "dagster/dagster-k8s:1.7.10"
     entrypoint: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml" ]
     environment:
       - "DAGSTER_POSTGRES_HOST=postgres"
