@@ -435,7 +435,7 @@ services:
   #messaging
   activemq:
     container_name: "activemq"
-    image: "apache/activemq-artemis:2.34.0"
+    image: "apache/activemq-artemis:2.35.0"
     environment:
       - "ARTEMIS_USER=artemis"
       - "ARTEMIS_PASSWORD=artemis"
