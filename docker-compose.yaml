@@ -1,5 +1,6 @@
 version: "3.9"
 services:
+
   #change data capture
   debezium-connect:
     container_name: "debezium-connect"
@@ -233,6 +234,13 @@ services:
     depends_on:
       - "marquez-data"
 
+  spanner-emulator:
+    image: gcr.io/cloud-spanner-emulator/emulator
+    container_name: spanner-emulator
+    ports:
+      - "9010:9010"
+      - "9020:9020"
+
   #distributed coordination
   zookeeper:
     container_name: "zookeeper"
@@ -435,7 +443,7 @@ services:
   #messaging
   activemq:
     container_name: "activemq"
-    image: "apache/activemq-artemis:2.34.0"
+    image: "apache/activemq-artemis:2.35.0"
     environment:
       - "ARTEMIS_USER=artemis"
       - "ARTEMIS_PASSWORD=artemis"
@@ -566,6 +574,22 @@ services:
       postgres:
         condition: "service_healthy"
 
+  flight-sql:
+    container_name: "flight-sql"
+    image: "voltrondata/flight-sql:latest"
+    ports:
+      - "31337:31337"
+    environment:
+      - TLS_ENABLED=1
+      - FLIGHT_PASSWORD=flight_password
+      - PRINT_QUERIES=1
+    command: ["tail", "-f", "/dev/null"]
+    volumes:
+      - "./data/flight-sql:/opt/data"
+    depends_on:
+      - duckdb
+      - sqlite
+
   presto:
     container_name: "presto"
     image: "prestodb/presto:0.287"
@@ -577,6 +601,14 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
+
+  sqlite:
+    container_name: "sqlite"
+    image: "nouchka/sqlite3:latest"
+    platform: "linux/amd64"
+    volumes:
+      - "./data/sqlite:/opt/data"
+    command: ["tail", "-f", "/dev/null"]
 
   trino:
     container_name: "trino"
@@ -819,3 +851,30 @@ services:
       - "9233:9233"
     entrypoint: "temporal"
     command: [ "server", "start-dev", "--db-filename", "/opt/data/db/temporal.db", "--ip", "0.0.0.0", "--metrics-port", "9233"]
+
+  #flink containers
+  flink-jobmanager:
+    image: flink:1.19.0-scala_2.12-java17
+    container_name: flink-jobmanager
+    expose:
+      - "6123"
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
+
+  flink:
+    image: flink:1.19.0-scala_2.12-java17
+    container_name: flink
+    expose:
+      - "6121"
+      - "6122"
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    links: []
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager

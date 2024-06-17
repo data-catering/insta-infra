@@ -16,6 +16,7 @@ cockroachdb='./cockroach sql --insecure'
 doris='mysql -uroot -P9030 -h127.0.0.1'
 duckdb='./duckdb'
 elasticsearch='elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200'
+flight-sql='flight_sql_client --command Execute --host localhost --port 31337 --username flight_username --password flight_password --query 'SELECT version()' --use-tls --tls-skip-verify'
 mariadb='mariadb --user=user --password=password'
 mongodb-connect='mongosh mongodb://root:root@mongodb'
 mysql='mysql -u root -proot'
@@ -25,6 +26,8 @@ prefect-data='bash'
 presto='presto-cli'
 trino='trino'
 unitycatalog='bash'
+flink='bash'
+flink-jobmanager='bash'
 "
 
 usage() {
