@@ -834,6 +834,23 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
+  
+  #temporal workflow
+  temporal:
+    container_name: "temporal"
+    image: "temporalio/server:1.24.1.0"
+    environment: []
+    volumes:
+      - "./data/temporal/persist:/opt/data/db"
+    expose:
+      - "8233"
+      - "7233"
+    ports:
+      - "8233:8233"
+      - "7233:7233"
+      - "9233:9233"
+    entrypoint: "temporal"
+    command: [ "server", "start-dev", "--db-filename", "/opt/data/db/temporal.db", "--ip", "0.0.0.0", "--metrics-port", "9233"]
 
   #flink containers
   flink-jobmanager:
@@ -861,5 +878,3 @@ services:
     environment:
       - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
       - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
-
-
