@@ -1,44 +1,3 @@
-version: "3.9"
-services:
-  #change data capture
-  debezium-connect:
-    container_name: "debezium-connect"
-    image: "debezium/connect:2.6.2.Final"
-    environment:
-      - "BOOTSTRAP_SERVERS=kafka:29092"
-      - "GROUP_ID=1"
-      - "CONFIG_STORAGE_TOPIC=my_connect_configs"
-      - "OFFSET_STORAGE_TOPIC=my_connect_offsets"
-      - "STATUS_STORAGE_TOPIC=my_connect_statuses"
-      - "KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
-      - "VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
-      - "CONNECT_REST_ADVERTISED_HOST_NAME=debezium-connect"
-      - "CONNECT_REST_PORT=8083"
-    ports:
-      - "8083:8083"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:8083" ]
-      interval: "10s"
-      timeout: "10s"
-      retries: 3
-    depends_on:
-      - "kafka"
-
-  debezium:
-    container_name: "debezium"
-    image: "debezium/debezium-ui:2.1.2.Final"
-    ports:
-      - "8080:8080"
-    environment:
-      - "KAFKA_CONNECT_URIS=http://debezium-connect:8083"
-    depends_on:
-      debezium-connect:
-        condition: "service_healthy"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:8080" ]
-      interval: "10s"
-      timeout: "10s"
-      retries: 3
 
 "services":
   "activemq":
@@ -401,6 +360,46 @@ services:
     "volumes":
       - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
       - "./data/elasticsearch/persist:/usr/share/elasticsearch/data:Z"
+  "flight-sql":
+    "command": ["tail", "-f", "/dev/null"]
+    "container_name": "flight-sql"
+    "depends_on":
+      - "duckdb"
+      - "sqlite"
+    "environment":
+      - "TLS_ENABLED=1"
+      - "FLIGHT_PASSWORD=flight_password"
+      - "PRINT_QUERIES=1"
+    "image": "voltrondata/flight-sql:v1.4.0"
+    "ports":
+      - "31337:31337"
+    "volumes":
+      - "./data/flight-sql:/opt/data"
+  "flink":
+    "command": "taskmanager"
+    "container_name": "flink"
+    "depends_on":
+      - "flink-jobmanager"
+    "environment":
+      - "JOB_MANAGER_RPC_ADDRESS=flink-jobmanager"
+      - "FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager"
+    "expose":
+      - "6121"
+      - "6122"
+    "image": "flink:1.19.0-scala_2.12-java17"
+    "links": []
+  "flink-jobmanager":
+    "command": "jobmanager"
+    "container_name": "flink-jobmanager"
+    "environment":
+      - "JOB_MANAGER_RPC_ADDRESS=flink-jobmanager"
+      - "FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager"
+
+    "expose":
+      - "6123"
+    "image": "flink:1.19.0-scala_2.12-java17"
+    "ports":
+      - "8081:8081"
   "httpbin":
     "container_name": "http"
     "environment":
@@ -759,6 +758,33 @@ services:
         "soft": 2448
     "volumes":
       - "./data/solace/persist:/var/lib/solace"
+  "spanner":
+    "container_name": "spanner"
+    "image": "gcr.io/cloud-spanner-emulator/emulator"
+    "ports":
+      - "9010:9010"
+      - "9020:9020"
+  "sqlite":
+    "command": ["tail", "-f", "/dev/null"]
+    "container_name": "sqlite"
+    "image": "keinos/sqlite3:3.46.0"
+    "volumes":
+      - "./data/sqlite:/opt/data"
+  "temporal":
+    "command": ["server", "start-dev", "--db-filename", "/opt/data/db/temporal.db", "--ip", "0.0.0.0", "--metrics-port", "9233"]
+    "container_name": "temporal"
+    "entrypoint": "temporal"
+    "environment": []
+    "expose":
+      - "8233"
+      - "7233"
+    "image": "temporalio/server:1.24.1.0"
+    "ports":
+      - "8233:8233"
+      - "7233:7233"
+      - "9233:9233"
+    "volumes":
+      - "./data/temporal/persist:/opt/data/db"
   "trino":
     "container_name": "trino"
     "depends_on":
@@ -787,72 +813,4 @@ services:
     "image": "zookeeper:3.9.2"
     "ports":
       - "2181:2181"
-  spanner:
-    image: gcr.io/cloud-spanner-emulator/emulator
-    container_name: spanner
-    ports:
-      - "9010:9010"
-      - "9020:9020"
-  temporal:
-    container_name: "temporal"
-    image: "temporalio/server:1.24.1.0"
-    environment: []
-    volumes:
-      - "./data/temporal/persist:/opt/data/db"
-    expose:
-      - "8233"
-      - "7233"
-    ports:
-      - "8233:8233"
-      - "7233:7233"
-      - "9233:9233"
-    entrypoint: "temporal"
-    command: [ "server", "start-dev", "--db-filename", "/opt/data/db/temporal.db", "--ip", "0.0.0.0", "--metrics-port", "9233"]
-
-  flink-jobmanager:
-    image: flink:1.19.0-scala_2.12-java17
-    container_name: flink-jobmanager
-    expose:
-      - "6123"
-    ports:
-      - "8081:8081"
-    command: jobmanager
-    environment:
-      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
-      - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
-
-  flink:
-    image: flink:1.19.0-scala_2.12-java17
-    container_name: flink
-    expose:
-      - "6121"
-      - "6122"
-    depends_on:
-      - flink-jobmanager
-    command: taskmanager
-    links: []
-    environment:
-      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
-      - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
-  flight-sql:
-    container_name: "flight-sql"
-    image: "voltrondata/flight-sql:v1.4.0"
-    ports:
-      - "31337:31337"
-    environment:
-      - TLS_ENABLED=1
-      - FLIGHT_PASSWORD=flight_password
-      - PRINT_QUERIES=1
-    command: ["tail", "-f", "/dev/null"]
-    volumes:
-      - "./data/flight-sql:/opt/data"
-    depends_on:
-      - duckdb
-      - sqlite
-  sqlite:
-    container_name: "sqlite"
-    image: "keinos/sqlite3:3.46.0"
-    volumes:
-      - "./data/sqlite:/opt/data"
-    command: ["tail", "-f", "/dev/null"]
 "version": "3.9"
