@@ -758,18 +758,18 @@
         "soft": 2448
     "volumes":
       - "./data/solace/persist:/var/lib/solace"
-  "sqlite":
-    "command": ["tail", "-f", "/dev/null"]
-    "container_name": "sqlite"
-    "image": "keinos/sqlite3:3.46.0"
-    "volumes":
-      - "./data/sqlite:/opt/data"
   "spanner":
     "container_name": "spanner"
     "image": "gcr.io/cloud-spanner-emulator/emulator"
     "ports":
       - "9010:9010"
       - "9020:9020"
+  "sqlite":
+    "command": ["tail", "-f", "/dev/null"]
+    "container_name": "sqlite"
+    "image": "keinos/sqlite3:3.46.0"
+    "volumes":
+      - "./data/sqlite:/opt/data"
   "temporal":
     "command": ["server", "start-dev", "--db-filename", "/opt/data/db/temporal.db", "--ip", "0.0.0.0", "--metrics-port", "9233"]
     "container_name": "temporal"
