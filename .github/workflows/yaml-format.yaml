@@ -1,9 +1,5 @@
 name: Docker-compose YAML formatter
-on:
-  pull_request:
-    types:
-      - opened
-      - edited
+on: pull_request
 permissions:
   contents: write
 jobs:
