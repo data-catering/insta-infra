@@ -1,324 +1,51 @@
-version: "3.9"
-services:
-  #change data capture
-  debezium-connect:
-    container_name: "debezium-connect"
-    image: "debezium/connect:2.6.2.Final"
-    environment:
-      - "BOOTSTRAP_SERVERS=kafka:29092"
-      - "GROUP_ID=1"
-      - "CONFIG_STORAGE_TOPIC=my_connect_configs"
-      - "OFFSET_STORAGE_TOPIC=my_connect_offsets"
-      - "STATUS_STORAGE_TOPIC=my_connect_statuses"
-      - "KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
-      - "VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
-      - "CONNECT_REST_ADVERTISED_HOST_NAME=debezium-connect"
-      - "CONNECT_REST_PORT=8083"
-    ports:
-      - "8083:8083"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:8083" ]
-      interval: "10s"
-      timeout: "10s"
-      retries: 3
-    depends_on:
-      - "kafka"
 
-  debezium:
-    container_name: "debezium"
-    image: "debezium/debezium-ui:2.1.2.Final"
-    ports:
-      - "8080:8080"
-    environment:
-      - "KAFKA_CONNECT_URIS=http://debezium-connect:8083"
-    depends_on:
-      debezium-connect:
-        condition: "service_healthy"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:8080" ]
-      interval: "10s"
-      timeout: "10s"
-      retries: 3
-
-  #database
-  cockroachdb:
-    container_name: "cockroachdb"
-    image: "cockroachdb/cockroach:v24.1.0"
-    command: ["start-single-node", "--insecure"]
-    volumes:
-      - "./data/cockroachdb/persist:/cockroach/cockroach-data"
-    ports:
-      - "26257:26257"
-      - "8080:8080"
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:8080/ || exit 1"]
-      interval: "10s"
-      timeout: "5s"
-      retries: 5
-
-  cassandra:
-    container_name: "cassandra"
-    image: "datacatering/dse-server:6.8.48"
-    environment:
-      - "DS_LICENSE=accept"
-    volumes:
-      - "./data/cassandra/persist:/var/lib/cassandra"
-      - "./data/cassandra/my_data.cql:/docker-entrypoint-initdb.d/my_data.cql"
-    healthcheck:
-      test: [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
-      interval: "30s"
-      timeout: "10s"
-      retries: 3
-    ports:
-      - "9042:9042"
-    cap_add:
-      - "IPC_LOCK"
-    ulimits:
-      memlock: -1
-
-  elasticsearch:
-    container_name: "elasticsearch"
-    image: "docker.elastic.co/elasticsearch/elasticsearch:8.14.1"
-    environment:
-      - "node.name=elasticsearch"
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - "ELASTIC_PASSWORD=elasticsearch"
-      - "discovery.type=single-node"
-    volumes:
-      - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
-      - "./data/elasticsearch/persist:/usr/share/elasticsearch/data:Z"
-    ports:
-      - "9200:9200"
-      - "9300:9300"
-    restart: "unless-stopped"
-
-  mariadb:
-    container_name: "mariadb"
-    image: "mariadb:11.4.2"
-    environment:
-      - "MARIADB_USER=user"
-      - "MARIADB_PASSWORD=password"
-      - "MARIADB_ROOT_PASSWORD=root"
-      - "MARIADB_DATABASE=customer"
-    volumes:
-      - "./data/mariadb/persist:/var/lib/mysql:Z"
-      - "./data/mariadb:/opt/app"
-    ports:
-      - "3306:3306"
-    restart: "always"
-
-  mongodb-server:
-    container_name: "mongodb"
-    image: "mongo:7.0.11"
-    environment:
-      - "MONGO_INITDB_ROOT_USERNAME=user"
-      - "MONGO_INITDB_ROOT_PASSWORD=password"
-    volumes:
-      - "./data/mongodb/persist:/data/db"
-    ports:
-      - "27017:27017"
-
-  mongodb:
-    container_name: "mongodb-connect"
-    image: "mongodb/mongodb-community-server:7.0.11-ubi8"
-    environment:
-      - "CONN_STR=mongodb://user:password@mongodb-server"
-    volumes:
-      - "./data/mongodb:/opt/app"
-    command: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
-    depends_on:
-      - "mongodb-server"
-
-  mysql:
-    container_name: "mysql"
-    image: "mysql:8.4.0"
-    environment:
-      - "MYSQL_ROOT_PASSWORD=root"
-    command: "--mysql-native-password=ON"
-    volumes:
-      - "./data/mysql/persist:/var/lib/mysql"
-      - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
-    healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
-      timeout: "20s"
-      retries: 3
-    ports:
-      - "3306:3306"
-
-  neo4j:
-    container_name: "neo4j"
-    image: "neo4j:5.20.0"
-    environment:
-      - "NEO4J_AUTH=none"
-      - "NEO4J_dbms_connector_http_advertised__address=localhost:7474"
-      - "NEO4J_dbms_connector_bolt_advertised__address=localhost:7687"
-    volumes:
-      - "./data/neo4j/persist:/data"
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
-      interval: "30s"
-      timeout: "10s"
-      retries: 5
-
-  postgres:
-    container_name: "postgres"
-    image: "postgres:16.3"
-    environment:
-      - "POSTGRES_USER=postgres"
-      - "POSTGRES_PASSWORD=postgres"
-      - "PGDATA=/data/postgres"
-    volumes:
-      - "./data/postgres/persist:/data/postgres"
-      - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready" ]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-    ports:
-      - "5432:5432"
-
-  #data catalog
-  marquez-server:
-    container_name: "marquez"
-    image: "marquezproject/marquez:0.47.0"
-    environment:
-      - "MARQUEZ_CONFIG=/opt/app/marquez.yaml"
-      - "MARQUEZ_PORT=5000"
-      - "MARQUEZ_ADMIN_PORT=5001"
-      - "POSTGRES_HOST=postgres"
-      - "POSTGRES_PORT=5432"
-      - "POSTGRES_DB=marquez"
-      - "POSTGRES_USER=postgres"
-      - "POSTGRES_PASSWORD=postgres"
-    volumes:
-      - "./data/marquez/persist:/opt/marquez"
-      - "./data/marquez:/opt/app"
-    ports:
-      - "5002:5000"
-      - "5001:5001"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:5001/healthcheck" ]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  marquez-data:
-    container_name: "marquez-data"
-    image: "marquezproject/marquez:0.47.0"
-    entrypoint: "/bin/bash"
-    command: [ "-c", "/opt/app/seed.sh" ]
-    environment:
-      - "MARQUEZ_URL=http://marquez:5000"
-    volumes:
-      - "./data/marquez:/opt/app"
-    depends_on:
-      marquez-server:
-        condition: "service_healthy"
-
-  marquez:
-    container_name: "marquez-web"
-    image: "marquezproject/marquez-web:0.47.0"
-    environment:
-      - "MARQUEZ_HOST=host.docker.internal"
-      - "MARQUEZ_PORT=5002"
-    ports:
-      - "3001:3000"
-    depends_on:
-      - "marquez-data"
-
-  #distributed coordination
-  zookeeper:
-    container_name: "zookeeper"
-    image: "zookeeper:3.9.2"
-    environment:
-      - "ZOO_MY_ID=1"
-    ports:
-      - "2181:2181"
-    healthcheck:
-      test: "nc -z localhost 2181 || exit -1"
-      interval: "5s"
-      timeout: "5s"
-      retries: 3
-
-  unitycatalog:
-    container_name: "unitycatalog"
-    image: "datacatering/unitycatalog:0.1.0"
-    ports:
-      - "8081:8081"
-
-  #http
-  httpbin:
-    container_name: "http"
-    image: "kennethreitz/httpbin:latest"
-    environment:
-      - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
-    ports:
-      - "80:80"
-
-  #identity management
-  keycloak:
-    container_name: "keycloak"
-    image: "quay.io/keycloak/keycloak:25.0.0"
-    command: [ "start-dev", "--import-realm" ]
-    environment:
-      - "KC_DB=postgres"
-      - "KC_DB_USERNAME=postgres"
-      - "KC_DB_PASSWORD=postgres"
-      - "KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak"
-      - "KC_REALM_NAME=myrealm"
-      - "KEYCLOAK_ADMIN=admin"
-      - "KEYCLOAK_ADMIN_PASSWORD=admin"
-    ports:
-      - "8082:8080"
-    volumes:
-      - "./data/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-    restart: "unless-stopped"
-
-  #job orchestrator
-  airflow:
-    container_name: "airflow"
-    image: "apache/airflow:2.9.2"
-    command: "standalone"
-    environment:
+"services":
+  "activemq":
+    "container_name": "activemq"
+    "environment":
+      - "ARTEMIS_USER=artemis"
+      - "ARTEMIS_PASSWORD=artemis"
+    "healthcheck":
+      "interval": "15s"
+      "retries": 3
+      "test": ["CMD-SHELL", "curl -k -f http://localhost:8161/admin"]
+      "timeout": "5s"
+    "image": "apache/activemq-artemis:2.34.0"
+    "ports":
+      - "61616:61616"
+      - "8161:8161"
+    "volumes":
+      - "./data/activemq/persist:/var/lib/artemis-instance"
+  "airflow":
+    "command": "standalone"
+    "container_name": "airflow"
+    "depends_on":
+      "airflow-init":
+        "condition": "service_completed_successfully"
+    "environment":
       - "AIRFLOW_UID=50000"
       - "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres/airflow"
       - "AIRFLOW__CORE__FERNET_KEY="
       - "AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true"
       - "AIRFLOW__CORE__LOAD_EXAMPLES=true"
       - "AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
-    volumes:
-      - "./data/airflow/dags:/opt/airflow/dags"
-    ports:
+    "healthcheck":
+      "interval": "30s"
+      "retries": 5
+      "start_period": "30s"
+      "test": ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      "timeout": "10s"
+    "image": "apache/airflow:2.9.2"
+    "ports":
       - "8081:8080"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
-      interval: "30s"
-      timeout: "10s"
-      retries: 5
-      start_period: "30s"
-    restart: "always"
-    user: "50000:0"
-    depends_on:
-      airflow-init:
-        condition: "service_completed_successfully"
-
-  airflow-init:
-    container_name: "airflow-init"
-    image: "apache/airflow:2.9.2"
-    entrypoint: "/bin/bash"
+    "restart": "always"
+    "user": "50000:0"
+    "volumes":
+      - "./data/airflow/dags:/opt/airflow/dags"
+  "airflow-init":
     # yamllint disable rule:line-length
-    command:
-      - -c
+    "command":
+      - "-c"
       - |
         one_meg=1048576
         mem_available=$$(($$(getconf _PHYS_PAGES) * $$(getconf PAGE_SIZE) / one_meg))
@@ -356,8 +83,13 @@ services:
         mkdir -p /sources/logs /sources/dags /sources/plugins
         chown -R "50000:0" /sources/{logs,dags,plugins}
         exec /entrypoint airflow version
+    "container_name": "airflow-init"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "entrypoint": "/bin/bash"
     # yamllint enable rule:line-length
-    environment:
+    "environment":
       - "AIRFLOW_UID=50000"
       - "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres/airflow"
       - "_AIRFLOW_DB_MIGRATE=true"
@@ -365,441 +97,653 @@ services:
       - "_AIRFLOW_WWW_USER_USERNAME=airflow"
       - "_AIRFLOW_WWW_USER_PASSWORD=airflow"
       - "_PIP_ADDITIONAL_REQUIREMENTS="
-    user: "0:0"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-
-  dagster:
-    container_name: "dagster"
-    image: "dagster/dagster-k8s:1.7.10"
-    entrypoint: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml" ]
-    environment:
+    "image": "apache/airflow:2.9.2"
+    "user": "0:0"
+  "cassandra":
+    "cap_add":
+      - "IPC_LOCK"
+    "container_name": "cassandra"
+    "environment":
+      - "DS_LICENSE=accept"
+    "healthcheck":
+      "interval": "30s"
+      "retries": 3
+      "test": ["CMD-SHELL", "[ $$(nodetool statusgossip) = running ]"]
+      "timeout": "10s"
+    "image": "datacatering/dse-server:6.8.48"
+    "ports":
+      - "9042:9042"
+    "ulimits":
+      "memlock": -1
+    "volumes":
+      - "./data/cassandra/persist:/var/lib/cassandra"
+      - "./data/cassandra/my_data.cql:/docker-entrypoint-initdb.d/my_data.cql"
+  "clickhouse":
+    "container_name": "clickhouse"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "hostname": "clickhouse"
+    "image": "clickhouse/clickhouse-server:24.5.3"
+    "ports":
+      - "8123:8123"
+      - "9000:9000"
+    "user": "101:101"
+    "volumes":
+      - "./data/clickhouse/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
+  "cockroachdb":
+    "command": ["start-single-node", "--insecure"]
+    "container_name": "cockroachdb"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 5
+      "test": ["CMD-SHELL", "curl --fail http://localhost:8080/ || exit 1"]
+      "timeout": "5s"
+    "image": "cockroachdb/cockroach:v24.1.0"
+    "ports":
+      - "26257:26257"
+      - "8080:8080"
+    "volumes":
+      - "./data/cockroachdb/persist:/cockroach/cockroach-data"
+  "dagster":
+    "container_name": "dagster"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "entrypoint": ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml"]
+    "environment":
       - "DAGSTER_POSTGRES_HOST=postgres"
       - "DAGSTER_POSTGRES_USER=postgres"
       - "DAGSTER_POSTGRES_PASSWORD=postgres"
       - "DAGSTER_POSTGRES_DB=dagster"
       - "DAGSTER_HOME=/opt/dagster/dagster_home/"
-    volumes:
+    "image": "dagster/dagster-k8s:1.7.10"
+    "ports":
+      - "3000:3000"
+    "volumes":
       - "./data/dagster/persist:/opt/dagster/dagster_home/"
       - "./data/dagster:/opt/dagster/app/"
-    ports:
-      - "3000:3000"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-
-  mage-ai:
-    container_name: "mage-ai"
-    image: "mageai/mageai:0.9.71"
-    command: "mage start your_first_project"
-    environment:
-      - "USER_CODE_PATH=/home/src/your_first_project"
-    ports:
-      - "6789:6789"
-    volumes:
-      - "./data/mage-ai/persist:/home/src/"
-    restart: "on-failure"
-
-  prefect-server:
-    container_name: "prefect"
-    image: "prefecthq/prefect:2.19.5-python3.11"
-    entrypoint: [ "/opt/prefect/entrypoint.sh", "prefect", "server", "start" ]
-    environment:
-      - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
-      - "PREFECT_API_URL=http://127.0.0.1:4200/api"
-      - "PREFECT_SERVER_API_HOST=0.0.0.0"
-      - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect"
-    volumes:
-      - "./data/prefect/persist:/root/.prefect"
-    ports:
-      - "4200:4200"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-    restart: "always"
-
-  prefect:
-    container_name: "prefect-data"
-    image: "prefecthq/prefect:2.19.5-python3.11"
-    entrypoint: [ "/opt/prefect/app/start_flows.sh" ]
-    environment:
-      - "PREFECT_API_URL=http://host.docker.internal:4200/api"
-    volumes:
-      - "./data/prefect/flows:/root/flows"
-      - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
-    working_dir: "/root/flows"
-    depends_on:
-      - "prefect-server"
-
-  #messaging
-  activemq:
-    container_name: "activemq"
-    image: "apache/activemq-artemis:2.34.0"
-    environment:
-      - "ARTEMIS_USER=artemis"
-      - "ARTEMIS_PASSWORD=artemis"
-    volumes:
-      - "./data/activemq/persist:/var/lib/artemis-instance"
-    ports:
-      - "61616:61616"
-      - "8161:8161"
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -k -f http://localhost:8161/admin" ]
-      interval: "15s"
-      timeout: "5s"
-      retries: 3
-
-  kafka-server:
-    container_name: "kafka"
-    image: "confluentinc/confluent-local:7.6.1"
-    environment:
+  "data-caterer":
+    "container_name": "data-caterer"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "environment":
+      - "DEPLOY_MODE=standalone"
+    "image": "datacatering/data-caterer-basic:0.10.10"
+    "ports":
+      - "9898:9898"
+    "volumes":
+      - "./data/data-caterer/connection:/opt/DataCaterer/connection"
+      - "./data/data-caterer/plan:/opt/DataCaterer/plan"
+  "debezium":
+    "container_name": "debezium"
+    "depends_on":
+      "debezium-connect":
+        "condition": "service_healthy"
+    "environment":
+      - "KAFKA_CONNECT_URIS=http://debezium-connect:8083"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": ["CMD", "curl", "--fail", "http://localhost:8080"]
+      "timeout": "10s"
+    "image": "debezium/debezium-ui:2.1.2.Final"
+    "ports":
+      - "8080:8080"
+  "debezium-connect":
+    "container_name": "debezium-connect"
+    "depends_on":
+      - "kafka"
+    "environment":
+      - "BOOTSTRAP_SERVERS=kafka:29092"
+      - "GROUP_ID=1"
+      - "CONFIG_STORAGE_TOPIC=my_connect_configs"
+      - "OFFSET_STORAGE_TOPIC=my_connect_offsets"
+      - "STATUS_STORAGE_TOPIC=my_connect_statuses"
+      - "KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
+      - "VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter"
+      - "CONNECT_REST_ADVERTISED_HOST_NAME=debezium-connect"
+      - "CONNECT_REST_PORT=8083"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": ["CMD", "curl", "--fail", "http://localhost:8083"]
+      "timeout": "10s"
+    "image": "debezium/connect:2.6.2.Final"
+    "ports":
+      - "8083:8083"
+  "doris":
+    "container_name": "doris"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "image": "apache/doris:doris-all-in-one-2.1.0"
+    "ports":
+      - "8030:8030"
+      - "8040:8040"
+      - "9030:9030"
+  "druid":
+    "command": ["router"]
+    "container_name": "druid"
+    "depends_on":
+      "druid-broker":
+        "condition": "service_healthy"
+      "druid-coordinator":
+        "condition": "service_healthy"
+      "druid-historical":
+        "condition": "service_healthy"
+      "druid-middlemanager":
+        "condition": "service_healthy"
+      "postgres":
+        "condition": "service_healthy"
+      "zookeeper":
+        "condition": "service_healthy"
+    "env_file": "data/druid/environment"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": "wget --no-verbose --tries=1 --spider http://localhost:8888/status/health || exit 1"
+      "timeout": "5s"
+    "image": "apache/druid:30.0.0"
+    "ports":
+      - "8888:8888"
+    "volumes":
+      - "./data/druid/persist/router_var:/opt/druid/var"
+  "druid-broker":
+    "command": ["broker"]
+    "container_name": "druid-broker"
+    "depends_on":
+      "druid-coordinator":
+        "condition": "service_healthy"
+      "postgres":
+        "condition": "service_healthy"
+      "zookeeper":
+        "condition": "service_healthy"
+    "env_file": "data/druid/environment"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": "wget --no-verbose --tries=1 --spider http://localhost:8082/druid/broker/v1/loadstatus || exit 1"
+      "timeout": "5s"
+    "image": "apache/druid:30.0.0"
+    "ports":
+      - "8082:8082"
+    "volumes":
+      - "./data/druid/persist/broker_var:/opt/druid/var"
+  "druid-coordinator":
+    "command": ["coordinator"]
+    "container_name": "druid-coordinator"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+      "zookeeper":
+        "condition": "service_healthy"
+    "env_file": "data/druid/environment"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": "wget --no-verbose --tries=1 --spider http://localhost:8081/status/health || exit 1"
+      "timeout": "5s"
+    "image": "apache/druid:30.0.0"
+    "ports":
+      - "8081:8081"
+    "volumes":
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/coordinator_var:/opt/druid/var"
+  "druid-historical":
+    "command": ["historical"]
+    "container_name": "druid-historical"
+    "depends_on":
+      "druid-coordinator":
+        "condition": "service_healthy"
+      "postgres":
+        "condition": "service_healthy"
+      "zookeeper":
+        "condition": "service_healthy"
+    "env_file": "data/druid/environment"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": "wget --no-verbose --tries=1 --spider http://localhost:8083/druid/historical/v1/readiness || exit 1"
+      "timeout": "5s"
+    "image": "apache/druid:30.0.0"
+    "ports":
+      - "8083:8083"
+    "volumes":
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/historical_var:/opt/druid/var"
+  "druid-middlemanager":
+    "command": ["middleManager"]
+    "container_name": "druid-middlemanager"
+    "depends_on":
+      "druid-coordinator":
+        "condition": "service_healthy"
+      "postgres":
+        "condition": "service_healthy"
+      "zookeeper":
+        "condition": "service_healthy"
+    "env_file": "data/druid/environment"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": "wget --no-verbose --tries=1 --spider http://localhost:8091/status/health || exit 1"
+      "timeout": "5s"
+    "image": "apache/druid:30.0.0"
+    "ports":
+      - "8091:8091"
+      - "8100-8105:8100-8105"
+    "volumes":
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/middle_var:/opt/druid/var"
+  "duckdb":
+    "container_name": "duckdb"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "entrypoint": ["tail", "-F", "anything"]
+    "image": "datacatering/duckdb:v1.0.0"
+    "volumes":
+      - "./data/duckdb:/opt/data"
+  "elasticsearch":
+    "container_name": "elasticsearch"
+    "environment":
+      - "node.name=elasticsearch"
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ELASTIC_PASSWORD=elasticsearch"
+      - "discovery.type=single-node"
+    "image": "docker.elastic.co/elasticsearch/elasticsearch:8.14.1"
+    "ports":
+      - "9200:9200"
+      - "9300:9300"
+    "restart": "unless-stopped"
+    "volumes":
+      - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
+      - "./data/elasticsearch/persist:/usr/share/elasticsearch/data:Z"
+  "httpbin":
+    "container_name": "http"
+    "environment":
+      - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
+    "image": "kennethreitz/httpbin:latest"
+    "ports":
+      - "80:80"
+  "kafka":
+    "container_name": "kafka-data"
+    "depends_on":
+      "kafka-server":
+        "condition": "service_healthy"
+    "entrypoint": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
+    "image": "confluentinc/confluent-local:7.6.1"
+    "volumes":
+      - "./data/kafka:/opt/app"
+  "kafka-server":
+    "container_name": "kafka"
+    "environment":
       - "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
       - "KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT"
       - "KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
       - "KAFKA_LISTENERS=PLAINTEXT://kafka:29092,CONTROLLER://localhost:29093,PLAINTEXT_HOST://0.0.0.0:9092"
-    volumes:
-      - "./data/kafka/persist:/var/lib/kafka/data"
-    healthcheck:
-      test: [ "CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list" ]
-      interval: "15s"
-      timeout: "5s"
-      retries: 3
-    ports:
-      - "9092:9092"
-    expose:
+    "expose":
       - "29092"
-
-  kafka:
-    container_name: "kafka-data"
-    image: "confluentinc/confluent-local:7.6.1"
-    entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
-    volumes:
-      - "./data/kafka:/opt/app"
-    depends_on:
-      kafka-server:
-        condition: "service_healthy"
-
-  rabbitmq:
-    container_name: "rabbitmq"
-    image: "rabbitmq:3.13.3-management"
-    environment:
+    "healthcheck":
+      "interval": "15s"
+      "retries": 3
+      "test": ["CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list"]
+      "timeout": "5s"
+    "image": "confluentinc/confluent-local:7.6.1"
+    "ports":
+      - "9092:9092"
+    "volumes":
+      - "./data/kafka/persist:/var/lib/kafka/data"
+  "keycloak":
+    "command": ["start-dev", "--import-realm"]
+    "container_name": "keycloak"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "environment":
+      - "KC_DB=postgres"
+      - "KC_DB_USERNAME=postgres"
+      - "KC_DB_PASSWORD=postgres"
+      - "KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak"
+      - "KC_REALM_NAME=myrealm"
+      - "KEYCLOAK_ADMIN=admin"
+      - "KEYCLOAK_ADMIN_PASSWORD=admin"
+    "image": "quay.io/keycloak/keycloak:25.0.0"
+    "ports":
+      - "8082:8080"
+    "restart": "unless-stopped"
+    "volumes":
+      - "./data/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro"
+  "mage-ai":
+    "command": "mage start your_first_project"
+    "container_name": "mage-ai"
+    "environment":
+      - "USER_CODE_PATH=/home/src/your_first_project"
+    "image": "mageai/mageai:0.9.71"
+    "ports":
+      - "6789:6789"
+    "restart": "on-failure"
+    "volumes":
+      - "./data/mage-ai/persist:/home/src/"
+  "mariadb":
+    "container_name": "mariadb"
+    "environment":
+      - "MARIADB_USER=user"
+      - "MARIADB_PASSWORD=password"
+      - "MARIADB_ROOT_PASSWORD=root"
+      - "MARIADB_DATABASE=customer"
+    "image": "mariadb:11.4.2"
+    "ports":
+      - "3306:3306"
+    "restart": "always"
+    "volumes":
+      - "./data/mariadb/persist:/var/lib/mysql:Z"
+      - "./data/mariadb:/opt/app"
+  "marquez":
+    "container_name": "marquez-web"
+    "depends_on":
+      - "marquez-data"
+    "environment":
+      - "MARQUEZ_HOST=host.docker.internal"
+      - "MARQUEZ_PORT=5002"
+    "image": "marquezproject/marquez-web:0.47.0"
+    "ports":
+      - "3001:3000"
+  "marquez-data":
+    "command": ["-c", "/opt/app/seed.sh"]
+    "container_name": "marquez-data"
+    "depends_on":
+      "marquez-server":
+        "condition": "service_healthy"
+    "entrypoint": "/bin/bash"
+    "environment":
+      - "MARQUEZ_URL=http://marquez:5000"
+    "image": "marquezproject/marquez:0.47.0"
+    "volumes":
+      - "./data/marquez:/opt/app"
+  "marquez-server":
+    "container_name": "marquez"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "environment":
+      - "MARQUEZ_CONFIG=/opt/app/marquez.yaml"
+      - "MARQUEZ_PORT=5000"
+      - "MARQUEZ_ADMIN_PORT=5001"
+      - "POSTGRES_HOST=postgres"
+      - "POSTGRES_PORT=5432"
+      - "POSTGRES_DB=marquez"
+      - "POSTGRES_USER=postgres"
+      - "POSTGRES_PASSWORD=postgres"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": ["CMD", "curl", "--fail", "http://localhost:5001/healthcheck"]
+      "timeout": "5s"
+    "image": "marquezproject/marquez:0.47.0"
+    "ports":
+      - "5002:5000"
+      - "5001:5001"
+    "volumes":
+      - "./data/marquez/persist:/opt/marquez"
+      - "./data/marquez:/opt/app"
+  "minio":
+    "command": ["server", "/data", "--console-address", ":9001"]
+    "container_name": "minio"
+    "environment":
+      - "MINIO_ROOT_USER=minioadmin"
+      - "MINIO_ROOT_PASSWORD=minioadmin"
+    "healthcheck":
+      "interval": "5s"
+      "retries": 3
+      "test": ["CMD", "mc", "ready", "local"]
+      "timeout": "5s"
+    "image": "quay.io/minio/minio:RELEASE.2024-06-04T19-20-08Z"
+    "ports":
+      - "9000:9000"
+      - "9001:9001"
+    "volumes":
+      - "./data/minio/persist:/data"
+  "mongodb":
+    "command": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
+    "container_name": "mongodb-connect"
+    "depends_on":
+      - "mongodb-server"
+    "environment":
+      - "CONN_STR=mongodb://user:password@mongodb-server"
+    "image": "mongodb/mongodb-community-server:7.0.11-ubi8"
+    "volumes":
+      - "./data/mongodb:/opt/app"
+  "mongodb-server":
+    "container_name": "mongodb"
+    "environment":
+      - "MONGO_INITDB_ROOT_USERNAME=user"
+      - "MONGO_INITDB_ROOT_PASSWORD=password"
+    "image": "mongo:7.0.11"
+    "ports":
+      - "27017:27017"
+    "volumes":
+      - "./data/mongodb/persist:/data/db"
+  "mysql":
+    "command": "--mysql-native-password=ON"
+    "container_name": "mysql"
+    "environment":
+      - "MYSQL_ROOT_PASSWORD=root"
+    "healthcheck":
+      "retries": 3
+      "test": ["CMD-SHELL", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      "timeout": "20s"
+    "image": "mysql:8.4.0"
+    "ports":
+      - "3306:3306"
+    "volumes":
+      - "./data/mysql/persist:/var/lib/mysql"
+      - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
+  "neo4j":
+    "container_name": "neo4j"
+    "environment":
+      - "NEO4J_AUTH=none"
+      - "NEO4J_dbms_connector_http_advertised__address=localhost:7474"
+      - "NEO4J_dbms_connector_bolt_advertised__address=localhost:7687"
+    "healthcheck":
+      "interval": "30s"
+      "retries": 5
+      "test": ["CMD-SHELL", "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
+      "timeout": "10s"
+    "image": "neo4j:5.20.0"
+    "ports":
+      - "7474:7474"
+      - "7687:7687"
+    "volumes":
+      - "./data/neo4j/persist:/data"
+  "pinot":
+    "command": "StartServer -zkAddress zookeeper:2181"
+    "container_name": "pinot-server"
+    "depends_on":
+      "pinot-broker":
+        "condition": "service_healthy"
+    "environment":
+      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms4G -Xmx16G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-server.log"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": ["CMD", "curl", "--fail", "http://localhost:8098/health/readiness"]
+      "timeout": "5s"
+    "image": "apachepinot/pinot:1.1.0"
+    "ports":
+      - "8098:8098"
+    "restart": "unless-stopped"
+  "pinot-broker":
+    "command": "StartBroker -zkAddress zookeeper:2181"
+    "container_name": "pinot-broker"
+    "depends_on":
+      "pinot-controller":
+        "condition": "service_healthy"
+    "environment":
+      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms4G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-broker.log"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": ["CMD", "curl", "--fail", "http://localhost:8099/health"]
+      "timeout": "5s"
+    "image": "apachepinot/pinot:1.1.0"
+    "ports":
+      - "8099:8099"
+    "restart": "unless-stopped"
+  "pinot-controller":
+    "command": "StartController -zkAddress zookeeper:2181"
+    "container_name": "pinot"
+    "depends_on":
+      "zookeeper":
+        "condition": "service_healthy"
+    "environment":
+      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms1G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-controller.log"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": ["CMD", "curl", "--fail", "http://localhost:9000/pinot-controller/admin"]
+      "timeout": "5s"
+    "image": "apachepinot/pinot:1.1.0"
+    "ports":
+      - "9000:9000"
+    "restart": "unless-stopped"
+  "postgres":
+    "container_name": "postgres"
+    "environment":
+      - "POSTGRES_USER=postgres"
+      - "POSTGRES_PASSWORD=postgres"
+      - "PGDATA=/data/postgres"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": ["CMD-SHELL", "pg_isready"]
+      "timeout": "5s"
+    "image": "postgres:16.3"
+    "ports":
+      - "5432:5432"
+    "volumes":
+      - "./data/postgres/persist:/data/postgres"
+      - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
+  "prefect":
+    "container_name": "prefect-data"
+    "depends_on":
+      - "prefect-server"
+    "entrypoint": ["/opt/prefect/app/start_flows.sh"]
+    "environment":
+      - "PREFECT_API_URL=http://host.docker.internal:4200/api"
+    "image": "prefecthq/prefect:2.19.5-python3.11"
+    "volumes":
+      - "./data/prefect/flows:/root/flows"
+      - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
+    "working_dir": "/root/flows"
+  "prefect-server":
+    "container_name": "prefect"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "entrypoint": ["/opt/prefect/entrypoint.sh", "prefect", "server", "start"]
+    "environment":
+      - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
+      - "PREFECT_API_URL=http://127.0.0.1:4200/api"
+      - "PREFECT_SERVER_API_HOST=0.0.0.0"
+      - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect"
+    "image": "prefecthq/prefect:2.19.5-python3.11"
+    "ports":
+      - "4200:4200"
+    "restart": "always"
+    "volumes":
+      - "./data/prefect/persist:/root/.prefect"
+  "presto":
+    "container_name": "presto"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "image": "prestodb/presto:0.287"
+    "ports":
+      - "8083:8080"
+    "volumes":
+      - "./data/presto/etc:/opt/presto-server/etc"
+      - "./data/presto/catalog:/opt/presto-server/etc/catalog"
+  "rabbitmq":
+    "container_name": "rabbitmq"
+    "environment":
       - "RABBITMQ_DEFAULT_USER=guest"
       - "RABBITMQ_DEFAULT_PASS=guest"
-    volumes:
-      - "./data/rabbitmq/persist:/var/lib/rabbitmq"
-    ports:
+    "healthcheck":
+      "interval": "30s"
+      "retries": 3
+      "test": "rabbitmq-diagnostics -q ping"
+      "timeout": "30s"
+    "hostname": "my-rabbit"
+    "image": "rabbitmq:3.13.3-management"
+    "ports":
       - "5672:5672"
       - "15672:15672"
-    healthcheck:
-      test: "rabbitmq-diagnostics -q ping"
-      interval: "30s"
-      timeout: "30s"
-      retries: 3
-    hostname: "my-rabbit"
-
-  solace-server:
-    container_name: "solace"
-    image: "solace/solace-pubsub-standard:10.8"
-    environment:
+    "volumes":
+      - "./data/rabbitmq/persist:/var/lib/rabbitmq"
+  "solace":
+    "container_name": "solace-data"
+    "depends_on":
+      "solace-server":
+        "condition": "service_healthy"
+    "entrypoint": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
+    "image": "solace/solace-pubsub-standard:10.8"
+    "volumes":
+      - "./data/solace:/opt/app"
+  "solace-server":
+    "container_name": "solace"
+    "deploy":
+      "restart_policy":
+        "condition": "on-failure"
+        "max_attempts": 1
+    "environment":
       - "username_admin_globalaccesslevel=admin"
       - "username_admin_password=admin"
       - "system_scaling_maxconnectioncount=100"
-    volumes:
-      - "./data/solace/persist:/var/lib/solace"
-    healthcheck:
-      test: [ "CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080" ]
-      interval: "30s"
-      timeout: "5s"
-      retries: 3
-    ports:
+    "healthcheck":
+      "interval": "30s"
+      "retries": 3
+      "test": ["CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080"]
+      "timeout": "5s"
+    "image": "solace/solace-pubsub-standard:10.8"
+    "ports":
       - "8080:8080"
       - "55554:55555"
-    shm_size: "1g"
-    ulimits:
-      core: -1
-      nofile:
-        soft: 2448
-        hard: 6592
-    deploy:
-      restart_policy:
-        condition: "on-failure"
-        max_attempts: 1
-
-  solace:
-    container_name: "solace-data"
-    image: "solace/solace-pubsub-standard:10.8"
-    entrypoint: [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
-    volumes:
-      - "./data/solace:/opt/app"
-    depends_on:
-      solace-server:
-        condition: "service_healthy"
-
-  #object storage
-  minio:
-    container_name: "minio"
-    image: "quay.io/minio/minio:RELEASE.2024-06-04T19-20-08Z"
-    command: [ "server", "/data", "--console-address", ":9001" ]
-    environment:
-      - "MINIO_ROOT_USER=minioadmin"
-      - "MINIO_ROOT_PASSWORD=minioadmin"
-    volumes:
-      - "./data/minio/persist:/data"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
-      interval: "5s"
-      timeout: "5s"
-      retries: 3
-
-  #query engine
-  duckdb:
-    container_name: "duckdb"
-    image: "datacatering/duckdb:v1.0.0"
-    entrypoint: [ "tail", "-F", "anything" ]
-    volumes:
-      - "./data/duckdb:/opt/data"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-
-  presto:
-    container_name: "presto"
-    image: "prestodb/presto:0.287"
-    volumes:
-      - "./data/presto/etc:/opt/presto-server/etc"
-      - "./data/presto/catalog:/opt/presto-server/etc/catalog"
-    ports:
-      - "8083:8080"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-
-  trino:
-    container_name: "trino"
-    image: "trinodb/trino:449"
-    volumes:
+    "shm_size": "1g"
+    "ulimits":
+      "core": -1
+      "nofile":
+        "hard": 6592
+        "soft": 2448
+    "volumes":
+      - "./data/solace/persist:/var/lib/solace"
+  "trino":
+    "container_name": "trino"
+    "depends_on":
+      "postgres":
+        "condition": "service_healthy"
+    "image": "trinodb/trino:449"
+    "ports":
+      - "8084:8080"
+    "volumes":
       - "./data/trino/etc:/usr/lib/trino/etc:ro"
       - "./data/trino/catalog:/etc/trino/catalog"
-    ports:
-      - "8084:8080"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-
-  #real-time OLAP
-  clickhouse:
-    container_name: "clickhouse"
-    image: "clickhouse/clickhouse-server:24.5.3"
-    volumes:
-      - "./data/clickhouse/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
-    ports:
-      - "8123:8123"
-      - "9000:9000"
-    hostname: "clickhouse"
-    user: "101:101"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-
-  doris:
-    container_name: "doris"
-    image: "apache/doris:doris-all-in-one-2.1.0"
-    ports:
-      - "8030:8030"
-      - "8040:8040"
-      - "9030:9030"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-
-  druid-coordinator:
-    container_name: "druid-coordinator"
-    image: "apache/druid:30.0.0"
-    command: [ "coordinator" ]
-    volumes:
-      - "./data/druid/persist/shared:/opt/shared"
-      - "./data/druid/persist/coordinator_var:/opt/druid/var"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-      zookeeper:
-        condition: "service_healthy"
-    ports:
+  "unitycatalog":
+    "container_name": "unitycatalog"
+    "image": "datacatering/unitycatalog:0.1.0"
+    "ports":
       - "8081:8081"
-    env_file: "data/druid/environment"
-    healthcheck:
-      test: "wget --no-verbose --tries=1 --spider http://localhost:8081/status/health || exit 1"
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  druid-broker:
-    container_name: "druid-broker"
-    image: "apache/druid:30.0.0"
-    command: [ "broker" ]
-    volumes:
-      - "./data/druid/persist/broker_var:/opt/druid/var"
-    ports:
-      - "8082:8082"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-      zookeeper:
-        condition: "service_healthy"
-      druid-coordinator:
-        condition: "service_healthy"
-    env_file: "data/druid/environment"
-    healthcheck:
-      test: "wget --no-verbose --tries=1 --spider http://localhost:8082/druid/broker/v1/loadstatus || exit 1"
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  druid-historical:
-    container_name: "druid-historical"
-    image: "apache/druid:30.0.0"
-    command: [ "historical" ]
-    volumes:
-      - "./data/druid/persist/shared:/opt/shared"
-      - "./data/druid/persist/historical_var:/opt/druid/var"
-    ports:
-      - "8083:8083"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-      zookeeper:
-        condition: "service_healthy"
-      druid-coordinator:
-        condition: "service_healthy"
-    env_file: "data/druid/environment"
-    healthcheck:
-      test: "wget --no-verbose --tries=1 --spider http://localhost:8083/druid/historical/v1/readiness || exit 1"
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  druid-middlemanager:
-    container_name: "druid-middlemanager"
-    image: "apache/druid:30.0.0"
-    command: [ "middleManager" ]
-    volumes:
-      - "./data/druid/persist/shared:/opt/shared"
-      - "./data/druid/persist/middle_var:/opt/druid/var"
-    ports:
-      - "8091:8091"
-      - "8100-8105:8100-8105"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-      zookeeper:
-        condition: "service_healthy"
-      druid-coordinator:
-        condition: "service_healthy"
-    env_file: "data/druid/environment"
-    healthcheck:
-      test: "wget --no-verbose --tries=1 --spider http://localhost:8091/status/health || exit 1"
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  druid:
-    container_name: "druid"
-    image: "apache/druid:30.0.0"
-    command: [ "router" ]
-    volumes:
-      - "./data/druid/persist/router_var:/opt/druid/var"
-    ports:
-      - "8888:8888"
-    depends_on:
-      druid-broker:
-        condition: "service_healthy"
-      druid-coordinator:
-        condition: "service_healthy"
-      druid-historical:
-        condition: "service_healthy"
-      druid-middlemanager:
-        condition: "service_healthy"
-      zookeeper:
-        condition: "service_healthy"
-      postgres:
-        condition: "service_healthy"
-    env_file: "data/druid/environment"
-    healthcheck:
-      test: "wget --no-verbose --tries=1 --spider http://localhost:8888/status/health || exit 1"
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  pinot-controller:
-    container_name: "pinot"
-    image: "apachepinot/pinot:1.1.0"
-    command: "StartController -zkAddress zookeeper:2181"
-    ports:
-      - "9000:9000"
-    environment:
-      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms1G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-controller.log"
-    restart: "unless-stopped"
-    depends_on:
-      zookeeper:
-        condition: "service_healthy"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:9000/pinot-controller/admin" ]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  pinot-broker:
-    container_name: "pinot-broker"
-    image: "apachepinot/pinot:1.1.0"
-    command: "StartBroker -zkAddress zookeeper:2181"
-    ports:
-      - "8099:8099"
-    environment:
-      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms4G -Xmx4G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-broker.log"
-    restart: "unless-stopped"
-    depends_on:
-      pinot-controller:
-        condition: "service_healthy"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:8099/health" ]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  pinot:
-    container_name: "pinot-server"
-    image: "apachepinot/pinot:1.1.0"
-    command: "StartServer -zkAddress zookeeper:2181"
-    ports:
-      - "8098:8098"
-    environment:
-      - "JAVA_OPTS=-Dplugins.dir=/opt/pinot/plugins -Xms4G -Xmx16G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xloggc:gc-pinot-server.log"
-    restart: "unless-stopped"
-    depends_on:
-      pinot-broker:
-        condition: "service_healthy"
-    healthcheck:
-      test: [ "CMD", "curl", "--fail", "http://localhost:8098/health/readiness" ]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-
-  #test data management
-  data-caterer:
-    container_name: "data-caterer"
-    image: "datacatering/data-caterer-basic:0.10.10"
-    environment:
-      - "DEPLOY_MODE=standalone"
-    volumes:
-      - "./data/data-caterer/connection:/opt/DataCaterer/connection"
-      - "./data/data-caterer/plan:/opt/DataCaterer/plan"
-    ports:
-      - "9898:9898"
-    depends_on:
-      postgres:
-        condition: "service_healthy"
-  
+  "zookeeper":
+    "container_name": "zookeeper"
+    "environment":
+      - "ZOO_MY_ID=1"
+    "healthcheck":
+      "interval": "5s"
+      "retries": 3
+      "test": "nc -z localhost 2181 || exit -1"
+      "timeout": "5s"
+    "image": "zookeeper:3.9.2"
+    "ports":
+      - "2181:2181"
+"version": "3.9"
