@@ -1,0 +1,18 @@
+name: Docker-compose YAML formatter
+on: pull_request
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Install eslint eslint-plugin-yml
+        run: npm install eslint @eslint/js eslint-plugin-yml
+      - name: Format docker-compose.yaml
+        run: npx eslint "docker-compose.yaml" --fix
+      - name: Push commit to pull request
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Format docker-compose.yaml
