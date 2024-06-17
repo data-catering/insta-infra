@@ -44,18 +44,17 @@ services:
   #database
   cockroachdb:
     container_name: "cockroachdb"
-    image: "cockroachdb/cockroach:v22.1.8"
-    platform: "linux/amd64"
+    image: "cockroachdb/cockroach:v24.1.0"
     command: ["start-single-node", "--insecure"]
     volumes:
-      - "./data/cockroachdb:/cockroach/cockroach-data"
+      - "./data/cockroachdb/persist:/cockroach/cockroach-data"
     ports:
       - "26257:26257"
       - "8080:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl --fail http://localhost:8080/ || exit 1"]
-      interval: 10s
-      timeout: 5s
+      interval: "10s"
+      timeout: "5s"
       retries: 5
 
   cassandra:
@@ -80,7 +79,7 @@ services:
 
   elasticsearch:
     container_name: "elasticsearch"
-    image: "docker.elastic.co/elasticsearch/elasticsearch:8.13.4"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:8.14.1"
     environment:
       - "node.name=elasticsearch"
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -148,21 +147,21 @@ services:
       - "3306:3306"
 
   neo4j:
-    container_name: neo4j
-    image: neo4j:4.4.10
+    container_name: "neo4j"
+    image: "neo4j:5.20.0"
     environment:
-      - NEO4J_AUTH=none
-      - NEO4J_dbms_connector_http_advertised__address=localhost:7474
-      - NEO4J_dbms_connector_bolt_advertised__address=localhost:7687
+      - "NEO4J_AUTH=none"
+      - "NEO4J_dbms_connector_http_advertised__address=localhost:7474"
+      - "NEO4J_dbms_connector_bolt_advertised__address=localhost:7687"
     volumes:
-      - ./data/neo4j:/data
+      - "./data/neo4j/persist:/data"
     ports:
       - "7474:7474"
       - "7687:7687"
     healthcheck:
       test: ["CMD-SHELL", "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
-      interval: 30s
-      timeout: 10s
+      interval: "30s"
+      timeout: "10s"
       retries: 5
 
   postgres:
@@ -245,7 +244,7 @@ services:
   #distributed coordination
   zookeeper:
     container_name: "zookeeper"
-    image: "zookeeper:3.5.10"
+    image: "zookeeper:3.9.2"
     environment:
       - "ZOO_MY_ID=1"
     ports:
@@ -255,6 +254,12 @@ services:
       interval: "5s"
       timeout: "5s"
       retries: 3
+
+  unitycatalog:
+    container_name: "unitycatalog"
+    image: "datacatering/unitycatalog:0.1.0"
+    ports:
+      - "8081:8081"
 
   #http
   httpbin:
@@ -268,7 +273,7 @@ services:
   #identity management
   keycloak:
     container_name: "keycloak"
-    image: "quay.io/keycloak/keycloak:24.0.5"
+    image: "quay.io/keycloak/keycloak:25.0.0"
     command: [ "start-dev", "--import-realm" ]
     environment:
       - "KC_DB=postgres"
@@ -290,7 +295,7 @@ services:
   #job orchestrator
   airflow:
     container_name: "airflow"
-    image: "apache/airflow:2.9.1"
+    image: "apache/airflow:2.9.2"
     command: "standalone"
     environment:
       - "AIRFLOW_UID=50000"
@@ -317,7 +322,7 @@ services:
 
   airflow-init:
     container_name: "airflow-init"
-    image: "apache/airflow:2.9.1"
+    image: "apache/airflow:2.9.2"
     entrypoint: "/bin/bash"
     # yamllint disable rule:line-length
     command:
@@ -375,7 +380,7 @@ services:
 
   dagster:
     container_name: "dagster"
-    image: "dagster/dagster-k8s:1.7.8"
+    image: "dagster/dagster-k8s:1.7.10"
     entrypoint: [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml" ]
     environment:
       - "DAGSTER_POSTGRES_HOST=postgres"
@@ -406,7 +411,7 @@ services:
 
   prefect-server:
     container_name: "prefect"
-    image: "prefecthq/prefect:2.19.4-python3.11"
+    image: "prefecthq/prefect:2.19.5-python3.11"
     entrypoint: [ "/opt/prefect/entrypoint.sh", "prefect", "server", "start" ]
     environment:
       - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
@@ -424,7 +429,7 @@ services:
 
   prefect:
     container_name: "prefect-data"
-    image: "prefecthq/prefect:2.19.4-python3.11"
+    image: "prefecthq/prefect:2.19.5-python3.11"
     entrypoint: [ "/opt/prefect/app/start_flows.sh" ]
     environment:
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
@@ -438,7 +443,7 @@ services:
   #messaging
   activemq:
     container_name: "activemq"
-    image: "apache/activemq-artemis:2.34.0"
+    image: "apache/activemq-artemis:2.35.0"
     environment:
       - "ARTEMIS_USER=artemis"
       - "ARTEMIS_PASSWORD=artemis"
@@ -620,7 +625,7 @@ services:
   #real-time OLAP
   clickhouse:
     container_name: "clickhouse"
-    image: "clickhouse/clickhouse-server:24.4.2"
+    image: "clickhouse/clickhouse-server:24.5.3"
     volumes:
       - "./data/clickhouse/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
     ports:
@@ -645,7 +650,7 @@ services:
 
   druid-coordinator:
     container_name: "druid-coordinator"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "coordinator" ]
     volumes:
       - "./data/druid/persist/shared:/opt/shared"
@@ -666,7 +671,7 @@ services:
 
   druid-broker:
     container_name: "druid-broker"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "broker" ]
     volumes:
       - "./data/druid/persist/broker_var:/opt/druid/var"
@@ -688,7 +693,7 @@ services:
 
   druid-historical:
     container_name: "druid-historical"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "historical" ]
     volumes:
       - "./data/druid/persist/shared:/opt/shared"
@@ -711,7 +716,7 @@ services:
 
   druid-middlemanager:
     container_name: "druid-middlemanager"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "middleManager" ]
     volumes:
       - "./data/druid/persist/shared:/opt/shared"
@@ -735,7 +740,7 @@ services:
 
   druid:
     container_name: "druid"
-    image: "apache/druid:29.0.1"
+    image: "apache/druid:30.0.0"
     command: [ "router" ]
     volumes:
       - "./data/druid/persist/router_var:/opt/druid/var"
@@ -818,7 +823,7 @@ services:
   #test data management
   data-caterer:
     container_name: "data-caterer"
-    image: "datacatering/data-caterer-basic:0.10.6"
+    image: "datacatering/data-caterer-basic:0.10.10"
     environment:
       - "DEPLOY_MODE=standalone"
     volumes:
@@ -829,4 +834,32 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
-  
+
+  #flink containers
+  flink-jobmanager:
+    image: flink:1.19.0-scala_2.12-java17
+    container_name: flink-jobmanager
+    expose:
+      - "6123"
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
+
+  flink:
+    image: flink:1.19.0-scala_2.12-java17
+    container_name: flink
+    expose:
+      - "6121"
+      - "6122"
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    links: []
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
+
+

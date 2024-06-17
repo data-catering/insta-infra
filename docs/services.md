@@ -29,4 +29,5 @@
 - rabbitmq
 - solace
 - trino
+- unitycatalog
 - zookeeper
