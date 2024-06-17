@@ -802,4 +802,32 @@ services:
     depends_on:
       postgres:
         condition: "service_healthy"
-  
+
+  #flink containers
+  flink-jobmanager:
+    image: flink:1.19.0-scala_2.12-java17
+    container_name: flink-jobmanager
+    expose:
+      - "6123"
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
+
+  flink:
+    image: flink:1.19.0-scala_2.12-java17
+    container_name: flink
+    expose:
+      - "6121"
+      - "6122"
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    links: []
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=flink-jobmanager
+      - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
+
+

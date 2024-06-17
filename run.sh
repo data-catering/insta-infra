@@ -25,6 +25,8 @@ prefect-data='bash'
 presto='presto-cli'
 trino='trino'
 unitycatalog='bash'
+flink='bash'
+flink-jobmanager='bash'
 "
 
 usage() {
