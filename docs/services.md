@@ -12,6 +12,8 @@
 - druid
 - duckdb
 - elasticsearch
+- flight-sql
+- flink
 - httpbin
 - kafka
 - keycloak
@@ -28,6 +30,9 @@
 - presto
 - rabbitmq
 - solace
+- spanner
+- sqlite
+- temporal
 - trino
 - unitycatalog
 - zookeeper
