@@ -10,7 +10,7 @@
       "retries": 3
       "test": ["CMD-SHELL", "curl -k -f http://localhost:8161/admin"]
       "timeout": "5s"
-    "image": "apache/activemq-artemis:2.34.0"
+    "image": "apache/activemq-artemis:${ACTIVEMQ_VERSION:-2.34.0}"
     "ports":
       - "61616:61616"
       - "8161:8161"
@@ -35,7 +35,7 @@
       "start_period": "30s"
       "test": ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       "timeout": "10s"
-    "image": "apache/airflow:2.9.2"
+    "image": "apache/airflow:${AIRFLOW_VERSION:-2.9.2}"
     "ports":
       - "8081:8080"
     "restart": "always"
@@ -97,7 +97,7 @@
       - "_AIRFLOW_WWW_USER_USERNAME=airflow"
       - "_AIRFLOW_WWW_USER_PASSWORD=airflow"
       - "_PIP_ADDITIONAL_REQUIREMENTS="
-    "image": "apache/airflow:2.9.2"
+    "image": "apache/airflow:${AIRFLOW_VERSION:-2.9.2}"
     "user": "0:0"
   "cassandra":
     "cap_add":
@@ -124,7 +124,7 @@
       "postgres":
         "condition": "service_healthy"
     "hostname": "clickhouse"
-    "image": "clickhouse/clickhouse-server:24.5.3"
+    "image": "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-24.5.3}"
     "ports":
       - "8123:8123"
       - "9000:9000"
@@ -139,7 +139,7 @@
       "retries": 5
       "test": ["CMD-SHELL", "curl --fail http://localhost:8080/ || exit 1"]
       "timeout": "5s"
-    "image": "cockroachdb/cockroach:v24.1.0"
+    "image": "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.1.0}"
     "ports":
       - "26257:26257"
       - "8080:8080"
@@ -157,7 +157,7 @@
       - "DAGSTER_POSTGRES_PASSWORD=postgres"
       - "DAGSTER_POSTGRES_DB=dagster"
       - "DAGSTER_HOME=/opt/dagster/dagster_home/"
-    "image": "dagster/dagster-k8s:1.7.10"
+    "image": "dagster/dagster-k8s:${DAGSTER_VERSION:-1.7.10}"
     "ports":
       - "3000:3000"
     "volumes":
@@ -170,7 +170,7 @@
         "condition": "service_healthy"
     "environment":
       - "DEPLOY_MODE=standalone"
-    "image": "datacatering/data-caterer-basic:0.10.10"
+    "image": "datacatering/data-caterer-basic:${DATA_CATERER_VERSION:-0.10.10}"
     "ports":
       - "9898:9898"
     "volumes":
@@ -188,7 +188,7 @@
       "retries": 3
       "test": ["CMD", "curl", "--fail", "http://localhost:8080"]
       "timeout": "10s"
-    "image": "debezium/debezium-ui:2.1.2.Final"
+    "image": "debezium/debezium-ui:${DEBEZIUM_VERSION:-2.1.2.Final}"
     "ports":
       - "8080:8080"
   "debezium-connect":
@@ -210,7 +210,7 @@
       "retries": 3
       "test": ["CMD", "curl", "--fail", "http://localhost:8083"]
       "timeout": "10s"
-    "image": "debezium/connect:2.6.2.Final"
+    "image": "debezium/connect:${DEBEZIUM_CONNECT_VERSION:-2.6.2.Final}"
     "ports":
       - "8083:8083"
   "doris":
@@ -218,7 +218,7 @@
     "depends_on":
       "postgres":
         "condition": "service_healthy"
-    "image": "apache/doris:doris-all-in-one-2.1.0"
+    "image": "apache/doris:${DORIS_VERSION:-doris-all-in-one-2.1.0}"
     "ports":
       - "8030:8030"
       - "8040:8040"
@@ -245,7 +245,7 @@
       "retries": 3
       "test": "wget --no-verbose --tries=1 --spider http://localhost:8888/status/health || exit 1"
       "timeout": "5s"
-    "image": "apache/druid:30.0.0"
+    "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8888:8888"
     "volumes":
@@ -266,7 +266,7 @@
       "retries": 3
       "test": "wget --no-verbose --tries=1 --spider http://localhost:8082/druid/broker/v1/loadstatus || exit 1"
       "timeout": "5s"
-    "image": "apache/druid:30.0.0"
+    "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8082:8082"
     "volumes":
@@ -285,7 +285,7 @@
       "retries": 3
       "test": "wget --no-verbose --tries=1 --spider http://localhost:8081/status/health || exit 1"
       "timeout": "5s"
-    "image": "apache/druid:30.0.0"
+    "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8081:8081"
     "volumes":
@@ -307,7 +307,7 @@
       "retries": 3
       "test": "wget --no-verbose --tries=1 --spider http://localhost:8083/druid/historical/v1/readiness || exit 1"
       "timeout": "5s"
-    "image": "apache/druid:30.0.0"
+    "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8083:8083"
     "volumes":
@@ -329,7 +329,7 @@
       "retries": 3
       "test": "wget --no-verbose --tries=1 --spider http://localhost:8091/status/health || exit 1"
       "timeout": "5s"
-    "image": "apache/druid:30.0.0"
+    "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8091:8091"
       - "8100-8105:8100-8105"
@@ -342,7 +342,7 @@
       "postgres":
         "condition": "service_healthy"
     "entrypoint": ["tail", "-F", "anything"]
-    "image": "datacatering/duckdb:v1.0.0"
+    "image": "datacatering/duckdb:${DUCKDB_VERSION:-v1.0.0}"
     "volumes":
       - "./data/duckdb:/opt/data"
   "elasticsearch":
@@ -352,7 +352,7 @@
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - "ELASTIC_PASSWORD=elasticsearch"
       - "discovery.type=single-node"
-    "image": "docker.elastic.co/elasticsearch/elasticsearch:8.14.1"
+    "image": "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.14.1}"
     "ports":
       - "9200:9200"
       - "9300:9300"
@@ -370,7 +370,7 @@
       - "TLS_ENABLED=1"
       - "FLIGHT_PASSWORD=flight_password"
       - "PRINT_QUERIES=1"
-    "image": "voltrondata/flight-sql:v1.4.0"
+    "image": "voltrondata/flight-sql:${FLIGHT_SQL_VERSION:-v1.4.0}"
     "ports":
       - "31337:31337"
     "volumes":
@@ -386,7 +386,7 @@
     "expose":
       - "6121"
       - "6122"
-    "image": "flink:1.19.0-scala_2.12-java17"
+    "image": "flink:${FLINK_VERSION:-1.19.0-scala_2.12-java17}"
     "links": []
   "flink-jobmanager":
     "command": "jobmanager"
@@ -394,17 +394,16 @@
     "environment":
       - "JOB_MANAGER_RPC_ADDRESS=flink-jobmanager"
       - "FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager"
-
     "expose":
       - "6123"
-    "image": "flink:1.19.0-scala_2.12-java17"
+    "image": "flink:${FLINK_VERSION:-1.19.0-scala_2.12-java17}"
     "ports":
       - "8081:8081"
   "httpbin":
     "container_name": "http"
     "environment":
       - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
-    "image": "kennethreitz/httpbin:latest"
+    "image": "kennethreitz/httpbin:${HTTPBIN_VERSION:-latest}"
     "ports":
       - "80:80"
   "kafka":
@@ -413,7 +412,7 @@
       "kafka-server":
         "condition": "service_healthy"
     "entrypoint": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
-    "image": "confluentinc/confluent-local:7.6.1"
+    "image": "confluentinc/confluent-local:${KAFKA_VERSION:-7.6.1}"
     "volumes":
       - "./data/kafka:/opt/app"
   "kafka-server":
@@ -449,7 +448,7 @@
       - "KC_REALM_NAME=myrealm"
       - "KEYCLOAK_ADMIN=admin"
       - "KEYCLOAK_ADMIN_PASSWORD=admin"
-    "image": "quay.io/keycloak/keycloak:25.0.0"
+    "image": "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-25.0.0}"
     "ports":
       - "8082:8080"
     "restart": "unless-stopped"
@@ -460,7 +459,7 @@
     "container_name": "mage-ai"
     "environment":
       - "USER_CODE_PATH=/home/src/your_first_project"
-    "image": "mageai/mageai:0.9.71"
+    "image": "mageai/mageai:${MAGE_AI_VERSION:-0.9.71}"
     "ports":
       - "6789:6789"
     "restart": "on-failure"
@@ -473,7 +472,7 @@
       - "MARIADB_PASSWORD=password"
       - "MARIADB_ROOT_PASSWORD=root"
       - "MARIADB_DATABASE=customer"
-    "image": "mariadb:11.4.2"
+    "image": "mariadb:${MARIADB_VERSION:-11.4.2}"
     "ports":
       - "3306:3306"
     "restart": "always"
@@ -487,7 +486,7 @@
     "environment":
       - "MARQUEZ_HOST=host.docker.internal"
       - "MARQUEZ_PORT=5002"
-    "image": "marquezproject/marquez-web:0.47.0"
+    "image": "marquezproject/marquez-web:${MARQUEZ_VERSION:-0.47.0}"
     "ports":
       - "3001:3000"
   "marquez-data":
@@ -499,7 +498,7 @@
     "entrypoint": "/bin/bash"
     "environment":
       - "MARQUEZ_URL=http://marquez:5000"
-    "image": "marquezproject/marquez:0.47.0"
+    "image": "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
     "volumes":
       - "./data/marquez:/opt/app"
   "marquez-server":
@@ -521,7 +520,7 @@
       "retries": 3
       "test": ["CMD", "curl", "--fail", "http://localhost:5001/healthcheck"]
       "timeout": "5s"
-    "image": "marquezproject/marquez:0.47.0"
+    "image": "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
     "ports":
       - "5002:5000"
       - "5001:5001"
@@ -539,7 +538,7 @@
       "retries": 3
       "test": ["CMD", "mc", "ready", "local"]
       "timeout": "5s"
-    "image": "quay.io/minio/minio:RELEASE.2024-06-04T19-20-08Z"
+    "image": "quay.io/minio/minio:${MINIO_VERSION:-RELEASE.2024-06-04T19-20-08Z}"
     "ports":
       - "9000:9000"
       - "9001:9001"
@@ -552,7 +551,7 @@
       - "mongodb-server"
     "environment":
       - "CONN_STR=mongodb://user:password@mongodb-server"
-    "image": "mongodb/mongodb-community-server:7.0.11-ubi8"
+    "image": "mongodb/mongodb-community-server:${MONGODB_VERSION:-7.0.11-ubi8}"
     "volumes":
       - "./data/mongodb:/opt/app"
   "mongodb-server":
@@ -560,7 +559,7 @@
     "environment":
       - "MONGO_INITDB_ROOT_USERNAME=user"
       - "MONGO_INITDB_ROOT_PASSWORD=password"
-    "image": "mongo:7.0.11"
+    "image": "mongo:${MONGODB_VERSION:-7.0.11}"
     "ports":
       - "27017:27017"
     "volumes":
@@ -574,7 +573,7 @@
       "retries": 3
       "test": ["CMD-SHELL", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
       "timeout": "20s"
-    "image": "mysql:8.4.0"
+    "image": "mysql:${MYSQL_VERSION:-8.4.0}"
     "ports":
       - "3306:3306"
     "volumes":
@@ -591,7 +590,7 @@
       "retries": 5
       "test": ["CMD-SHELL", "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
       "timeout": "10s"
-    "image": "neo4j:5.20.0"
+    "image": "neo4j:${NEO4J_VERSION:-5.20.0}"
     "ports":
       - "7474:7474"
       - "7687:7687"
@@ -610,7 +609,7 @@
       "retries": 3
       "test": ["CMD", "curl", "--fail", "http://localhost:8098/health/readiness"]
       "timeout": "5s"
-    "image": "apachepinot/pinot:1.1.0"
+    "image": "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     "ports":
       - "8098:8098"
     "restart": "unless-stopped"
@@ -627,7 +626,7 @@
       "retries": 3
       "test": ["CMD", "curl", "--fail", "http://localhost:8099/health"]
       "timeout": "5s"
-    "image": "apachepinot/pinot:1.1.0"
+    "image": "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     "ports":
       - "8099:8099"
     "restart": "unless-stopped"
@@ -644,7 +643,7 @@
       "retries": 3
       "test": ["CMD", "curl", "--fail", "http://localhost:9000/pinot-controller/admin"]
       "timeout": "5s"
-    "image": "apachepinot/pinot:1.1.0"
+    "image": "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     "ports":
       - "9000:9000"
     "restart": "unless-stopped"
@@ -659,7 +658,7 @@
       "retries": 3
       "test": ["CMD-SHELL", "pg_isready"]
       "timeout": "5s"
-    "image": "postgres:16.3"
+    "image": "postgres:${POSTGRES_VERSION:-16.3}"
     "ports":
       - "5432:5432"
     "volumes":
@@ -672,7 +671,7 @@
     "entrypoint": ["/opt/prefect/app/start_flows.sh"]
     "environment":
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
-    "image": "prefecthq/prefect:2.19.5-python3.11"
+    "image": "prefecthq/prefect:${PREFECT_VERSION:-2.19.5-python3.11}"
     "volumes":
       - "./data/prefect/flows:/root/flows"
       - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
@@ -688,7 +687,7 @@
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
       - "PREFECT_SERVER_API_HOST=0.0.0.0"
       - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect"
-    "image": "prefecthq/prefect:2.19.5-python3.11"
+    "image": "prefecthq/prefect:${PREFECT_VERSION:-2.19.5-python3.11}"
     "ports":
       - "4200:4200"
     "restart": "always"
@@ -699,7 +698,7 @@
     "depends_on":
       "postgres":
         "condition": "service_healthy"
-    "image": "prestodb/presto:0.287"
+    "image": "prestodb/presto:${PRESTO_VERSION:-0.287}"
     "ports":
       - "8083:8080"
     "volumes":
@@ -716,7 +715,7 @@
       "test": "rabbitmq-diagnostics -q ping"
       "timeout": "30s"
     "hostname": "my-rabbit"
-    "image": "rabbitmq:3.13.3-management"
+    "image": "rabbitmq:${RABBITMQ_VERSION:-3.13.3-management}"
     "ports":
       - "5672:5672"
       - "15672:15672"
@@ -728,7 +727,7 @@
       "solace-server":
         "condition": "service_healthy"
     "entrypoint": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
-    "image": "solace/solace-pubsub-standard:10.8"
+    "image": "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.8}"
     "volumes":
       - "./data/solace:/opt/app"
   "solace-server":
@@ -746,7 +745,7 @@
       "retries": 3
       "test": ["CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080"]
       "timeout": "5s"
-    "image": "solace/solace-pubsub-standard:10.8"
+    "image": "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.8}"
     "ports":
       - "8080:8080"
       - "55554:55555"
@@ -760,7 +759,7 @@
       - "./data/solace/persist:/var/lib/solace"
   "spanner":
     "container_name": "spanner"
-    "image": "gcr.io/cloud-spanner-emulator/emulator"
+    "image": "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.19}"
     "ports":
       - "9010:9010"
       - "9020:9020"
@@ -778,7 +777,7 @@
     "expose":
       - "8233"
       - "7233"
-    "image": "temporalio/server:1.24.1.0"
+    "image": "temporalio/server:${TEMPORAL_VERSION:-1.24.1.0}"
     "ports":
       - "8233:8233"
       - "7233:7233"
@@ -790,7 +789,7 @@
     "depends_on":
       "postgres":
         "condition": "service_healthy"
-    "image": "trinodb/trino:449"
+    "image": "trinodb/trino:${TRINO_VERSION:-449}"
     "ports":
       - "8084:8080"
     "volumes":
@@ -798,7 +797,7 @@
       - "./data/trino/catalog:/etc/trino/catalog"
   "unitycatalog":
     "container_name": "unitycatalog"
-    "image": "datacatering/unitycatalog:0.1.0"
+    "image": "datacatering/unitycatalog:${UNITYCATALOG_VERSION:-0.1.0}"
     "ports":
       - "8081:8081"
   "zookeeper":
@@ -810,7 +809,7 @@
       "retries": 3
       "test": "nc -z localhost 2181 || exit -1"
       "timeout": "5s"
-    "image": "zookeeper:3.9.2"
+    "image": "zookeeper:${ZOOKEEPER_VERSION:-3.9.2}"
     "ports":
       - "2181:2181"
 "version": "3.9"
