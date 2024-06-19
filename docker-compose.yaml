@@ -800,6 +800,8 @@
     "image": "datacatering/unitycatalog:${UNITYCATALOG_VERSION:-0.1.0}"
     "ports":
       - "8081:8081"
+    "volumes":
+      - "./data/unitycatalog/persist:/opt/app/etc"
   "zookeeper":
     "container_name": "zookeeper"
     "environment":
