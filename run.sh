@@ -9,19 +9,19 @@ NC='\033[0m'
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 connection_commands="
-activemq='/var/lib/artemis-instance/bin/artemis shell --user artemis --password artemis'
+activemq='/var/lib/artemis-instance/bin/artemis shell --user ${ARTEMIS_USER:-artemis} --password ${ARTEMIS_PASSWORD:-artemis}'
 cassandra='cqlsh'
 clickhouse='clickhouse-client'
 cockroachdb='./cockroach sql --insecure'
 doris='mysql -uroot -P9030 -h127.0.0.1'
 duckdb='./duckdb'
-elasticsearch='elasticsearch-sql-cli http://elastic:elasticsearch@localhost:9200'
-flight-sql='flight_sql_client --command Execute --host localhost --port 31337 --username flight_username --password flight_password --query 'SELECT version()' --use-tls --tls-skip-verify'
-mariadb='mariadb --user=user --password=password'
-mongodb-connect='mongosh mongodb://root:root@mongodb'
-mysql='mysql -u root -proot'
+elasticsearch='elasticsearch-sql-cli http://elastic:${ELASTICSEARCH_PASSWORD:-elasticsearch}@localhost:9200'
+flight-sql='flight_sql_client --command Execute --host localhost --port 31337 --username ${FLIGHT_SQL_USER:-flight_username} --password ${FLIGHT_SQL_PASSWORD:-flight_password} --query 'SELECT version()' --use-tls --tls-skip-verify'
+mariadb='mariadb --user=${MARIADB_USER:-user} --password=${MARIADB_PASSWORD:-password}'
+mongodb-connect='mongosh mongodb://${MONGODB_USER:-root}:${MONGODB_PASSWORD:-root}@mongodb'
+mysql='mysql -u ${MYSQL_USER:-root} -p${MYSQL_PASSWORD:-root}'
 neo4j='cypher-shell -u neo4j -p test'
-postgres='PGPASSWORD=postgres psql -Upostgres'
+postgres='PGPASSWORD=${POSTGRES_PASSWORD:-postgres} psql -U${POSTGRES_USER:-postgres}'
 prefect-data='bash'
 presto='presto-cli'
 trino='trino'
@@ -33,17 +33,19 @@ flink-jobmanager='bash'
 usage() {
   echo "Usage: $(basename "$0") [options...] [services...]"
   echo
-  echo "    <services>              Name of services to run"
-  echo "    -c, connect [service]   Connect to service"
-  echo "    -d, down [services...]  Shutdown services (if empty, shutdown all services)"
-  echo "    -h, --help              Show help"
-  echo "    -l, list                List supported services"
+  echo "    <services>                Name of services to run"
+  echo "    -c, connect [service]     Connect to service"
+  echo "    -d, down [services...]    Shutdown services (if empty, shutdown all services)"
+  echo "    -h, --help, help          Show help"
+  echo "    -l, list                  List supported services"
+  echo "    -r, remove [services...]  Remove persisted data (if empty, remove all services persisted data)"
   echo
   echo "Examples:"
   echo "    $(basename "$0") -l"
-  echo "    $(basename "$0") postgres         Spin up Postgres"
-  echo "    $(basename "$0") -c postgres      Connect to Postgres"
-  echo "    $(basename "$0") -d               Bring Postgres down"
+  echo "    $(basename "$0") postgres           Spin up Postgres"
+  echo "    $(basename "$0") -c postgres        Connect to Postgres"
+  echo "    $(basename "$0") -d                 Bring Postgres down"
+  echo "    $(basename "$0") -r postgres        Remove Postgres persisted data"
   exit 0
 }
 
@@ -123,8 +125,30 @@ log_how_to_connect() {
   done | column -t -s ','
 }
 
+remove_persisted_data() {
+  if [ -z "$1" ]; then
+    read -p "Continue to remove all persisted data? (Y/n)" CONT
+    if [ "$CONT" = "Y" ]; then
+      echo "Removing all services persisted data..."
+      find "${SCRIPT_DIR}/data" -type d -name "persist" -maxdepth 2 -exec rm -r {} \;
+    else
+      echo "Not removing any persisted data";
+    fi
+  else
+    read -p "Continue to remove persisted data for services: $*? (Y/n)" CONT
+    if [ "$CONT" = "Y" ]; then
+      echo "Removing persisted data for services: $*..."
+      for service in "$@"; do
+        rm -r "${SCRIPT_DIR}/data/${service}/persist"
+      done
+    else
+      echo "Not removing any persisted data";
+    fi
+  fi
+}
+
 case $1 in
-  "--help"|"-h")
+  "-h"|"--help"|"help")
     usage
     ;;
   "-c"|"connect")
@@ -135,6 +159,9 @@ case $1 in
     ;;
   "-l"|"list")
     list_supported_services
+    ;;
+  "-r"|"remove")
+    remove_persisted_data "${@:2}"
     ;;
   *)
     if [ $# -eq 0 ]; then

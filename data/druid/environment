@@ -34,8 +34,6 @@ druid_zk_service_host=zookeeper
 druid_metadata_storage_host=
 druid_metadata_storage_type=postgresql
 druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/druid
-druid_metadata_storage_connector_user=postgres
-druid_metadata_storage_connector_password=postgres
 
 druid_coordinator_balancer_strategy=cachingCost
 
