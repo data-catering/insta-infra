@@ -111,7 +111,7 @@
     "image": "datacatering/dse-server:6.8.48"
     "volumes":
       - "./data/cassandra/init.sh:/tmp/scripts/init.sh"
-      - "./data/cassandra/data:/tmp/data"
+      - "${CASSANDRA_DATA:-./data/cassandra/data}:/tmp/data"
   "cassandra-server":
     "cap_add":
       - "IPC_LOCK"
@@ -141,7 +141,7 @@
     "user": "101:101"
     "volumes":
       - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
-      - "./data/clickhouse/data:/tmp/data"
+      - "${CLICKHOUSE_DATA:-./data/clickhouse/data}:/tmp/data"
   "clickhouse-server":
     "container_name": "clickhouse"
     "depends_on":
@@ -546,7 +546,7 @@
     "image": "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
     "volumes":
       - "./data/marquez/init.sh:/tmp/scripts/init.sh"
-      - "./data/marquez/data:/tmp/data"
+      - "${MARQUEZ_DATA:-./data/marquez/data}:/tmp/data"
   "marquez-server":
     "container_name": "marquez"
     "depends_on":
@@ -621,7 +621,7 @@
     "image": "mysql:${MYSQL_VERSION:-8.4.0}"
     "volumes":
       - "./data/mysql/init.sh:/tmp/scripts/init.sh"
-      - "./data/mysql/data:/tmp/data"
+      - "${MYSQL_DATA:-./data/mysql/data}:/tmp/data"
   "mysql-server":
     "command": "--mysql-native-password=ON"
     "container_name": "mysql"
@@ -717,7 +717,7 @@
     "image": "postgres:${POSTGRES_VERSION:-16.3}"
     "volumes":
       - "./data/postgres/init.sh:/tmp/scripts/init.sh"
-      - "./data/postgres/data:/tmp/data"
+      - "${POSTGRES_DATA:-./data/postgres/data}:/tmp/data"
   "postgres-server":
     "container_name": "postgres"
     "environment":
