@@ -99,6 +99,19 @@
       - "_PIP_ADDITIONAL_REQUIREMENTS="
     "image": "apache/airflow:${AIRFLOW_VERSION:-2.9.2}"
     "user": "0:0"
+  "cassandra":
+    "command": ["-c", "/tmp/scripts/init.sh"]
+    "container_name": "cassandra-data"
+    "depends_on":
+      "cassandra-server":
+        "condition": "service_healthy"
+    "entrypoint": "/bin/bash"
+    "environment":
+      - "DS_LICENSE=accept"
+    "image": "datacatering/dse-server:6.8.48"
+    "volumes":
+      - "./data/cassandra/init.sh:/tmp/scripts/init.sh"
+      - "./data/cassandra/data:/tmp/data"
   "cassandra-server":
     "cap_add":
       - "IPC_LOCK"
@@ -117,19 +130,18 @@
       "memlock": -1
     "volumes":
       - "./data/cassandra/persist:/var/lib/cassandra"
-  "cassandra":
-    "command": ["-c", "/tmp/scripts/init.sh"]
-    "container_name": "cassandra-data"
+  "clickhouse":
+    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
+    "container_name": "clickhouse-data"
     "depends_on":
-      "cassandra-server":
+      "clickhouse-server":
         "condition": "service_healthy"
-    "entrypoint": "/bin/bash"
-    "environment":
-      - "DS_LICENSE=accept"
-    "image": "datacatering/dse-server:6.8.48"
+    "hostname": "clickhouse"
+    "image": "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-24.5.3}"
+    "user": "101:101"
     "volumes":
-      - "./data/cassandra/init.sh:/tmp/scripts/init.sh"
-      - "./data/cassandra/data:/tmp/data"
+      - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
+      - "./data/clickhouse/data:/tmp/data"
   "clickhouse-server":
     "container_name": "clickhouse"
     "depends_on":
@@ -148,18 +160,6 @@
     "user": "101:101"
     "volumes":
       - "./data/clickhouse/persist:/var/lib/clickhouse"
-  "clickhouse":
-    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
-    "container_name": "clickhouse-data"
-    "depends_on":
-      "clickhouse-server":
-        "condition": "service_healthy"
-    "hostname": "clickhouse"
-    "image": "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-24.5.3}"
-    "user": "101:101"
-    "volumes":
-      - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
-      - "./data/clickhouse/data:/tmp/data"
   "cockroachdb":
     "command": ["start-single-node", "--insecure"]
     "container_name": "cockroachdb"
@@ -268,10 +268,10 @@
         "condition": "service_healthy"
       "zookeeper":
         "condition": "service_healthy"
+    "env_file": "data/druid/environment"
     "environment":
       - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
       - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
-    "env_file": "data/druid/environment"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -292,10 +292,10 @@
         "condition": "service_healthy"
       "zookeeper":
         "condition": "service_healthy"
+    "env_file": "data/druid/environment"
     "environment":
       - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
       - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
-    "env_file": "data/druid/environment"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -314,10 +314,10 @@
         "condition": "service_completed_successfully"
       "zookeeper":
         "condition": "service_healthy"
+    "env_file": "data/druid/environment"
     "environment":
       - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
       - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
-    "env_file": "data/druid/environment"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -339,10 +339,10 @@
         "condition": "service_healthy"
       "zookeeper":
         "condition": "service_healthy"
+    "env_file": "data/druid/environment"
     "environment":
       - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
       - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
-    "env_file": "data/druid/environment"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -364,10 +364,10 @@
         "condition": "service_healthy"
       "zookeeper":
         "condition": "service_healthy"
+    "env_file": "data/druid/environment"
     "environment":
       - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
       - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
-    "env_file": "data/druid/environment"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -610,21 +610,6 @@
       - "27017:27017"
     "volumes":
       - "./data/mongodb/persist:/data/db"
-  "mysql-server":
-    "command": "--mysql-native-password=ON"
-    "container_name": "mysql"
-    "environment":
-      - "MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-root}"
-    "healthcheck":
-      "retries": 3
-      "test": ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
-      "timeout": "5s"
-      "interval": "5s"
-    "image": "mysql:${MYSQL_VERSION:-8.4.0}"
-    "ports":
-      - "3306:3306"
-    "volumes":
-      - "./data/mysql/persist:/var/lib/mysql"
   "mysql":
     "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
     "container_name": "mysql-data"
@@ -637,6 +622,21 @@
     "volumes":
       - "./data/mysql/init.sh:/tmp/scripts/init.sh"
       - "./data/mysql/data:/tmp/data"
+  "mysql-server":
+    "command": "--mysql-native-password=ON"
+    "container_name": "mysql"
+    "environment":
+      - "MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-root}"
+    "healthcheck":
+      "interval": "5s"
+      "retries": 3
+      "test": ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      "timeout": "5s"
+    "image": "mysql:${MYSQL_VERSION:-8.4.0}"
+    "ports":
+      - "3306:3306"
+    "volumes":
+      - "./data/mysql/persist:/var/lib/mysql"
   "neo4j":
     "container_name": "neo4j"
     "environment":
@@ -705,6 +705,19 @@
     "ports":
       - "9000:9000"
     "restart": "unless-stopped"
+  "postgres":
+    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
+    "container_name": "postgres-data"
+    "depends_on":
+      "postgres-server":
+        "condition": "service_healthy"
+    "environment":
+      - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
+      - "PGPASSWORD=${POSTGRES_PASSWORD:-postgres}"
+    "image": "postgres:${POSTGRES_VERSION:-16.3}"
+    "volumes":
+      - "./data/postgres/init.sh:/tmp/scripts/init.sh"
+      - "./data/postgres/data:/tmp/data"
   "postgres-server":
     "container_name": "postgres"
     "environment":
@@ -721,19 +734,6 @@
       - "5432:5432"
     "volumes":
       - "./data/postgres/persist:/data/postgres"
-  "postgres":
-    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
-    "container_name": "postgres-data"
-    "depends_on":
-      "postgres-server":
-        "condition": "service_healthy"
-    "environment":
-      - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
-      - "PGPASSWORD=${POSTGRES_PASSWORD:-postgres}"
-    "image": "postgres:${POSTGRES_VERSION:-16.3}"
-    "volumes":
-      - "./data/postgres/init.sh:/tmp/scripts/init.sh"
-      - "./data/postgres/data:/tmp/data"
   "prefect":
     "container_name": "prefect-data"
     "depends_on":
