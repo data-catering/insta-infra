@@ -80,7 +80,7 @@ insta -r postgres
 Alter data in [`data`](data) folder.
   
 You may notice that for some services (such as Cassandra, Postgres, MySQL), they follow the same pattern for custom
-data. They have a `sql` directory which contains data files with DDL statements and an `init.sh` script that will help
+data. They have a `data` directory which contains data files with DDL statements and an `init.sh` script that will help
 execute them at startup. This allows you to dump all your `.sql` files into the directory, and it will be automatically
 run at startup.
 

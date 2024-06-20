@@ -129,7 +129,7 @@
     "image": "datacatering/dse-server:6.8.48"
     "volumes":
       - "./data/cassandra/init.sh:/tmp/scripts/init.sh"
-      - "./data/cassandra/cql:/tmp/data"
+      - "./data/cassandra/data:/tmp/data"
   "clickhouse-server":
     "container_name": "clickhouse"
     "depends_on":
@@ -159,7 +159,7 @@
     "user": "101:101"
     "volumes":
       - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
-      - "./data/clickhouse/sql:/tmp/data"
+      - "./data/clickhouse/data:/tmp/data"
   "cockroachdb":
     "command": ["start-single-node", "--insecure"]
     "container_name": "cockroachdb"
@@ -535,16 +535,18 @@
     "ports":
       - "3001:3000"
   "marquez-data":
-    "command": ["/bin/bash", "-c", "/opt/app/seed.sh"]
+    "command": ["-c", "/tmp/scripts/init.sh"]
     "container_name": "marquez-data"
     "depends_on":
       "marquez-server":
         "condition": "service_healthy"
+    "entrypoint": "/bin/bash"
     "environment":
       - "MARQUEZ_URL=http://marquez:5000"
     "image": "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
     "volumes":
-      - "./data/marquez:/opt/app"
+      - "./data/marquez/init.sh:/tmp/scripts/init.sh"
+      - "./data/marquez/data:/tmp/data"
   "marquez-server":
     "container_name": "marquez"
     "depends_on":
@@ -570,7 +572,7 @@
       - "5001:5001"
     "volumes":
       - "./data/marquez/persist:/opt/marquez"
-      - "./data/marquez:/opt/app"
+      - "./data/marquez/conf:/opt/app"
   "minio":
     "command": ["server", "/data", "--console-address", ":9001"]
     "container_name": "minio"
@@ -634,7 +636,7 @@
     "image": "mysql:${MYSQL_VERSION:-8.4.0}"
     "volumes":
       - "./data/mysql/init.sh:/tmp/scripts/init.sh"
-      - "./data/mysql/sql:/tmp/data"
+      - "./data/mysql/data:/tmp/data"
   "neo4j":
     "container_name": "neo4j"
     "environment":
@@ -731,7 +733,7 @@
     "image": "postgres:${POSTGRES_VERSION:-16.3}"
     "volumes":
       - "./data/postgres/init.sh:/tmp/scripts/init.sh"
-      - "./data/postgres/sql:/tmp/data"
+      - "./data/postgres/data:/tmp/data"
   "prefect":
     "container_name": "prefect-data"
     "depends_on":
