@@ -3,8 +3,8 @@
   "activemq":
     "container_name": "activemq"
     "environment":
-      - "ARTEMIS_USER=artemis"
-      - "ARTEMIS_PASSWORD=artemis"
+      - "ARTEMIS_USER=${ARTEMIS_USER:-artemis}"
+      - "ARTEMIS_PASSWORD=${ARTEMIS_PASSWORD:-artemis}"
     "healthcheck":
       "interval": "15s"
       "retries": 3
@@ -24,7 +24,7 @@
         "condition": "service_completed_successfully"
     "environment":
       - "AIRFLOW_UID=50000"
-      - "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres/airflow"
+      - "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres/airflow"
       - "AIRFLOW__CORE__FERNET_KEY="
       - "AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true"
       - "AIRFLOW__CORE__LOAD_EXAMPLES=true"
@@ -86,20 +86,33 @@
     "container_name": "airflow-init"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "entrypoint": "/bin/bash"
     # yamllint enable rule:line-length
     "environment":
       - "AIRFLOW_UID=50000"
-      - "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:postgres@postgres/airflow"
+      - "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres/airflow"
       - "_AIRFLOW_DB_MIGRATE=true"
       - "_AIRFLOW_WWW_USER_CREATE=true"
-      - "_AIRFLOW_WWW_USER_USERNAME=airflow"
-      - "_AIRFLOW_WWW_USER_PASSWORD=airflow"
+      - "_AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_USER:-airflow}"
+      - "_AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_PASSWORD:-airflow}"
       - "_PIP_ADDITIONAL_REQUIREMENTS="
     "image": "apache/airflow:${AIRFLOW_VERSION:-2.9.2}"
     "user": "0:0"
   "cassandra":
+    "command": ["-c", "/tmp/scripts/init.sh"]
+    "container_name": "cassandra-data"
+    "depends_on":
+      "cassandra-server":
+        "condition": "service_healthy"
+    "entrypoint": "/bin/bash"
+    "environment":
+      - "DS_LICENSE=accept"
+    "image": "datacatering/dse-server:6.8.48"
+    "volumes":
+      - "./data/cassandra/init.sh:/tmp/scripts/init.sh"
+      - "./data/cassandra/cql:/tmp/data"
+  "cassandra-server":
     "cap_add":
       - "IPC_LOCK"
     "container_name": "cassandra"
@@ -117,12 +130,28 @@
       "memlock": -1
     "volumes":
       - "./data/cassandra/persist:/var/lib/cassandra"
-      - "./data/cassandra/my_data.cql:/docker-entrypoint-initdb.d/my_data.cql"
   "clickhouse":
+    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
+    "container_name": "clickhouse-data"
+    "depends_on":
+      "clickhouse-server":
+        "condition": "service_healthy"
+    "hostname": "clickhouse"
+    "image": "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-24.5.3}"
+    "user": "101:101"
+    "volumes":
+      - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
+      - "./data/clickhouse/sql:/tmp/data"
+  "clickhouse-server":
     "container_name": "clickhouse"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
+    "healthcheck":
+      "interval": "10s"
+      "retries": 3
+      "test": "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"
+      "timeout": "5s"
     "hostname": "clickhouse"
     "image": "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-24.5.3}"
     "ports":
@@ -130,7 +159,7 @@
       - "9000:9000"
     "user": "101:101"
     "volumes":
-      - "./data/clickhouse/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
+      - "./data/clickhouse/persist:/var/lib/clickhouse"
   "cockroachdb":
     "command": ["start-single-node", "--insecure"]
     "container_name": "cockroachdb"
@@ -149,12 +178,12 @@
     "container_name": "dagster"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "entrypoint": ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml"]
     "environment":
       - "DAGSTER_POSTGRES_HOST=postgres"
-      - "DAGSTER_POSTGRES_USER=postgres"
-      - "DAGSTER_POSTGRES_PASSWORD=postgres"
+      - "DAGSTER_POSTGRES_USER=${POSTGRES_USER:-postgres}"
+      - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - "DAGSTER_POSTGRES_DB=dagster"
       - "DAGSTER_HOME=/opt/dagster/dagster_home/"
     "image": "dagster/dagster-k8s:${DAGSTER_VERSION:-1.7.10}"
@@ -167,7 +196,7 @@
     "container_name": "data-caterer"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "environment":
       - "DEPLOY_MODE=standalone"
     "image": "datacatering/data-caterer-basic:${DATA_CATERER_VERSION:-0.10.10}"
@@ -217,7 +246,7 @@
     "container_name": "doris"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "image": "apache/doris:${DORIS_VERSION:-doris-all-in-one-2.1.0}"
     "ports":
       - "8030:8030"
@@ -240,6 +269,9 @@
       "zookeeper":
         "condition": "service_healthy"
     "env_file": "data/druid/environment"
+    "environment":
+      - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
+      - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -261,6 +293,9 @@
       "zookeeper":
         "condition": "service_healthy"
     "env_file": "data/druid/environment"
+    "environment":
+      - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
+      - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -276,10 +311,13 @@
     "container_name": "druid-coordinator"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
       "zookeeper":
         "condition": "service_healthy"
     "env_file": "data/druid/environment"
+    "environment":
+      - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
+      - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -302,6 +340,9 @@
       "zookeeper":
         "condition": "service_healthy"
     "env_file": "data/druid/environment"
+    "environment":
+      - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
+      - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -324,6 +365,9 @@
       "zookeeper":
         "condition": "service_healthy"
     "env_file": "data/druid/environment"
+    "environment":
+      - "druid_metadata_storage_connector_user=${POSTGRES_USER:-postgres}"
+      - "druid_metadata_storage_connector_password=${POSTGRES_PASSWORD:-postgres}"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -340,7 +384,7 @@
     "container_name": "duckdb"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "entrypoint": ["tail", "-F", "anything"]
     "image": "datacatering/duckdb:${DUCKDB_VERSION:-v1.0.0}"
     "volumes":
@@ -350,7 +394,7 @@
     "environment":
       - "node.name=elasticsearch"
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - "ELASTIC_PASSWORD=elasticsearch"
+      - "ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
       - "discovery.type=single-node"
     "image": "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.14.1}"
     "ports":
@@ -368,13 +412,13 @@
       - "sqlite"
     "environment":
       - "TLS_ENABLED=1"
-      - "FLIGHT_PASSWORD=flight_password"
+      - "FLIGHT_PASSWORD=${FLIGHT_SQL_PASSWORD:-flight_password}"
       - "PRINT_QUERIES=1"
     "image": "voltrondata/flight-sql:${FLIGHT_SQL_VERSION:-v1.4.0}"
     "ports":
       - "31337:31337"
     "volumes":
-      - "./data/flight-sql:/opt/data"
+      - "./data/flight-sql/persist:/opt/data"
   "flink":
     "command": "taskmanager"
     "container_name": "flink"
@@ -411,10 +455,12 @@
     "depends_on":
       "kafka-server":
         "condition": "service_healthy"
-    "entrypoint": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
+    "entrypoint": ["/bin/sh", "-c", "/tmp/scripts/init.sh"]
+    "environment":
+      - "KAFKA_TOPICS=${KAFKA_TOPICS:-accounts,transactions}"
     "image": "confluentinc/confluent-local:${KAFKA_VERSION:-7.6.1}"
     "volumes":
-      - "./data/kafka:/opt/app"
+      - "./data/kafka/init.sh:/tmp/scripts/init.sh"
   "kafka-server":
     "container_name": "kafka"
     "environment":
@@ -439,15 +485,15 @@
     "container_name": "keycloak"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "environment":
       - "KC_DB=postgres"
-      - "KC_DB_USERNAME=postgres"
-      - "KC_DB_PASSWORD=postgres"
+      - "KC_DB_USERNAME=${POSTGRES_USER:-postgres}"
+      - "KC_DB_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - "KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak"
       - "KC_REALM_NAME=myrealm"
-      - "KEYCLOAK_ADMIN=admin"
-      - "KEYCLOAK_ADMIN_PASSWORD=admin"
+      - "KEYCLOAK_ADMIN=${KEYCLOAK_USER:-admin}"
+      - "KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_PASSWORD:-admin}"
     "image": "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-25.0.0}"
     "ports":
       - "8082:8080"
@@ -468,8 +514,8 @@
   "mariadb":
     "container_name": "mariadb"
     "environment":
-      - "MARIADB_USER=user"
-      - "MARIADB_PASSWORD=password"
+      - "MARIADB_USER=${MARIADB_USER:-user}"
+      - "MARIADB_PASSWORD=${MARIADB_PASSWORD:-password}"
       - "MARIADB_ROOT_PASSWORD=root"
       - "MARIADB_DATABASE=customer"
     "image": "mariadb:${MARIADB_VERSION:-11.4.2}"
@@ -478,7 +524,6 @@
     "restart": "always"
     "volumes":
       - "./data/mariadb/persist:/var/lib/mysql:Z"
-      - "./data/mariadb:/opt/app"
   "marquez":
     "container_name": "marquez-web"
     "depends_on":
@@ -490,12 +535,11 @@
     "ports":
       - "3001:3000"
   "marquez-data":
-    "command": ["-c", "/opt/app/seed.sh"]
+    "command": ["/bin/bash", "-c", "/opt/app/seed.sh"]
     "container_name": "marquez-data"
     "depends_on":
       "marquez-server":
         "condition": "service_healthy"
-    "entrypoint": "/bin/bash"
     "environment":
       - "MARQUEZ_URL=http://marquez:5000"
     "image": "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
@@ -505,7 +549,7 @@
     "container_name": "marquez"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "environment":
       - "MARQUEZ_CONFIG=/opt/app/marquez.yaml"
       - "MARQUEZ_PORT=5000"
@@ -513,8 +557,8 @@
       - "POSTGRES_HOST=postgres"
       - "POSTGRES_PORT=5432"
       - "POSTGRES_DB=marquez"
-      - "POSTGRES_USER=postgres"
-      - "POSTGRES_PASSWORD=postgres"
+      - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
     "healthcheck":
       "interval": "10s"
       "retries": 3
@@ -531,8 +575,8 @@
     "command": ["server", "/data", "--console-address", ":9001"]
     "container_name": "minio"
     "environment":
-      - "MINIO_ROOT_USER=minioadmin"
-      - "MINIO_ROOT_PASSWORD=minioadmin"
+      - "MINIO_ROOT_USER=${MINIO_USER:-minioadmin}"
+      - "MINIO_ROOT_PASSWORD=${MINIO_PASSWORD:-minioadmin}"
     "healthcheck":
       "interval": "5s"
       "retries": 3
@@ -550,35 +594,47 @@
     "depends_on":
       - "mongodb-server"
     "environment":
-      - "CONN_STR=mongodb://user:password@mongodb-server"
+      - "CONN_STR=mongodb://${MONGODB_USER:-user}:${MONGODB_PASSWORD:-password}@mongodb-server"
     "image": "mongodb/mongodb-community-server:${MONGODB_VERSION:-7.0.11-ubi8}"
     "volumes":
       - "./data/mongodb:/opt/app"
   "mongodb-server":
     "container_name": "mongodb"
     "environment":
-      - "MONGO_INITDB_ROOT_USERNAME=user"
-      - "MONGO_INITDB_ROOT_PASSWORD=password"
+      - "MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER:-user}"
+      - "MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-password}"
     "image": "mongo:${MONGODB_VERSION:-7.0.11}"
     "ports":
       - "27017:27017"
     "volumes":
       - "./data/mongodb/persist:/data/db"
   "mysql":
+    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
+    "container_name": "mysql-data"
+    "depends_on":
+      "mysql-server":
+        "condition": "service_healthy"
+    "environment":
+      - "MYSQL_PASSWORD=${MYSQL_PASSWORD:-root}"
+    "image": "mysql:${MYSQL_VERSION:-8.4.0}"
+    "volumes":
+      - "./data/mysql/init.sh:/tmp/scripts/init.sh"
+      - "./data/mysql/sql:/tmp/data"
+  "mysql-server":
     "command": "--mysql-native-password=ON"
     "container_name": "mysql"
     "environment":
-      - "MYSQL_ROOT_PASSWORD=root"
+      - "MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-root}"
     "healthcheck":
+      "interval": "5s"
       "retries": 3
-      "test": ["CMD-SHELL", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
-      "timeout": "20s"
+      "test": ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      "timeout": "5s"
     "image": "mysql:${MYSQL_VERSION:-8.4.0}"
     "ports":
       - "3306:3306"
     "volumes":
       - "./data/mysql/persist:/var/lib/mysql"
-      - "./data/mysql/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
   "neo4j":
     "container_name": "neo4j"
     "environment":
@@ -648,10 +704,23 @@
       - "9000:9000"
     "restart": "unless-stopped"
   "postgres":
+    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
+    "container_name": "postgres-data"
+    "depends_on":
+      "postgres-server":
+        "condition": "service_healthy"
+    "environment":
+      - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
+      - "PGPASSWORD=${POSTGRES_PASSWORD:-postgres}"
+    "image": "postgres:${POSTGRES_VERSION:-16.3}"
+    "volumes":
+      - "./data/postgres/init.sh:/tmp/scripts/init.sh"
+      - "./data/postgres/sql:/tmp/data"
+  "postgres-server":
     "container_name": "postgres"
     "environment":
-      - "POSTGRES_USER=postgres"
-      - "POSTGRES_PASSWORD=postgres"
+      - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - "PGDATA=/data/postgres"
     "healthcheck":
       "interval": "10s"
@@ -663,7 +732,6 @@
       - "5432:5432"
     "volumes":
       - "./data/postgres/persist:/data/postgres"
-      - "./data/postgres/my_data.sql:/docker-entrypoint-initdb.d/my_data.sql"
   "prefect":
     "container_name": "prefect-data"
     "depends_on":
@@ -680,13 +748,13 @@
     "container_name": "prefect"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "entrypoint": ["/opt/prefect/entrypoint.sh", "prefect", "server", "start"]
     "environment":
       - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
       - "PREFECT_SERVER_API_HOST=0.0.0.0"
-      - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect"
+      - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/prefect"
     "image": "prefecthq/prefect:${PREFECT_VERSION:-2.19.5-python3.11}"
     "ports":
       - "4200:4200"
@@ -697,7 +765,7 @@
     "container_name": "presto"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "image": "prestodb/presto:${PRESTO_VERSION:-0.287}"
     "ports":
       - "8083:8080"
@@ -707,8 +775,8 @@
   "rabbitmq":
     "container_name": "rabbitmq"
     "environment":
-      - "RABBITMQ_DEFAULT_USER=guest"
-      - "RABBITMQ_DEFAULT_PASS=guest"
+      - "RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}"
+      - "RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}"
     "healthcheck":
       "interval": "30s"
       "retries": 3
@@ -738,7 +806,7 @@
         "max_attempts": 1
     "environment":
       - "username_admin_globalaccesslevel=admin"
-      - "username_admin_password=admin"
+      - "username_admin_password=${SOLACE_PASSWORD:-admin}"
       - "system_scaling_maxconnectioncount=100"
     "healthcheck":
       "interval": "30s"
@@ -788,7 +856,7 @@
     "container_name": "trino"
     "depends_on":
       "postgres":
-        "condition": "service_healthy"
+        "condition": "service_completed_successfully"
     "image": "trinodb/trino:${TRINO_VERSION:-449}"
     "ports":
       - "8084:8080"

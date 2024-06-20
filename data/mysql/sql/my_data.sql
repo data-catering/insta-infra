@@ -1,4 +1,4 @@
-CREATE DATABASE customer;
+CREATE DATABASE IF NOT EXISTS customer;
 
 CREATE TABLE IF NOT EXISTS customer.accounts
 (
