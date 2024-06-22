@@ -610,6 +610,17 @@
       - "27017:27017"
     "volumes":
       - "./data/mongodb/persist:/data/db"
+  "mlflow":
+    "container_name": "mlflow"
+    "environment":
+      - "MLFLOW_TRACKING_URI=http://localhost:5001"
+    "image": "ghcr.io/mlflow/mlflow:v2.0.1"
+    "platform": "linux/amd64"
+    "ports":
+      - "5001:5000"
+    "volumes":
+      - "./data/mlflow:/mlflow"
+    "command": "mlflow server --host 0.0.0.0"
   "mysql":
     "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
     "container_name": "mysql-data"

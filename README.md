@@ -133,6 +133,7 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Job Orchestrator            | airflow       | ✅         |
 | Job Orchestrator            | dagster       | ✅         |
 | Job Orchestrator            | mage-ai       | ✅         |
+| Job Orchestrator            | mlflow        | ✅         |
 | Job Orchestrator            | prefect       | ✅         |
 | Messaging                   | activemq      | ✅         |
 | Messaging                   | kafka         | ✅         |
@@ -148,5 +149,4 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Real-time OLAP              | druid         | ✅         |
 | Real-time OLAP              | pinot         | ✅         |
 | Test Data Management        | data-caterer  | ✅         |
-| Workflow                    | temporal      | ✅         | 
-
+| Workflow                    | temporal      | ✅         |
