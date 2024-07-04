@@ -1,4 +1,3 @@
-
 "services":
   "activemq":
     "container_name": "activemq"
@@ -8,7 +7,7 @@
     "healthcheck":
       "interval": "15s"
       "retries": 3
-      "test": ["CMD-SHELL", "curl -k -f http://localhost:8161/admin"]
+      "test": [ "CMD-SHELL", "curl -k -f http://localhost:8161/admin" ]
       "timeout": "5s"
     "image": "apache/activemq-artemis:${ACTIVEMQ_VERSION:-2.34.0}"
     "ports":
@@ -33,7 +32,7 @@
       "interval": "30s"
       "retries": 5
       "start_period": "30s"
-      "test": ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      "test": [ "CMD", "curl", "--fail", "http://localhost:8080/health" ]
       "timeout": "10s"
     "image": "apache/airflow:${AIRFLOW_VERSION:-2.9.2}"
     "ports":
@@ -100,7 +99,7 @@
     "image": "apache/airflow:${AIRFLOW_VERSION:-2.9.2}"
     "user": "0:0"
   "cassandra":
-    "command": ["-c", "/tmp/scripts/init.sh"]
+    "command": [ "-c", "/tmp/scripts/init.sh" ]
     "container_name": "cassandra-data"
     "depends_on":
       "cassandra-server":
@@ -121,7 +120,7 @@
     "healthcheck":
       "interval": "30s"
       "retries": 3
-      "test": ["CMD-SHELL", "[ $$(nodetool statusgossip) = running ]"]
+      "test": [ "CMD-SHELL", "[ $$(nodetool statusgossip) = running ]" ]
       "timeout": "10s"
     "image": "datacatering/dse-server:6.8.48"
     "ports":
@@ -131,7 +130,7 @@
     "volumes":
       - "./data/cassandra/persist:/var/lib/cassandra"
   "clickhouse":
-    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
+    "command": [ "/bin/bash", "-c", "/tmp/scripts/init.sh" ]
     "container_name": "clickhouse-data"
     "depends_on":
       "clickhouse-server":
@@ -161,12 +160,12 @@
     "volumes":
       - "./data/clickhouse/persist:/var/lib/clickhouse"
   "cockroachdb":
-    "command": ["start-single-node", "--insecure"]
+    "command": [ "start-single-node", "--insecure" ]
     "container_name": "cockroachdb"
     "healthcheck":
       "interval": "10s"
       "retries": 5
-      "test": ["CMD-SHELL", "curl --fail http://localhost:8080/ || exit 1"]
+      "test": [ "CMD-SHELL", "curl --fail http://localhost:8080/ || exit 1" ]
       "timeout": "5s"
     "image": "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.1.0}"
     "ports":
@@ -179,7 +178,7 @@
     "depends_on":
       "postgres":
         "condition": "service_completed_successfully"
-    "entrypoint": ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml"]
+    "entrypoint": [ "dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml" ]
     "environment":
       - "DAGSTER_POSTGRES_HOST=postgres"
       - "DAGSTER_POSTGRES_USER=${POSTGRES_USER:-postgres}"
@@ -215,7 +214,7 @@
     "healthcheck":
       "interval": "10s"
       "retries": 3
-      "test": ["CMD", "curl", "--fail", "http://localhost:8080"]
+      "test": [ "CMD", "curl", "--fail", "http://localhost:8080" ]
       "timeout": "10s"
     "image": "debezium/debezium-ui:${DEBEZIUM_VERSION:-2.1.2.Final}"
     "ports":
@@ -237,7 +236,7 @@
     "healthcheck":
       "interval": "10s"
       "retries": 3
-      "test": ["CMD", "curl", "--fail", "http://localhost:8083"]
+      "test": [ "CMD", "curl", "--fail", "http://localhost:8083" ]
       "timeout": "10s"
     "image": "debezium/connect:${DEBEZIUM_CONNECT_VERSION:-2.6.2.Final}"
     "ports":
@@ -253,7 +252,7 @@
       - "8040:8040"
       - "9030:9030"
   "druid":
-    "command": ["router"]
+    "command": [ "router" ]
     "container_name": "druid"
     "depends_on":
       "druid-broker":
@@ -283,7 +282,7 @@
     "volumes":
       - "./data/druid/persist/router_var:/opt/druid/var"
   "druid-broker":
-    "command": ["broker"]
+    "command": [ "broker" ]
     "container_name": "druid-broker"
     "depends_on":
       "druid-coordinator":
@@ -307,7 +306,7 @@
     "volumes":
       - "./data/druid/persist/broker_var:/opt/druid/var"
   "druid-coordinator":
-    "command": ["coordinator"]
+    "command": [ "coordinator" ]
     "container_name": "druid-coordinator"
     "depends_on":
       "postgres":
@@ -330,7 +329,7 @@
       - "./data/druid/persist/shared:/opt/shared"
       - "./data/druid/persist/coordinator_var:/opt/druid/var"
   "druid-historical":
-    "command": ["historical"]
+    "command": [ "historical" ]
     "container_name": "druid-historical"
     "depends_on":
       "druid-coordinator":
@@ -355,7 +354,7 @@
       - "./data/druid/persist/shared:/opt/shared"
       - "./data/druid/persist/historical_var:/opt/druid/var"
   "druid-middlemanager":
-    "command": ["middleManager"]
+    "command": [ "middleManager" ]
     "container_name": "druid-middlemanager"
     "depends_on":
       "druid-coordinator":
@@ -385,7 +384,7 @@
     "depends_on":
       "postgres":
         "condition": "service_completed_successfully"
-    "entrypoint": ["tail", "-F", "anything"]
+    "entrypoint": [ "tail", "-F", "anything" ]
     "image": "datacatering/duckdb:${DUCKDB_VERSION:-v1.0.0}"
     "volumes":
       - "./data/duckdb:/opt/data"
@@ -405,7 +404,7 @@
       - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
       - "./data/elasticsearch/persist:/usr/share/elasticsearch/data:Z"
   "flight-sql":
-    "command": ["tail", "-f", "/dev/null"]
+    "command": [ "tail", "-f", "/dev/null" ]
     "container_name": "flight-sql"
     "depends_on":
       - "duckdb"
@@ -431,7 +430,7 @@
       - "6121"
       - "6122"
     "image": "flink:${FLINK_VERSION:-1.19.0-scala_2.12-java17}"
-    "links": []
+    "links": [ ]
   "flink-jobmanager":
     "command": "jobmanager"
     "container_name": "flink-jobmanager"
@@ -450,12 +449,20 @@
     "image": "kennethreitz/httpbin:${HTTPBIN_VERSION:-latest}"
     "ports":
       - "80:80"
+  "jupyter":
+    "container_name": "jupyter"
+    "command": [ "jupyter", "notebook", "--no-browser", "--NotebookApp.token=''", "--NotebookApp.password=''" ]
+    "image": "quay.io/jupyter/minimal-notebook:2024-07-02"
+    "ports":
+      - "8888:8888"
+    "volumes":
+      - "./data/jupyter/persist:/home/jovyan/work"
   "kafka":
     "container_name": "kafka-data"
     "depends_on":
       "kafka-server":
         "condition": "service_healthy"
-    "entrypoint": ["/bin/sh", "-c", "/tmp/scripts/init.sh"]
+    "entrypoint": [ "/bin/sh", "-c", "/tmp/scripts/init.sh" ]
     "environment":
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-accounts,transactions}"
     "image": "confluentinc/confluent-local:${KAFKA_VERSION:-7.6.1}"
@@ -473,7 +480,7 @@
     "healthcheck":
       "interval": "15s"
       "retries": 3
-      "test": ["CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list"]
+      "test": [ "CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list" ]
       "timeout": "5s"
     "image": "confluentinc/confluent-local:7.6.1"
     "ports":
@@ -481,7 +488,7 @@
     "volumes":
       - "./data/kafka/persist:/var/lib/kafka/data"
   "keycloak":
-    "command": ["start-dev", "--import-realm"]
+    "command": [ "start-dev", "--import-realm" ]
     "container_name": "keycloak"
     "depends_on":
       "postgres":
@@ -535,7 +542,7 @@
     "ports":
       - "3001:3000"
   "marquez-data":
-    "command": ["-c", "/tmp/scripts/init.sh"]
+    "command": [ "-c", "/tmp/scripts/init.sh" ]
     "container_name": "marquez-data"
     "depends_on":
       "marquez-server":
@@ -564,7 +571,7 @@
     "healthcheck":
       "interval": "10s"
       "retries": 3
-      "test": ["CMD", "curl", "--fail", "http://localhost:5001/healthcheck"]
+      "test": [ "CMD", "curl", "--fail", "http://localhost:5001/healthcheck" ]
       "timeout": "5s"
     "image": "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
     "ports":
@@ -574,7 +581,7 @@
       - "./data/marquez/persist:/opt/marquez"
       - "./data/marquez/conf:/opt/app"
   "minio":
-    "command": ["server", "/data", "--console-address", ":9001"]
+    "command": [ "server", "/data", "--console-address", ":9001" ]
     "container_name": "minio"
     "environment":
       - "MINIO_ROOT_USER=${MINIO_USER:-minioadmin}"
@@ -582,7 +589,7 @@
     "healthcheck":
       "interval": "5s"
       "retries": 3
-      "test": ["CMD", "mc", "ready", "local"]
+      "test": [ "CMD", "mc", "ready", "local" ]
       "timeout": "5s"
     "image": "quay.io/minio/minio:${MINIO_VERSION:-RELEASE.2024-06-04T19-20-08Z}"
     "ports":
@@ -591,7 +598,7 @@
     "volumes":
       - "./data/minio/persist:/data"
   "mongodb":
-    "command": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
+    "command": [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
     "container_name": "mongodb-connect"
     "depends_on":
       - "mongodb-server"
@@ -611,7 +618,7 @@
     "volumes":
       - "./data/mongodb/persist:/data/db"
   "mysql":
-    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
+    "command": [ "/bin/bash", "-c", "/tmp/scripts/init.sh" ]
     "container_name": "mysql-data"
     "depends_on":
       "mysql-server":
@@ -630,7 +637,7 @@
     "healthcheck":
       "interval": "5s"
       "retries": 3
-      "test": ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      "test": [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD" ]
       "timeout": "5s"
     "image": "mysql:${MYSQL_VERSION:-8.4.0}"
     "ports":
@@ -646,7 +653,7 @@
     "healthcheck":
       "interval": "30s"
       "retries": 5
-      "test": ["CMD-SHELL", "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
+      "test": [ "CMD-SHELL", "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1" ]
       "timeout": "10s"
     "image": "neo4j:${NEO4J_VERSION:-5.20.0}"
     "ports":
@@ -665,7 +672,7 @@
     "healthcheck":
       "interval": "10s"
       "retries": 3
-      "test": ["CMD", "curl", "--fail", "http://localhost:8098/health/readiness"]
+      "test": [ "CMD", "curl", "--fail", "http://localhost:8098/health/readiness" ]
       "timeout": "5s"
     "image": "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     "ports":
@@ -682,7 +689,7 @@
     "healthcheck":
       "interval": "10s"
       "retries": 3
-      "test": ["CMD", "curl", "--fail", "http://localhost:8099/health"]
+      "test": [ "CMD", "curl", "--fail", "http://localhost:8099/health" ]
       "timeout": "5s"
     "image": "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     "ports":
@@ -699,14 +706,14 @@
     "healthcheck":
       "interval": "10s"
       "retries": 3
-      "test": ["CMD", "curl", "--fail", "http://localhost:9000/pinot-controller/admin"]
+      "test": [ "CMD", "curl", "--fail", "http://localhost:9000/pinot-controller/admin" ]
       "timeout": "5s"
     "image": "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     "ports":
       - "9000:9000"
     "restart": "unless-stopped"
   "postgres":
-    "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
+    "command": [ "/bin/bash", "-c", "/tmp/scripts/init.sh" ]
     "container_name": "postgres-data"
     "depends_on":
       "postgres-server":
@@ -727,7 +734,7 @@
     "healthcheck":
       "interval": "10s"
       "retries": 3
-      "test": ["CMD-SHELL", "pg_isready"]
+      "test": [ "CMD-SHELL", "pg_isready" ]
       "timeout": "5s"
     "image": "postgres:${POSTGRES_VERSION:-16.3}"
     "ports":
@@ -738,7 +745,7 @@
     "container_name": "prefect-data"
     "depends_on":
       - "prefect-server"
-    "entrypoint": ["/opt/prefect/app/start_flows.sh"]
+    "entrypoint": [ "/opt/prefect/app/start_flows.sh" ]
     "environment":
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
     "image": "prefecthq/prefect:${PREFECT_VERSION:-2.19.5-python3.11}"
@@ -751,7 +758,7 @@
     "depends_on":
       "postgres":
         "condition": "service_completed_successfully"
-    "entrypoint": ["/opt/prefect/entrypoint.sh", "prefect", "server", "start"]
+    "entrypoint": [ "/opt/prefect/entrypoint.sh", "prefect", "server", "start" ]
     "environment":
       - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
@@ -796,7 +803,7 @@
     "depends_on":
       "solace-server":
         "condition": "service_healthy"
-    "entrypoint": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
+    "entrypoint": [ "/bin/sh", "-c", "/opt/app/my_data.sh" ]
     "image": "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.8}"
     "volumes":
       - "./data/solace:/opt/app"
@@ -813,7 +820,7 @@
     "healthcheck":
       "interval": "30s"
       "retries": 3
-      "test": ["CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080"]
+      "test": [ "CMD-SHELL", "curl", "--output", "/dev/null", "--silent", "--head", "--fail", "http://localhost:8080" ]
       "timeout": "5s"
     "image": "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.8}"
     "ports":
@@ -834,16 +841,16 @@
       - "9010:9010"
       - "9020:9020"
   "sqlite":
-    "command": ["tail", "-f", "/dev/null"]
+    "command": [ "tail", "-f", "/dev/null" ]
     "container_name": "sqlite"
     "image": "keinos/sqlite3:3.46.0"
     "volumes":
       - "./data/sqlite:/opt/data"
   "temporal":
-    "command": ["server", "start-dev", "--db-filename", "/opt/data/db/temporal.db", "--ip", "0.0.0.0", "--metrics-port", "9233"]
+    "command": [ "server", "start-dev", "--db-filename", "/opt/data/db/temporal.db", "--ip", "0.0.0.0", "--metrics-port", "9233" ]
     "container_name": "temporal"
     "entrypoint": "temporal"
-    "environment": []
+    "environment": [ ]
     "expose":
       - "8233"
       - "7233"
