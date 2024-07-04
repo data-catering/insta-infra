@@ -138,6 +138,7 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Messaging                   | kafka         | ✅         |
 | Messaging                   | rabbitmq      | ✅         |
 | Messaging                   | solace        | ✅         |
+| Notebook                    | jupyter       | ✅         |
 | Object Storage              | minio         | ✅         |
 | Query Engine                | duckdb        | ✅         |
 | Query Engine                | flight-sql    | ✅         |

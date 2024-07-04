@@ -1,4 +1,3 @@
-
 "services":
   "activemq":
     "container_name": "activemq"
@@ -450,6 +449,14 @@
     "image": "kennethreitz/httpbin:${HTTPBIN_VERSION:-latest}"
     "ports":
       - "80:80"
+  "jupyter":
+    "command": ["jupyter", "notebook", "--no-browser", "--NotebookApp.token=''", "--NotebookApp.password=''"]
+    "container_name": "jupyter"
+    "image": "quay.io/jupyter/minimal-notebook:2024-07-02"
+    "ports":
+      - "8888:8888"
+    "volumes":
+      - "./data/jupyter/persist:/home/jovyan/work"
   "kafka":
     "container_name": "kafka-data"
     "depends_on":
