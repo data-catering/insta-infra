@@ -623,16 +623,16 @@
       - "SA_PASSWORD=${MSSQL_PASSWORD:-yourStrong(!)Password}"
       - "ACCEPT_EULA=Y"
     "healthcheck":
-      "test": [ "CMD-SHELL", "mssql-health-check" ]
-      "timeout": "10s"
       "interval": "10s"
       "retries": 10
+      "test": ["CMD-SHELL", "mssql-health-check"]
+      "timeout": "10s"
     "image": "mcr.microsoft.com/mssql/server:${MSSQL_VERSION:-2022-latest}"
     "ports":
       - "1433:1433"
     "volumes":
       - "./data/mssql/mssql-health-check:/usr/local/bin/mssql-health-check"
-#      - "./data/mssql/persist:/var/opt/mssql/data"
+  #      - "./data/mssql/persist:/var/opt/mssql/data"
   "mysql":
     "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
     "container_name": "mysql-data"
