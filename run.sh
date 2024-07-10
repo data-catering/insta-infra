@@ -20,6 +20,7 @@ flight-sql='flight_sql_client --command Execute --host localhost --port 31337 --
 mariadb='mariadb --user=${MARIADB_USER:-user} --password=${MARIADB_PASSWORD:-password}'
 mongodb-connect='mongosh mongodb://${MONGODB_USER:-root}:${MONGODB_PASSWORD:-root}@mongodb'
 mysql='mysql -u ${MYSQL_USER:-root} -p${MYSQL_PASSWORD:-root}'
+mssql='/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"${MSSQL_PASSWORD:-yourStrong(!)Password}\"'
 neo4j='cypher-shell -u neo4j -p test'
 postgres='PGPASSWORD=${POSTGRES_PASSWORD:-postgres} psql -U${POSTGRES_USER:-postgres}'
 prefect-data='bash'

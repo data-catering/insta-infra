@@ -115,6 +115,7 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Database                    | elasticsearch | ✅         |
 | Database                    | mariadb       | ✅         |
 | Database                    | mongodb       | ✅         |
+| Database                    | mssql         | ✅         |
 | Database                    | mysql         | ✅         |
 | Database                    | neo4j         | ✅         |
 | Database                    | postgres      | ✅         |
