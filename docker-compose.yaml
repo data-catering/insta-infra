@@ -488,7 +488,8 @@
       - "9092:9092"
     "user": "${CURRENT_UID}"
     "volumes":
-      - "./data/kafka/persist:/var/lib/kafka/data"
+      - "./data/kafka/persist/data:/var/lib/kafka/data"
+      - "./data/kafka/persist/etc:/etc/kafka"
   "keycloak":
     "command": ["start-dev", "--import-realm"]
     "container_name": "keycloak"
