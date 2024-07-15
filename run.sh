@@ -50,6 +50,14 @@ usage() {
   exit 0
 }
 
+set_user() {
+  if [ -z "$CURRENT_UID" ]
+  then
+    current_user="$(id -u):$(id -g)"
+    export CURRENT_UID="$current_user"
+  fi
+}
+
 connect_to_service() {
   if [ -z "$1" ]
   then
@@ -72,6 +80,7 @@ connect_to_service() {
 }
 
 shutdown_service() {
+  set_user
   if [ -z "$1" ]; then
     echo "Shutting down all services..."
     docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" down
@@ -99,9 +108,10 @@ check_docker_installed() {
 }
 
 startup_services() {
+  set_user
   all_services=("$@")
   echo -e "${GREEN}Starting up services...${NC}"
-  docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" up -d "$@"
+  docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" up -d --quiet-pull "$@"
   if [ $? != 0 ]; then
     echo -e "${RED}Error: Failed to start up services${NC}"
     exit 1
