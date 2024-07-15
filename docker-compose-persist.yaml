@@ -1,0 +1,93 @@
+"services":
+  "activemq":
+    "volumes":
+      - "./data/activemq/persist:/var/lib/artemis-instance"
+  "cassandra-server":
+    "volumes":
+      - "./data/cassandra/persist:/var/lib/cassandra"
+  "clickhouse-server":
+    "volumes":
+      - "./data/clickhouse/persist:/var/lib/clickhouse"
+  "cockroachdb":
+    "volumes":
+      - "./data/cockroachdb/persist:/cockroach/cockroach-data"
+  "dagster":
+    "volumes":
+      - "./data/dagster/persist:/opt/dagster/dagster_home/"
+  "druid":
+    "volumes":
+      - "./data/druid/persist/router_var:/opt/druid/var"
+  "druid-broker":
+    "volumes":
+      - "./data/druid/persist/broker_var:/opt/druid/var"
+  "druid-coordinator":
+    "volumes":
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/coordinator_var:/opt/druid/var"
+  "druid-historical":
+    "volumes":
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/historical_var:/opt/druid/var"
+  "druid-middlemanager":
+    "volumes":
+      - "./data/druid/persist/shared:/opt/shared"
+      - "./data/druid/persist/middle_var:/opt/druid/var"
+  "elasticsearch":
+    "volumes":
+      - "./data/elasticsearch/persist:/usr/share/elasticsearch/data:Z"
+  "flight-sql":
+    "volumes":
+      - "./data/flight-sql/persist:/opt/data"
+  "jupyter":
+    "volumes":
+      - "./data/jupyter/persist:/home/jovyan/work"
+  "kafka-server":
+    "volumes":
+      - "./data/kafka/persist/data:/var/lib/kafka/data"
+      - "./data/kafka/persist/etc:/etc/kafka"
+  "mage-ai":
+    "volumes":
+      - "./data/mage-ai/persist:/home/src/"
+  "mariadb":
+    "volumes":
+      - "./data/mariadb/persist:/var/lib/mysql:Z"
+  "marquez-server":
+    "volumes":
+      - "./data/marquez/persist:/opt/marquez"
+  "minio":
+    "volumes":
+      - "./data/minio/persist:/data"
+  "mongodb-server":
+    "volumes":
+      - "./data/mongodb/persist:/data/db"
+  "mssql":
+    "volumes":
+      - "./data/mssql/persist:/var/opt/mssql/data"
+  "mysql-server":
+    "volumes":
+      - "./data/mysql/persist:/var/lib/mysql"
+  "neo4j":
+    "volumes":
+      - "./data/neo4j/persist:/data"
+  "postgres-server":
+    "volumes":
+      - "./data/postgres/persist:/data/postgres"
+  "prefect-server":
+    "volumes":
+      - "./data/prefect/persist:/root/.prefect"
+  "rabbitmq":
+    "volumes":
+      - "./data/rabbitmq/persist:/var/lib/rabbitmq"
+  "solace-server":
+    "volumes":
+      - "./data/solace/persist:/var/lib/solace"
+  "sqlite":
+    "volumes":
+      - "./data/sqlite/persist:/opt/data"
+  "temporal":
+    "volumes":
+      - "./data/temporal/persist:/opt/data/db"
+  "unitycatalog":
+    "volumes":
+      - "./data/unitycatalog/persist:/opt/app/etc"
+"version": "3.9"

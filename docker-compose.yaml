@@ -13,8 +13,6 @@
     "ports":
       - "61616:61616"
       - "8161:8161"
-    "volumes":
-      - "./data/activemq/persist:/var/lib/artemis-instance"
   "airflow":
     "command": "standalone"
     "container_name": "airflow"
@@ -127,8 +125,6 @@
       - "9042:9042"
     "ulimits":
       "memlock": -1
-    "volumes":
-      - "./data/cassandra/persist:/var/lib/cassandra"
   "clickhouse":
     "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
     "container_name": "clickhouse-data"
@@ -157,8 +153,6 @@
       - "8123:8123"
       - "9000:9000"
     "user": "101:101"
-    "volumes":
-      - "./data/clickhouse/persist:/var/lib/clickhouse"
   "cockroachdb":
     "command": ["start-single-node", "--insecure"]
     "container_name": "cockroachdb"
@@ -171,8 +165,6 @@
     "ports":
       - "26257:26257"
       - "8080:8080"
-    "volumes":
-      - "./data/cockroachdb/persist:/cockroach/cockroach-data"
   "dagster":
     "container_name": "dagster"
     "depends_on":
@@ -189,7 +181,6 @@
     "ports":
       - "3000:3000"
     "volumes":
-      - "./data/dagster/persist:/opt/dagster/dagster_home/"
       - "./data/dagster:/opt/dagster/app/"
   "data-caterer":
     "container_name": "data-caterer"
@@ -279,8 +270,6 @@
     "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8888:8888"
-    "volumes":
-      - "./data/druid/persist/router_var:/opt/druid/var"
   "druid-broker":
     "command": ["broker"]
     "container_name": "druid-broker"
@@ -303,8 +292,6 @@
     "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8082:8082"
-    "volumes":
-      - "./data/druid/persist/broker_var:/opt/druid/var"
   "druid-coordinator":
     "command": ["coordinator"]
     "container_name": "druid-coordinator"
@@ -325,9 +312,6 @@
     "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8081:8081"
-    "volumes":
-      - "./data/druid/persist/shared:/opt/shared"
-      - "./data/druid/persist/coordinator_var:/opt/druid/var"
   "druid-historical":
     "command": ["historical"]
     "container_name": "druid-historical"
@@ -350,9 +334,6 @@
     "image": "apache/druid:${DRUID_VERSION:-30.0.0}"
     "ports":
       - "8083:8083"
-    "volumes":
-      - "./data/druid/persist/shared:/opt/shared"
-      - "./data/druid/persist/historical_var:/opt/druid/var"
   "druid-middlemanager":
     "command": ["middleManager"]
     "container_name": "druid-middlemanager"
@@ -376,9 +357,6 @@
     "ports":
       - "8091:8091"
       - "8100-8105:8100-8105"
-    "volumes":
-      - "./data/druid/persist/shared:/opt/shared"
-      - "./data/druid/persist/middle_var:/opt/druid/var"
   "duckdb":
     "container_name": "duckdb"
     "depends_on":
@@ -402,7 +380,6 @@
     "restart": "unless-stopped"
     "volumes":
       - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
-      - "./data/elasticsearch/persist:/usr/share/elasticsearch/data:Z"
   "flight-sql":
     "command": ["tail", "-f", "/dev/null"]
     "container_name": "flight-sql"
@@ -416,8 +393,6 @@
     "image": "voltrondata/flight-sql:${FLIGHT_SQL_VERSION:-v1.4.0}"
     "ports":
       - "31337:31337"
-    "volumes":
-      - "./data/flight-sql/persist:/opt/data"
   "flink":
     "command": "taskmanager"
     "container_name": "flink"
@@ -455,8 +430,6 @@
     "image": "quay.io/jupyter/minimal-notebook:2024-07-02"
     "ports":
       - "8888:8888"
-    "volumes":
-      - "./data/jupyter/persist:/home/jovyan/work"
   "kafka":
     "container_name": "kafka-data"
     "depends_on":
@@ -466,7 +439,6 @@
     "environment":
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-accounts,transactions}"
     "image": "confluentinc/confluent-local:${KAFKA_VERSION:-7.6.1}"
-    "user": "${CURRENT_UID}"
     "volumes":
       - "./data/kafka/init.sh:/tmp/scripts/init.sh"
   "kafka-server":
@@ -479,17 +451,13 @@
     "expose":
       - "29092"
     "healthcheck":
-      "interval": "15s"
-      "retries": 3
+      "interval": "5s"
+      "retries": 5
       "test": ["CMD-SHELL", "/bin/sh", "-c", "kafka-topics", "--bootstrap-server", "kafka:29092", "--list"]
       "timeout": "5s"
     "image": "confluentinc/confluent-local:7.6.1"
     "ports":
       - "9092:9092"
-    "user": "${CURRENT_UID}"
-    "volumes":
-      - "./data/kafka/persist/data:/var/lib/kafka/data"
-      - "./data/kafka/persist/etc:/etc/kafka"
   "keycloak":
     "command": ["start-dev", "--import-realm"]
     "container_name": "keycloak"
@@ -519,8 +487,6 @@
     "ports":
       - "6789:6789"
     "restart": "on-failure"
-    "volumes":
-      - "./data/mage-ai/persist:/home/src/"
   "mariadb":
     "container_name": "mariadb"
     "environment":
@@ -532,8 +498,6 @@
     "ports":
       - "3306:3306"
     "restart": "always"
-    "volumes":
-      - "./data/mariadb/persist:/var/lib/mysql:Z"
   "marquez":
     "container_name": "marquez-web"
     "depends_on":
@@ -581,7 +545,6 @@
       - "5002:5000"
       - "5001:5001"
     "volumes":
-      - "./data/marquez/persist:/opt/marquez"
       - "./data/marquez/conf:/opt/app"
   "minio":
     "command": ["server", "/data", "--console-address", ":9001"]
@@ -598,8 +561,6 @@
     "ports":
       - "9000:9000"
       - "9001:9001"
-    "volumes":
-      - "./data/minio/persist:/data"
   "mongodb":
     "command": ["/bin/sh", "-c", "/opt/app/my_data.sh"]
     "container_name": "mongodb-connect"
@@ -618,8 +579,6 @@
     "image": "mongo:${MONGODB_VERSION:-7.0.11}"
     "ports":
       - "27017:27017"
-    "volumes":
-      - "./data/mongodb/persist:/data/db"
   "mssql":
     "container_name": "mssql"
     "environment":
@@ -635,7 +594,6 @@
       - "1433:1433"
     "volumes":
       - "./data/mssql/mssql-health-check:/usr/local/bin/mssql-health-check"
-  #      - "./data/mssql/persist:/var/opt/mssql/data"
   "mysql":
     "command": ["/bin/bash", "-c", "/tmp/scripts/init.sh"]
     "container_name": "mysql-data"
@@ -661,8 +619,6 @@
     "image": "mysql:${MYSQL_VERSION:-8.4.0}"
     "ports":
       - "3306:3306"
-    "volumes":
-      - "./data/mysql/persist:/var/lib/mysql"
   "neo4j":
     "container_name": "neo4j"
     "environment":
@@ -678,8 +634,6 @@
     "ports":
       - "7474:7474"
       - "7687:7687"
-    "volumes":
-      - "./data/neo4j/persist:/data"
   "pinot":
     "command": "StartServer -zkAddress zookeeper:2181"
     "container_name": "pinot-server"
@@ -758,8 +712,6 @@
     "image": "postgres:${POSTGRES_VERSION:-16.3}"
     "ports":
       - "5432:5432"
-    "volumes":
-      - "./data/postgres/persist:/data/postgres"
   "prefect":
     "container_name": "prefect-data"
     "depends_on":
@@ -787,8 +739,6 @@
     "ports":
       - "4200:4200"
     "restart": "always"
-    "volumes":
-      - "./data/prefect/persist:/root/.prefect"
   "presto":
     "container_name": "presto"
     "depends_on":
@@ -815,8 +765,6 @@
     "ports":
       - "5672:5672"
       - "15672:15672"
-    "volumes":
-      - "./data/rabbitmq/persist:/var/lib/rabbitmq"
   "solace":
     "container_name": "solace-data"
     "depends_on":
@@ -851,8 +799,6 @@
       "nofile":
         "hard": 6592
         "soft": 2448
-    "volumes":
-      - "./data/solace/persist:/var/lib/solace"
   "spanner":
     "container_name": "spanner"
     "image": "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.19}"
@@ -878,8 +824,6 @@
       - "8233:8233"
       - "7233:7233"
       - "9233:9233"
-    "volumes":
-      - "./data/temporal/persist:/opt/data/db"
   "trino":
     "container_name": "trino"
     "depends_on":
@@ -896,8 +840,6 @@
     "image": "datacatering/unitycatalog:${UNITYCATALOG_VERSION:-0.1.0}"
     "ports":
       - "8081:8081"
-    "volumes":
-      - "./data/unitycatalog/persist:/opt/app/etc"
   "zookeeper":
     "container_name": "zookeeper"
     "environment":

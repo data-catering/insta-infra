@@ -49,6 +49,12 @@ mysql     mysql:3306              localhost:3306     host.docker.internal:3306
 ./run.sh list
 ```
 
+### Persist data
+
+```shell
+./run.sh -p postgres
+```
+
 ### Remove persisted data
 
 ```shell
@@ -87,7 +93,7 @@ run at startup.
 
 ### Persisted data
 
-If any data is persisted from the services to carry across sessions, it gets pushed to folder:
+If any data is persisted (via running with `-p`) from the services to carry across sessions, it gets pushed to folder:
 
 `./data/<service>/persist`
 

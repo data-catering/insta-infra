@@ -7,6 +7,7 @@ LIGHT_BLUE='\033[1;34m'
 NC='\033[0m'
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+COMPOSE_FILES="-f $SCRIPT_DIR/docker-compose.yaml"
 
 connection_commands="
 activemq='/var/lib/artemis-instance/bin/artemis shell --user ${ARTEMIS_USER:-artemis} --password ${ARTEMIS_PASSWORD:-artemis}'
@@ -39,6 +40,7 @@ usage() {
   echo "    -d, down [services...]    Shutdown services (if empty, shutdown all services)"
   echo "    -h, --help, help          Show help"
   echo "    -l, list                  List supported services"
+  echo "    -p                        Run service(s) with persisted data"
   echo "    -r, remove [services...]  Remove persisted data (if empty, remove all services persisted data)"
   echo
   echo "Examples:"
@@ -46,16 +48,9 @@ usage() {
   echo "    $(basename "$0") postgres           Spin up Postgres"
   echo "    $(basename "$0") -c postgres        Connect to Postgres"
   echo "    $(basename "$0") -d                 Bring Postgres down"
+  echo "    $(basename "$0") -p postgres        Run Postgres with persisted data"
   echo "    $(basename "$0") -r postgres        Remove Postgres persisted data"
   exit 0
-}
-
-set_user() {
-  if [ -z "$CURRENT_UID" ]
-  then
-    current_user="$(id -u):$(id -g)"
-    export CURRENT_UID="$current_user"
-  fi
 }
 
 connect_to_service() {
@@ -80,7 +75,6 @@ connect_to_service() {
 }
 
 shutdown_service() {
-  set_user
   if [ -z "$1" ]; then
     echo "Shutting down all services..."
     docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" down
@@ -107,11 +101,22 @@ check_docker_installed() {
   fi
 }
 
+check_persist_flag() {
+  if [ "$1" = "-p" ]; then
+    echo -e "${YELLOW}Persisting data to host"
+    COMPOSE_FILES="${COMPOSE_FILES} -f docker-compose-persist.yaml"
+    shift
+  else
+    echo -e "${YELLOW}Not persisting data to host"
+  fi
+  original_services=("$@")
+  service_array=("$@")
+}
+
 startup_services() {
-  set_user
-  all_services=("$@")
   echo -e "${GREEN}Starting up services...${NC}"
-  docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" up -d --quiet-pull "$@"
+  echo "$COMPOSE_FILES"
+  docker-compose $COMPOSE_FILES up -d --quiet-pull "$@"
   if [ $? != 0 ]; then
     echo -e "${RED}Error: Failed to start up services${NC}"
     exit 1
@@ -122,7 +127,7 @@ startup_services() {
 log_how_to_connect() {
   echo -e "${GREEN}How to connect:${NC}"
   connect_result=("${YELLOW}Service,${YELLOW}Container To Container,Host To Container,Container To Host")
-  for service in "${all_services[@]}"; do
+  for service in "${original_services[@]}"; do
     ports=$(docker inspect "$service" | grep HostPort | sed -nr 's/.*\: "([0-9]+)"/\1/p' | sort -u)
     for port in $ports; do
       container_port=$(docker inspect "$service" | grep -B 3 "HostPort\": \"${port}\"" | sed -nr 's/.*\"([0-9]+)\/tcp\".*/\1/p' | head -1)
@@ -179,7 +184,9 @@ case $1 in
       usage
     else
       check_docker_installed
-      startup_services "$@"
+      service_array=()
+      check_persist_flag "$@"
+      startup_services "${service_array[@]}"
       log_how_to_connect
     fi
     ;;
