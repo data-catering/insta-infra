@@ -455,7 +455,7 @@ services:
       retries: 5
       test: [CMD-SHELL, /bin/sh, -c, kafka-topics, --bootstrap-server, "kafka:29092", --list]
       timeout: 5s
-    image: "confluentinc/confluent-local:7.6.1"
+    image: "confluentinc/confluent-local:7.6.2"
     ports:
       - "9092:9092"
   keycloak:
