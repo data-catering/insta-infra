@@ -12,7 +12,9 @@ jobs:
         run: npm install eslint @eslint/js eslint-plugin-yml
       - name: Format docker-compose.yaml
         run: npx eslint "docker-compose.yaml" --fix
+      - name: Format docker-compose-persist.yaml
+        run: npx eslint "docker-compose-persist.yaml" --fix
       - name: Push commit to pull request
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: Format docker-compose.yaml
+          commit_message: Format docker compose YAML files
