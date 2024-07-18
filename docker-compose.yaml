@@ -118,7 +118,7 @@ services:
     healthcheck:
       interval: 30s
       retries: 3
-      test: [CMD-SHELL, [$$(nodetool statusgossip) = running]]
+      test: [CMD-SHELL, "[ $$(nodetool statusgossip) = running ]"]
       timeout: 10s
     image: "datacatering/dse-server:6.8.48"
     ports:
@@ -170,7 +170,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    entrypoint: [dagster-webserver, -h, 0.0.0.0, -p, 3000, -w, /opt/dagster/app/workspace.yaml]
+    entrypoint: [dagster-webserver, -h, 0.0.0.0, -p, "3000", -w, /opt/dagster/app/workspace.yaml]
     environment:
       - DAGSTER_POSTGRES_HOST=postgres
       - "DAGSTER_POSTGRES_USER=${POSTGRES_USER:-postgres}"
@@ -812,7 +812,7 @@ services:
     volumes:
       - "./data/sqlite:/opt/data"
   temporal:
-    command: [server, start-dev, --db-filename, /opt/data/db/temporal.db, --ip, 0.0.0.0, --metrics-port, 9233]
+    command: [server, start-dev, --db-filename, /opt/data/db/temporal.db, --ip, 0.0.0.0, --metrics-port, "9233"]
     container_name: temporal
     entrypoint: temporal
     environment: []
