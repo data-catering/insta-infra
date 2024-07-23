@@ -154,7 +154,7 @@ services:
       - "9000:9000"
     user: "101:101"
   cockroachdb:
-    command: [ bash, -c, /tmp/scripts/init.sh ]
+    command: [bash, -c, /tmp/scripts/init.sh]
     container_name: cockroachdb-data
     depends_on:
       cockroachdb-server:
