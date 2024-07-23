@@ -154,6 +154,16 @@ services:
       - "9000:9000"
     user: "101:101"
   cockroachdb:
+    command: [bash, -c, /tmp/scripts/init.sh]
+    container_name: cockroachdb-data
+    depends_on:
+      cockroachdb-server:
+        condition: service_healthy
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.1.0}"
+    volumes:
+      - "./data/cockroachdb/init.sh:/tmp/scripts/init.sh"
+      - "${COCKROACHDB_DATA:-./data/cockroachdb/data}:/tmp/data"
+  cockroachdb-server:
     command: [start-single-node, --insecure]
     container_name: cockroachdb
     healthcheck:
@@ -478,6 +488,17 @@ services:
     restart: unless-stopped
     volumes:
       - "./data/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro"
+  maestro:
+    container_name: maestro
+    depends_on:
+      cockroachdb:
+        condition: service_completed_successfully
+    environment:
+      - CONDUCTOR_CONFIGS_JDBCURL=jdbc:postgresql://cockroachdb:26257/maestro
+      - CONDUCTOR_CONFIGS_JDBCUSERNAME=root
+    image: "datacatering/maestro:${MAESTRO_VERSION:-0.1.0}"
+    ports:
+      - "8081:8080"
   mage-ai:
     command: mage start your_first_project
     container_name: mage-ai
