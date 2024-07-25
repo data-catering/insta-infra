@@ -655,6 +655,20 @@ services:
     ports:
       - "7474:7474"
       - "7687:7687"
+  opensearch:
+    container_name: opensearch
+    environment:
+      - "discovery.type=single-node"
+      - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD:-!BigData#1}"
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test: [ CMD, curl, --fail, "https://localhost:9200", "-ku", "admin:${OPENSEARCH_PASSWORD:-!BigData#1}" ]
+      timeout: 5s
+    image: "opensearchproject/opensearch:${OPENSEARCH_VERSION:-2.15.0}"
+    ports:
+      - "9600:9600"
+      - "9200:9200"
   pinot:
     command: "StartServer -zkAddress zookeeper:2181"
     container_name: pinot-server
