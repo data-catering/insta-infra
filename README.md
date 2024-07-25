@@ -63,6 +63,13 @@ mysql     mysql:3306              localhost:3306     host.docker.internal:3306
 ./run.sh remove postgres
 ```
 
+### Run version
+
+```shell
+<service>_VERSION=0.1 ./run.sh <services>
+POSTGRES_VERSION=14.0 ./run.sh postgres
+```
+
 ### Run from anywhere
 
 In your `.bashrc, .zshrc, ...`, add:
@@ -124,10 +131,10 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Database                    | mssql         | ✅         |
 | Database                    | mysql         | ✅         |
 | Database                    | neo4j         | ✅         |
+| Database                    | opensearch    | ✅         |
 | Database                    | postgres      | ✅         |
 | Database                    | spanner       | ✅         |
 | Database                    | sqlite        | ✅         |
-| Database                    | opensearch    | ❌         |
 | Data Catalog                | marquez       | ✅         |
 | Data Catalog                | unitycatalog  | ✅         |
 | Data Catalog                | amundsen      | ❌         |
