@@ -720,6 +720,17 @@ services:
     ports:
       - "9000:9000"
     restart: unless-stopped
+  polaris:
+    container_name: polaris
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test: [CMD, curl, "http://localhost:8182/healthcheck"]
+      timeout: 10s
+    image: "datacatering/polaris:${POLARIS_VERSION:-1.0.0}"
+    ports:
+      - "8181:8181"
+      - "8182:8182"
   postgres:
     command: [/bin/bash, -c, /tmp/scripts/init.sh]
     container_name: postgres-data
