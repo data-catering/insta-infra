@@ -725,7 +725,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 5
-      test: [ "CMD", "curl", "http://localhost:8182/healthcheck" ]
+      test: [CMD, curl, "http://localhost:8182/healthcheck"]
       timeout: 10s
     image: "datacatering/polaris:${POLARIS_VERSION:-1.0.0}"
     ports:
