@@ -72,6 +72,9 @@ services:
   opensearch:
     volumes:
       - "./data/opensearch/persist:/usr/share/opensearch/data"
+  polaris:
+    volumes:
+      - "./data/polaris/persist/credentials:/tmp/credentials"
   postgres-server:
     volumes:
       - "./data/postgres/persist:/data/postgres"
