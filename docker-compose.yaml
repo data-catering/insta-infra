@@ -7,7 +7,7 @@ services:
     healthcheck:
       interval: 15s
       retries: 3
-      test: [CMD-SHELL, "curl -k -f http://localhost:8161/admin"]
+      test: [ CMD-SHELL, "curl -k -f http://localhost:8161/admin" ]
       timeout: 5s
     image: "apache/activemq-artemis:${ACTIVEMQ_VERSION:-2.34.0}"
     ports:
@@ -30,7 +30,7 @@ services:
       interval: 30s
       retries: 5
       start_period: 30s
-      test: [CMD, curl, --fail, "http://localhost:8080/health"]
+      test: [ CMD, curl, --fail, "http://localhost:8080/health" ]
       timeout: 10s
     image: "apache/airflow:${AIRFLOW_VERSION:-2.9.2}"
     ports:
@@ -146,7 +146,7 @@ services:
     ports:
       - "5001:5000"
   cassandra:
-    command: [-c, /tmp/scripts/init.sh]
+    command: [ -c, /tmp/scripts/init.sh ]
     container_name: cassandra-data
     depends_on:
       cassandra-server:
@@ -167,7 +167,7 @@ services:
     healthcheck:
       interval: 30s
       retries: 3
-      test: [CMD-SHELL, "[ $$(nodetool statusgossip) = running ]"]
+      test: [ CMD-SHELL, "[ $$(nodetool statusgossip) = running ]" ]
       timeout: 10s
     image: "datacatering/dse-server:6.8.48"
     ports:
@@ -175,7 +175,7 @@ services:
     ulimits:
       memlock: -1
   clickhouse:
-    command: [/bin/bash, -c, /tmp/scripts/init.sh]
+    command: [ /bin/bash, -c, /tmp/scripts/init.sh ]
     container_name: clickhouse-data
     depends_on:
       clickhouse-server:
@@ -203,7 +203,7 @@ services:
       - "9000:9000"
     user: "101:101"
   cockroachdb:
-    command: [bash, -c, /tmp/scripts/init.sh]
+    command: [ bash, -c, /tmp/scripts/init.sh ]
     container_name: cockroachdb-data
     depends_on:
       cockroachdb-server:
@@ -213,23 +213,38 @@ services:
       - "./data/cockroachdb/init.sh:/tmp/scripts/init.sh"
       - "${COCKROACHDB_DATA:-./data/cockroachdb/data}:/tmp/data"
   cockroachdb-server:
-    command: [start-single-node, --insecure]
+    command: [ start-single-node, --insecure ]
     container_name: cockroachdb
     healthcheck:
       interval: 10s
       retries: 5
-      test: [CMD-SHELL, "curl --fail http://localhost:8080/ || exit 1"]
+      test: [ CMD-SHELL, "curl --fail http://localhost:8080/ || exit 1" ]
       timeout: 5s
     image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.1.0}"
     ports:
       - "26257:26257"
       - "8080:8080"
+  confluent-schema-registry:
+    container_name: schema-registry
+    hostname: schema-registry
+    image: confluentinc/cp-schema-registry:${CONFLUENT_SCHEMA_REGISTRY_VERSION:-7.4.0}
+    ports:
+      - "8081:8081"
+    env_file: data/confluent-schema-registry/env/docker.env
+    healthcheck:
+      test: "nc -z schema-registry 8081"
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    depends_on:
+      kafka-server:
+        condition: service_healthy
   dagster:
     container_name: dagster
     depends_on:
       postgres:
         condition: service_completed_successfully
-    entrypoint: [dagster-webserver, -h, 0.0.0.0, -p, "3000", -w, /opt/dagster/app/workspace.yaml]
+    entrypoint: [ dagster-webserver, -h, 0.0.0.0, -p, "3000", -w, /opt/dagster/app/workspace.yaml ]
     environment:
       - DAGSTER_POSTGRES_HOST=postgres
       - "DAGSTER_POSTGRES_USER=${POSTGRES_USER:-postgres}"
@@ -241,6 +256,89 @@ services:
       - "3000:3000"
     volumes:
       - "./data/dagster:/opt/dagster/app/"
+  datahub:
+    container_name: datahub
+    hostname: datahub
+    image: acryldata/datahub-frontend-react:${DATAHUB_VERSION:-head}
+    ports:
+      - "9002:9002"
+    environment:
+      - "ELASTIC_CLIENT_USERNAME=elastic"
+      - "ELASTIC_CLIENT_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
+    env_file: data/datahub-frontend/env/docker.env
+    depends_on:
+      datahub-gms:
+        condition: service_healthy
+  datahub-actions:
+    container_name: datahub-actions
+    hostname: actions
+    image: acryldata/datahub-actions:${DATAHUB_VERSION:-head}
+    env_file: data/datahub-actions/env/docker.env
+    environment:
+      - ACTIONS_EXTRA_PACKAGES=${ACTIONS_EXTRA_PACKAGES:-}
+      - ACTIONS_CONFIG=${ACTIONS_CONFIG:-}
+    depends_on:
+      datahub-gms:
+        condition: service_healthy
+  datahub-gms:
+    container_name: datahub-gms
+    hostname: datahub-gms
+    image: acryldata/datahub-gms:${DATAHUB_VERSION:-head}
+    environment:
+      - KAFKA_CONSUMER_STOP_ON_DESERIALIZATION_ERROR=${KAFKA_CONSUMER_STOP_ON_DESERIALIZATION_ERROR:-true}
+      - "EBEAN_DATASOURCE_USERNAME=root"
+      - "EBEAN_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-root}"
+      - "ELASTICSEARCH_USERNAME=elastic"
+      - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
+    env_file: data/datahub-upgrade/env/docker-without-neo4j.env
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: "curl -sS --fail http://datahub-gms:8080/health"
+      start_period: 90s
+      interval: 1s
+      retries: 3
+      timeout: 5s
+    depends_on:
+      datahub-upgrade:
+        condition: service_completed_successfully
+  datahub-kafka-setup:
+    container_name: datahub-kafka-setup
+    depends_on:
+      kafka-server:
+        condition: service_healthy
+      confluent-schema-registry:
+        condition: service_healthy
+    entrypoint: [ /bin/sh, -c, /tmp/scripts/init.sh ]
+    environment:
+      - "KAFKA_TOPICS=${KAFKA_TOPICS:-MetadataAuditEvent_v4,MetadataChangeEvent_v4,FailedMetadataChangeEvent_v4,MetadataChangeLog_Versioned_v1,MetadataChangeLog_Timeseries_v1,MetadataChangeProposal_v1,FailedMetadataChangeProposal_v1,PlatformEvent_v1,DataHubUpgradeHistory_v1}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.6.1}"
+    volumes:
+      - "./data/kafka/init.sh:/tmp/scripts/init.sh"
+  datahub-upgrade:
+    container_name: datahub-upgrade
+    hostname: datahub-upgrade
+    image: acryldata/datahub-upgrade:${DATAHUB_VERSION:-head}
+    command:
+      - -u
+      - SystemUpdate
+    environment:
+      - "EBEAN_DATASOURCE_USERNAME=root"
+      - "EBEAN_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-root}"
+      - "ELASTICSEARCH_USERNAME=elastic"
+      - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
+    env_file: data/datahub-upgrade/env/docker-without-neo4j.env
+    labels:
+      datahub_setup_job: true
+    depends_on:
+      mysql:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+      datahub-kafka-setup:
+        condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
   data-caterer:
     container_name: data-caterer
     depends_on:
@@ -264,7 +362,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: [CMD, curl, --fail, "http://localhost:8080"]
+      test: [ CMD, curl, --fail, "http://localhost:8080" ]
       timeout: 10s
     image: "debezium/debezium-ui:${DEBEZIUM_VERSION:-2.1.2.Final}"
     ports:
@@ -286,7 +384,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: [CMD, curl, --fail, "http://localhost:8083"]
+      test: [ CMD, curl, --fail, "http://localhost:8083" ]
       timeout: 10s
     image: "debezium/connect:${DEBEZIUM_CONNECT_VERSION:-2.6.2.Final}"
     ports:
@@ -302,7 +400,7 @@ services:
       - "8040:8040"
       - "9030:9030"
   druid:
-    command: [router]
+    command: [ router ]
     container_name: druid
     depends_on:
       druid-broker:
@@ -330,7 +428,7 @@ services:
     ports:
       - "8888:8888"
   druid-broker:
-    command: [broker]
+    command: [ broker ]
     container_name: druid-broker
     depends_on:
       druid-coordinator:
@@ -352,7 +450,7 @@ services:
     ports:
       - "8082:8082"
   druid-coordinator:
-    command: [coordinator]
+    command: [ coordinator ]
     container_name: druid-coordinator
     depends_on:
       postgres:
@@ -372,7 +470,7 @@ services:
     ports:
       - "8081:8081"
   druid-historical:
-    command: [historical]
+    command: [ historical ]
     container_name: druid-historical
     depends_on:
       druid-coordinator:
@@ -394,7 +492,7 @@ services:
     ports:
       - "8083:8083"
   druid-middlemanager:
-    command: [middleManager]
+    command: [ middleManager ]
     container_name: druid-middlemanager
     depends_on:
       druid-coordinator:
@@ -421,7 +519,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    entrypoint: [tail, -F, anything]
+    entrypoint: [ tail, -F, anything ]
     image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.0.0}"
     volumes:
       - "./data/duckdb:/opt/data"
@@ -432,6 +530,11 @@ services:
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
       - "ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
       - discovery.type=single-node
+    healthcheck:
+      test: "curl -sS --fail http://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=0s"
+      interval: 10s
+      retries: 5
+      timeout: 5s
     image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.14.1}"
     ports:
       - "9200:9200"
@@ -440,7 +543,7 @@ services:
     volumes:
       - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
   flight-sql:
-    command: [tail, -f, /dev/null]
+    command: [ tail, -f, /dev/null ]
     container_name: flight-sql
     depends_on:
       - duckdb
@@ -464,7 +567,7 @@ services:
       - 6121
       - 6122
     image: "flink:${FLINK_VERSION:-1.19.0-scala_2.12-java17}"
-    links: []
+    links: [ ]
   flink-jobmanager:
     command: jobmanager
     container_name: flink-jobmanager
@@ -484,7 +587,7 @@ services:
     ports:
       - "80:80"
   jupyter:
-    command: [jupyter, notebook, --no-browser, "--NotebookApp.token=''", "--NotebookApp.password=''"]
+    command: [ jupyter, notebook, --no-browser, "--NotebookApp.token=''", "--NotebookApp.password=''" ]
     container_name: jupyter
     image: "quay.io/jupyter/minimal-notebook:2024-07-02"
     ports:
@@ -494,7 +597,7 @@ services:
     depends_on:
       kafka-server:
         condition: service_healthy
-    entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
+    entrypoint: [ /bin/sh, -c, /tmp/scripts/init.sh ]
     environment:
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-accounts,transactions}"
     image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.6.1}"
@@ -512,13 +615,13 @@ services:
     healthcheck:
       interval: 5s
       retries: 5
-      test: [CMD-SHELL, /bin/sh, -c, kafka-topics, --bootstrap-server, "kafka:29092", --list]
+      test: [ CMD-SHELL, /bin/sh, -c, kafka-topics, --bootstrap-server, "kafka:29092", --list ]
       timeout: 5s
     image: "confluentinc/confluent-local:7.7.0"
     ports:
       - "9092:9092"
   keycloak:
-    command: [start-dev, --import-realm]
+    command: [ start-dev, --import-realm ]
     container_name: keycloak
     depends_on:
       postgres:
@@ -579,7 +682,7 @@ services:
     ports:
       - "3001:3000"
   marquez-data:
-    command: [-c, /tmp/scripts/init.sh]
+    command: [ -c, /tmp/scripts/init.sh ]
     container_name: marquez-data
     depends_on:
       marquez-server:
@@ -608,7 +711,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: [CMD, curl, --fail, "http://localhost:5001/healthcheck"]
+      test: [ CMD, curl, --fail, "http://localhost:5001/healthcheck" ]
       timeout: 5s
     image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
     ports:
@@ -617,7 +720,7 @@ services:
     volumes:
       - "./data/marquez/conf:/opt/app"
   minio:
-    command: [server, /data, --console-address, ":9001"]
+    command: [ server, /data, --console-address, ":9001" ]
     container_name: minio
     environment:
       - "MINIO_ROOT_USER=${MINIO_USER:-minioadmin}"
@@ -625,14 +728,14 @@ services:
     healthcheck:
       interval: 5s
       retries: 3
-      test: [CMD, mc, ready, local]
+      test: [ CMD, mc, ready, local ]
       timeout: 5s
     image: "quay.io/minio/minio:${MINIO_VERSION:-RELEASE.2024-06-04T19-20-08Z}"
     ports:
       - "9000:9000"
       - "9001:9001"
   mongodb:
-    command: [/bin/sh, -c, /opt/app/my_data.sh]
+    command: [ /bin/sh, -c, /opt/app/my_data.sh ]
     container_name: mongodb-connect
     depends_on:
       - mongodb-server
@@ -657,7 +760,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 10
-      test: [CMD-SHELL, mssql-health-check]
+      test: [ CMD-SHELL, mssql-health-check ]
       timeout: 10s
     image: "mcr.microsoft.com/mssql/server:${MSSQL_VERSION:-2022-latest}"
     ports:
@@ -665,7 +768,7 @@ services:
     volumes:
       - "./data/mssql/mssql-health-check:/usr/local/bin/mssql-health-check"
   mysql:
-    command: [/bin/bash, -c, /tmp/scripts/init.sh]
+    command: [ /bin/bash, -c, /tmp/scripts/init.sh ]
     container_name: mysql-data
     depends_on:
       mysql-server:
@@ -684,7 +787,7 @@ services:
     healthcheck:
       interval: 5s
       retries: 3
-      test: [CMD, mysqladmin, ping, -h, localhost, -u, root, -p$$MYSQL_ROOT_PASSWORD]
+      test: [ CMD, mysqladmin, ping, -h, localhost, -u, root, -p$$MYSQL_ROOT_PASSWORD ]
       timeout: 5s
     image: "mysql:${MYSQL_VERSION:-8.4.0}"
     ports:
@@ -693,12 +796,10 @@ services:
     container_name: neo4j
     environment:
       - NEO4J_AUTH=none
-      - "NEO4J_dbms_connector_http_advertised__address=localhost:7474"
-      - "NEO4J_dbms_connector_bolt_advertised__address=localhost:7687"
     healthcheck:
       interval: 30s
       retries: 5
-      test: [CMD-SHELL, "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
+      test: [ CMD-SHELL, "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1" ]
       timeout: 10s
     image: "neo4j:${NEO4J_VERSION:-5.20.0}"
     ports:
@@ -712,7 +813,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 5
-      test: [CMD, curl, --fail, "https://localhost:9200", -ku, "admin:${OPENSEARCH_PASSWORD:-!BigData#1}"]
+      test: [ CMD, curl, --fail, "https://localhost:9200", -ku, "admin:${OPENSEARCH_PASSWORD:-!BigData#1}" ]
       timeout: 5s
     image: "opensearchproject/opensearch:${OPENSEARCH_VERSION:-2.15.0}"
     ports:
@@ -729,7 +830,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: [CMD, curl, --fail, "http://localhost:8098/health/readiness"]
+      test: [ CMD, curl, --fail, "http://localhost:8098/health/readiness" ]
       timeout: 5s
     image: "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     ports:
@@ -746,7 +847,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: [CMD, curl, --fail, "http://localhost:8099/health"]
+      test: [ CMD, curl, --fail, "http://localhost:8099/health" ]
       timeout: 5s
     image: "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     ports:
@@ -763,7 +864,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: [CMD, curl, --fail, "http://localhost:9000/pinot-controller/admin"]
+      test: [ CMD, curl, --fail, "http://localhost:9000/pinot-controller/admin" ]
       timeout: 5s
     image: "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
     ports:
@@ -774,14 +875,14 @@ services:
     healthcheck:
       interval: 10s
       retries: 5
-      test: [CMD, curl, "http://localhost:8182/healthcheck"]
+      test: [ CMD, curl, "http://localhost:8182/healthcheck" ]
       timeout: 10s
     image: "datacatering/polaris:${POLARIS_VERSION:-1.0.0}"
     ports:
       - "8181:8181"
       - "8182:8182"
   postgres:
-    command: [/bin/bash, -c, /tmp/scripts/init.sh]
+    command: [ /bin/bash, -c, /tmp/scripts/init.sh ]
     container_name: postgres-data
     depends_on:
       postgres-server:
@@ -802,7 +903,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: [CMD-SHELL, pg_isready]
+      test: [ CMD-SHELL, pg_isready ]
       timeout: 5s
     image: "postgres:${POSTGRES_VERSION:-16.3}"
     ports:
@@ -811,7 +912,7 @@ services:
     container_name: prefect-data
     depends_on:
       - prefect-server
-    entrypoint: [/opt/prefect/app/start_flows.sh]
+    entrypoint: [ /opt/prefect/app/start_flows.sh ]
     environment:
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
     image: "prefecthq/prefect:${PREFECT_VERSION:-2.19.5-python3.11}"
@@ -824,7 +925,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    entrypoint: [/opt/prefect/entrypoint.sh, prefect, server, start]
+    entrypoint: [ /opt/prefect/entrypoint.sh, prefect, server, start ]
     environment:
       - "PREFECT_UI_URL=http://127.0.0.1:4200/api"
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
@@ -865,7 +966,7 @@ services:
     depends_on:
       solace-server:
         condition: service_healthy
-    entrypoint: [/bin/sh, -c, /opt/app/my_data.sh]
+    entrypoint: [ /bin/sh, -c, /opt/app/my_data.sh ]
     image: "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.8}"
     volumes:
       - "./data/solace:/opt/app"
@@ -882,7 +983,7 @@ services:
     healthcheck:
       interval: 30s
       retries: 3
-      test: [CMD-SHELL, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8080"]
+      test: [ CMD-SHELL, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8080" ]
       timeout: 5s
     image: "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.8}"
     ports:
@@ -901,16 +1002,16 @@ services:
       - "9010:9010"
       - "9020:9020"
   sqlite:
-    command: [tail, -f, /dev/null]
+    command: [ tail, -f, /dev/null ]
     container_name: sqlite
     image: "keinos/sqlite3:3.46.0"
     volumes:
       - "./data/sqlite:/opt/data"
   temporal:
-    command: [server, start-dev, --db-filename, /opt/data/db/temporal.db, --ip, 0.0.0.0, --metrics-port, "9233"]
+    command: [ server, start-dev, --db-filename, /opt/data/db/temporal.db, --ip, 0.0.0.0, --metrics-port, "9233" ]
     container_name: temporal
     entrypoint: temporal
-    environment: []
+    environment: [ ]
     expose:
       - 8233
       - 7233
