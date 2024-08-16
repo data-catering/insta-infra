@@ -97,54 +97,54 @@ services:
     image: "apache/airflow:${AIRFLOW_VERSION:-2.9.2}"
     user: "0:0"
   amundsen:
-    image: "amundsendev/amundsen-frontend:${AMUNDSEN_FRONTEND_VERSION:-4.2.0}"
+    command: gunicorn -w 2 --bind :5000 amundsen_application.wsgi
     container_name: amundsen
     depends_on:
       - amundsen-metadata
       - amundsen-search
-    ports:
-      - "5003:5000"
     environment:
       - SEARCHSERVICE_BASE=http://amundsen-search:5000
       - METADATASERVICE_BASE=http://amundsen-metadata:5000
       - FRONTEND_SVC_CONFIG_MODULE_CLASS=amundsen_application.config.TestConfig
-    command: gunicorn -w 2 --bind :5000 amundsen_application.wsgi
-  amundsen-search:
-    image: "amundsendev/amundsen-search:${AMUNDSEN_SEARCH_VERSION:-4.0.2}"
-    container_name: amundsen-search
+    image: "amundsendev/amundsen-frontend:${AMUNDSEN_FRONTEND_VERSION:-4.2.0}"
     ports:
-      - "5001:5000"
-    depends_on:
-      - elasticsearch
-    environment:
-      - PROXY_ENDPOINT=elasticsearch
-    command: gunicorn -w 2 --bind :5000 search_service.search_wsgi
-  amundsen-neo4j:
-    image: "datacatering/neo4j:3.5.35"
-    container_name: amundsen-neo4j
-    environment:
-      - "NEO4J_AUTH=none"
-    ulimits:
-      nofile:
-        soft: 40000
-        hard: 40000
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    volumes:
-      - "./data/amundsen-neo4j/conf:/var/lib/neo4j/conf"
+      - "5003:5000"
   amundsen-metadata:
-    image: "amundsendev/amundsen-metadata:${AMUNDSEN_METADATA_VERSION:-3.11.0}"
+    command: gunicorn -w 2 --bind :5000 metadata_service.metadata_wsgi
     container_name: amundsen-metadata
     depends_on:
       - amundsen-neo4j
-    ports:
-      - "5002:5000"
     environment:
       - PROXY_HOST=bolt://amundsen-neo4j
       - PROXY_ENCRYPTED=True
       - PROXY_VALIDATE_SSL=False
-    command: gunicorn -w 2 --bind :5000 metadata_service.metadata_wsgi
+    image: "amundsendev/amundsen-metadata:${AMUNDSEN_METADATA_VERSION:-3.11.0}"
+    ports:
+      - "5002:5000"
+  amundsen-neo4j:
+    container_name: amundsen-neo4j
+    environment:
+      - NEO4J_AUTH=none
+    image: "datacatering/neo4j:3.5.35"
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    ulimits:
+      nofile:
+        hard: 40000
+        soft: 40000
+    volumes:
+      - "./data/amundsen-neo4j/conf:/var/lib/neo4j/conf"
+  amundsen-search:
+    command: gunicorn -w 2 --bind :5000 search_service.search_wsgi
+    container_name: amundsen-search
+    depends_on:
+      - elasticsearch
+    environment:
+      - PROXY_ENDPOINT=elasticsearch
+    image: "amundsendev/amundsen-search:${AMUNDSEN_SEARCH_VERSION:-4.0.2}"
+    ports:
+      - "5001:5000"
   cassandra:
     command: [-c, /tmp/scripts/init.sh]
     container_name: cassandra-data
