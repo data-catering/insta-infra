@@ -224,6 +224,21 @@ services:
     ports:
       - "26257:26257"
       - "8080:8080"
+  confluent-schema-registry:
+    container_name: schema-registry
+    depends_on:
+      kafka-server:
+        condition: service_healthy
+    env_file: data/confluent-schema-registry/env/docker.env
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test: nc -z schema-registry 8081
+      timeout: 5s
+    hostname: schema-registry
+    image: confluentinc/cp-schema-registry:${CONFLUENT_SCHEMA_REGISTRY_VERSION:-7.4.0}
+    ports:
+      - "8081:8081"
   dagster:
     container_name: dagster
     depends_on:
@@ -254,6 +269,89 @@ services:
     volumes:
       - "./data/data-caterer/connection:/opt/DataCaterer/connection"
       - "./data/data-caterer/plan:/opt/DataCaterer/plan"
+  datahub:
+    container_name: datahub
+    depends_on:
+      datahub-gms:
+        condition: service_healthy
+    env_file: data/datahub-frontend/env/docker.env
+    environment:
+      - ELASTIC_CLIENT_USERNAME=elastic
+      - "ELASTIC_CLIENT_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
+    hostname: datahub
+    image: acryldata/datahub-frontend-react:${DATAHUB_VERSION:-head}
+    ports:
+      - "9002:9002"
+  datahub-actions:
+    container_name: datahub-actions
+    depends_on:
+      datahub-gms:
+        condition: service_healthy
+    env_file: data/datahub-actions/env/docker.env
+    environment:
+      - ACTIONS_EXTRA_PACKAGES=${ACTIONS_EXTRA_PACKAGES:-}
+      - ACTIONS_CONFIG=${ACTIONS_CONFIG:-}
+    hostname: actions
+    image: acryldata/datahub-actions:${DATAHUB_VERSION:-head}
+  datahub-gms:
+    container_name: datahub-gms
+    depends_on:
+      datahub-upgrade:
+        condition: service_completed_successfully
+    env_file: data/datahub-upgrade/env/docker-without-neo4j.env
+    environment:
+      - KAFKA_CONSUMER_STOP_ON_DESERIALIZATION_ERROR=${KAFKA_CONSUMER_STOP_ON_DESERIALIZATION_ERROR:-true}
+      - EBEAN_DATASOURCE_USERNAME=root
+      - "EBEAN_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-root}"
+      - ELASTICSEARCH_USERNAME=elastic
+      - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
+    healthcheck:
+      interval: 1s
+      retries: 3
+      start_period: 90s
+      test: "curl -sS --fail http://datahub-gms:8080/health"
+      timeout: 5s
+    hostname: datahub-gms
+    image: acryldata/datahub-gms:${DATAHUB_VERSION:-head}
+    ports:
+      - "8080:8080"
+  datahub-kafka-setup:
+    container_name: datahub-kafka-setup
+    depends_on:
+      confluent-schema-registry:
+        condition: service_healthy
+      kafka-server:
+        condition: service_healthy
+    entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
+    environment:
+      - "KAFKA_TOPICS=${KAFKA_TOPICS:-MetadataAuditEvent_v4,MetadataChangeEvent_v4,FailedMetadataChangeEvent_v4,MetadataChangeLog_Versioned_v1,MetadataChangeLog_Timeseries_v1,MetadataChangeProposal_v1,FailedMetadataChangeProposal_v1,PlatformEvent_v1,DataHubUpgradeHistory_v1}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.6.1}"
+    volumes:
+      - "./data/kafka/init.sh:/tmp/scripts/init.sh"
+  datahub-upgrade:
+    command:
+      - -u
+      - SystemUpdate
+    container_name: datahub-upgrade
+    depends_on:
+      datahub-kafka-setup:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+      mysql:
+        condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
+    env_file: data/datahub-upgrade/env/docker-without-neo4j.env
+    environment:
+      - EBEAN_DATASOURCE_USERNAME=root
+      - "EBEAN_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-root}"
+      - ELASTICSEARCH_USERNAME=elastic
+      - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
+    hostname: datahub-upgrade
+    image: acryldata/datahub-upgrade:${DATAHUB_VERSION:-head}
+    labels:
+      datahub_setup_job: true
   debezium:
     container_name: debezium
     depends_on:
@@ -432,6 +530,11 @@ services:
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
       - "ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
       - discovery.type=single-node
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test: "curl -sS --fail http://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=0s"
+      timeout: 5s
     image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.14.1}"
     ports:
       - "9200:9200"
@@ -693,8 +796,6 @@ services:
     container_name: neo4j
     environment:
       - NEO4J_AUTH=none
-      - "NEO4J_dbms_connector_http_advertised__address=localhost:7474"
-      - "NEO4J_dbms_connector_bolt_advertised__address=localhost:7687"
     healthcheck:
       interval: 30s
       retries: 5

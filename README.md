@@ -120,50 +120,51 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 
 ## Services
 
-| Service Type                | Service       | Supported |
-|-----------------------------|---------------|-----------|
-| Change Data Capture         | debezium      | ✅         |
-| Database                    | cassandra     | ✅         |
-| Database                    | cockroachdb   | ✅         |
-| Database                    | elasticsearch | ✅         |
-| Database                    | mariadb       | ✅         |
-| Database                    | mongodb       | ✅         |
-| Database                    | mssql         | ✅         |
-| Database                    | mysql         | ✅         |
-| Database                    | neo4j         | ✅         |
-| Database                    | opensearch    | ✅         |
-| Database                    | postgres      | ✅         |
-| Database                    | spanner       | ✅         |
-| Database                    | sqlite        | ✅         |
-| Data Catalog                | amundsen      | ✅         |
-| Data Catalog                | marquez       | ✅         |
-| Data Catalog                | polaris       | ✅         |
-| Data Catalog                | unitycatalog  | ✅         |
-| Data Catalog                | datahub       | ❌         |
-| Data Catalog                | openmetadata  | ❌         |
-| Distributed Coordination    | zookeeper     | ✅         |
-| Distributed Data Processing | flink         | ✅         |
-| HTTP                        | httpbin       | ✅         |
-| Identity Management         | keycloak      | ✅         |
-| Job Orchestrator            | airflow       | ✅         |
-| Job Orchestrator            | dagster       | ✅         |
-| Job Orchestrator            | mage-ai       | ✅         |
-| Job Orchestrator            | prefect       | ✅         |
-| Messaging                   | activemq      | ✅         |
-| Messaging                   | kafka         | ✅         |
-| Messaging                   | rabbitmq      | ✅         |
-| Messaging                   | solace        | ✅         |
-| Notebook                    | jupyter       | ✅         |
-| Object Storage              | minio         | ✅         |
-| Query Engine                | duckdb        | ✅         |
-| Query Engine                | flight-sql    | ✅         |
-| Query Engine                | presto        | ✅         |
-| Query Engine                | trino         | ✅         |
-| Real-time OLAP              | clickhouse    | ✅         |
-| Real-time OLAP              | doris         | ✅         |
-| Real-time OLAP              | druid         | ✅         |
-| Real-time OLAP              | pinot         | ✅         |
-| Test Data Management        | data-caterer  | ✅         |
-| Workflow                    | maestro       | ✅         | 
-| Workflow                    | temporal      | ✅         | 
+| Service Type                | Service                   | Supported |
+|-----------------------------|---------------------------|-----------|
+| Change Data Capture         | debezium                  | ✅         |
+| Database                    | cassandra                 | ✅         |
+| Database                    | cockroachdb               | ✅         |
+| Database                    | elasticsearch             | ✅         |
+| Database                    | mariadb                   | ✅         |
+| Database                    | mongodb                   | ✅         |
+| Database                    | mssql                     | ✅         |
+| Database                    | mysql                     | ✅         |
+| Database                    | neo4j                     | ✅         |
+| Database                    | opensearch                | ✅         |
+| Database                    | postgres                  | ✅         |
+| Database                    | spanner                   | ✅         |
+| Database                    | sqlite                    | ✅         |
+| Data Catalog                | amundsen                  | ✅         |
+| Data Catalog                | datahub                   | ✅         |
+| Data Catalog                | marquez                   | ✅         |
+| Data Catalog                | polaris                   | ✅         |
+| Data Catalog                | unitycatalog              | ✅         |
+| Data Catalog                | openmetadata              | ❌         |
+| Distributed Coordination    | zookeeper                 | ✅         |
+| Distributed Data Processing | flink                     | ✅         |
+| HTTP                        | httpbin                   | ✅         |
+| Identity Management         | keycloak                  | ✅         |
+| Job Orchestrator            | airflow                   | ✅         |
+| Job Orchestrator            | dagster                   | ✅         |
+| Job Orchestrator            | mage-ai                   | ✅         |
+| Job Orchestrator            | prefect                   | ✅         |
+| Messaging                   | activemq                  | ✅         |
+| Messaging                   | kafka                     | ✅         |
+| Messaging                   | rabbitmq                  | ✅         |
+| Messaging                   | solace                    | ✅         |
+| Notebook                    | jupyter                   | ✅         |
+| Object Storage              | minio                     | ✅         |
+| Query Engine                | duckdb                    | ✅         |
+| Query Engine                | flight-sql                | ✅         |
+| Query Engine                | presto                    | ✅         |
+| Query Engine                | trino                     | ✅         |
+| Real-time OLAP              | clickhouse                | ✅         |
+| Real-time OLAP              | doris                     | ✅         |
+| Real-time OLAP              | druid                     | ✅         |
+| Real-time OLAP              | pinot                     | ✅         |
+| Schema Registry             | confluent-schema-registry | ✅         |
+| Test Data Management        | data-caterer              | ✅         |
+| Workflow                    | maestro                   | ✅         | 
+| Workflow                    | temporal                  | ✅         | 
 
