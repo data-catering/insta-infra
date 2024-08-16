@@ -135,10 +135,10 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Database                    | postgres      | ✅         |
 | Database                    | spanner       | ✅         |
 | Database                    | sqlite        | ✅         |
+| Data Catalog                | amundsen      | ✅         |
 | Data Catalog                | marquez       | ✅         |
 | Data Catalog                | polaris       | ✅         |
 | Data Catalog                | unitycatalog  | ✅         |
-| Data Catalog                | amundsen      | ❌         |
 | Data Catalog                | datahub       | ❌         |
 | Data Catalog                | openmetadata  | ❌         |
 | Distributed Coordination    | zookeeper     | ✅         |
