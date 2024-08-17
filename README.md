@@ -141,9 +141,10 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Data Catalog                | polaris                   | ✅         |
 | Data Catalog                | unitycatalog              | ✅         |
 | Data Catalog                | openmetadata              | ❌         |
+| Data Collector              | fluentd                   | ✅         |
+| Data Collector              | logstash                  | ✅         |
 | Distributed Coordination    | zookeeper                 | ✅         |
 | Distributed Data Processing | flink                     | ✅         |
-| HTTP                        | httpbin                   | ✅         |
 | Identity Management         | keycloak                  | ✅         |
 | Job Orchestrator            | airflow                   | ✅         |
 | Job Orchestrator            | dagster                   | ✅         |
@@ -165,6 +166,8 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Real-time OLAP              | pinot                     | ✅         |
 | Schema Registry             | confluent-schema-registry | ✅         |
 | Test Data Management        | data-caterer              | ✅         |
-| Workflow                    | maestro                   | ✅         | 
+| Web Server                  | httpbin                   | ✅         |
+| Web Server                  | httpd                     | ✅         |
+| Workflow                    | maestro                   | ✅         |
 | Workflow                    | temporal                  | ✅         | 
 
