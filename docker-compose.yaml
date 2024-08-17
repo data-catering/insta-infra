@@ -697,7 +697,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: [ CMD, curl, --fail, "http://localhost:5601/api/status" ]
+      test: [CMD, curl, --fail, "http://localhost:5601/api/status"]
       timeout: 5s
     image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-8.15.0}"
     ports:
@@ -712,11 +712,11 @@ services:
         condition: service_completed_successfully
     environment:
       LOGSTASH_INTERNAL_PASSWORD: "${LOGSTASH_INTERNAL_PASSWORD:-password}"
-      LS_JAVA_OPTS: "-Xms256m -Xmx256m"
+      LS_JAVA_OPTS: -Xms256m -Xmx256m
     healthcheck:
       interval: 10s
       retries: 3
-      test: [ CMD, curl, --fail, "http://localhost:9600" ]
+      test: [CMD, curl, --fail, "http://localhost:9600"]
       timeout: 5s
     image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-8.15.0}"
     ports:
