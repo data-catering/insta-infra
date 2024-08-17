@@ -69,6 +69,11 @@ services:
   neo4j:
     volumes:
       - "./data/neo4j/persist:/data"
+  openmetadata-ingestion:
+    volumes:
+      - "./data/openmetadata-ingestion/ingestion-volume-dag-airflow:/opt/airflow/dag_generated_configs"
+      - "./data/openmetadata-ingestion/ingestion-volume-dags:/opt/airflow/dags"
+      - "./data/openmetadata-ingestion/ingestion-volume-tmp:/tmp"
   opensearch:
     volumes:
       - "./data/opensearch/persist:/usr/share/opensearch/data"

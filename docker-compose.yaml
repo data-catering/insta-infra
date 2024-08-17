@@ -337,7 +337,7 @@ services:
       datahub-kafka-setup:
         condition: service_completed_successfully
       elasticsearch:
-        condition: service_healthy
+        condition: service_completed_successfully
       mysql:
         condition: service_completed_successfully
       neo4j:
@@ -893,6 +893,63 @@ services:
     ports:
       - "7474:7474"
       - "7687:7687"
+  openmetadata:
+    container_name: openmetadata-ingestion
+    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.4.7}"
+    depends_on:
+      openmetadata-server:
+        condition: service_healthy
+    env_file: ./data/openmetadata-ingestion/env/docker.env
+    environment:
+      - "DB_USER=${MYSQL_USER:-root}"
+      - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
+    entrypoint: /bin/bash
+    command:
+      - "/opt/airflow/ingestion_dependency.sh"
+    healthcheck:
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      test: [ CMD, curl, --fail, "http://localhost:8080/health" ]
+      timeout: 10s
+    ports:
+      - "8080:8080"
+  openmetadata-server:
+    container_name: openmetadata
+    restart: always
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.4.7}"
+    env_file: ./data/openmetadata/env/docker.env
+    environment:
+      - "DB_USER=${MYSQL_USER:-root}"
+      - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
+      - "ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}"
+      - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
+    ports:
+      - "8585:8585"
+      - "8586:8586"
+    depends_on:
+      openmetadata-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      interval: 5s
+      retries: 5
+      test: [ "CMD", "wget", "-q", "--spider",  "http://localhost:8586/healthcheck" ]
+      timeout: 5s
+  openmetadata-setup:
+    container_name: openmetadata-setup
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.4.7}"
+    command: "./bootstrap/openmetadata-ops.sh migrate"
+    env_file: ./data/openmetadata/env/docker.env
+    environment:
+      - "DB_USER=${MYSQL_USER:-root}"
+      - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
+      - "ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}"
+      - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
+    depends_on:
+      elasticsearch:
+        condition: service_completed_successfully
+      mysql:
+        condition: service_completed_successfully
   opensearch:
     container_name: opensearch
     environment:

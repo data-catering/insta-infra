@@ -90,7 +90,6 @@ list_supported_services() {
 }
 
 check_docker_installed() {
-  echo -e "${GREEN}Checking for docker and docker-compose...${NC}"
   if ! command -v docker &>/dev/null; then
     echo -e "${RED}Error: docker could not be found${NC}"
     exit 1
@@ -106,8 +105,6 @@ check_persist_flag() {
     echo -e "${YELLOW}Persisting data to host"
     COMPOSE_FILES="${COMPOSE_FILES} -f docker-compose-persist.yaml"
     shift
-  else
-    echo -e "${YELLOW}Not persisting data to host"
   fi
   original_services=("$@")
   service_array=("$@")
