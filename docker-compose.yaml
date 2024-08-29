@@ -705,6 +705,51 @@ services:
     restart: always
     volumes:
       - "./data/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml"
+
+  kong:
+    container_name: kong
+    depends_on:
+      kong-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_completed_successfully
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=postgres
+      - KONG_PG_USER=postgres
+      - KONG_PG_PASSWORD=postgres
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001,0.0.0.0:8444 ssl
+      - KONG_PLUGINS=rate-limiting
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test: [CMD-SHELL, kong health]
+      timeout: 10s
+    image: "kong:${KONG_VERSION:-3.7.1}"
+    ports:
+      - 8001:8001
+      - 8000:8000
+    restart: unless-stopped
+  kong-data:
+    command:
+      - kong
+      - migrations
+      - bootstrap
+    container_name: kong-data
+
+    depends_on:
+      postgres:
+        condition: service_completed_successfully
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=postgres
+      - KONG_PG_USER=postgres
+      - KONG_PG_PASSWORD=postgres
+    image: kong:3.7.1
   logstash:
     container_name: logstash
     depends_on:
@@ -1140,6 +1185,18 @@ services:
       nofile:
         hard: 6592
         soft: 2448
+  sonarqube:
+    container_name: sonarqube
+    environment:
+      - SONAR_WEB_CONTEXT=/sonar
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD-SHELL, "wget --spider localhost:9000/sonar"]      
+      timeout: 10s
+    image: "sonarqube:${SONARQUBE_VERSION:-lts-community}"
+    ports:
+      - "9000:9000"
   spanner:
     container_name: spanner
     image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.19}"
