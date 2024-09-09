@@ -120,9 +120,11 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 
 ## Services
 
-| Service Type                | Service                   | Supported |
-|-----------------------------|---------------------------|-----------|
+| Service Type                | Service                   | Supported  |
+|-----------------------------|---------------------------|------------|
+| Api Gateway                 | kong                      | ✅         |
 | Change Data Capture         | debezium                  | ✅         |
+| Code Analysis               | sonarqube                 | ✅         |
 | Database                    | cassandra                 | ✅         |
 | Database                    | cockroachdb               | ✅         |
 | Database                    | elasticsearch             | ✅         |
