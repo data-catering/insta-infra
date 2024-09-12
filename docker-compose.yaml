@@ -749,7 +749,7 @@ services:
       - KONG_PG_HOST=postgres
       - KONG_PG_USER=postgres
       - KONG_PG_PASSWORD=postgres
-    image: kong:3.7.1
+    image: kong:3.8.0
   logstash:
     container_name: logstash
     depends_on:
