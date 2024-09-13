@@ -112,7 +112,7 @@ check_persist_flag() {
 
 startup_services() {
   echo -e "${GREEN}Starting up services...${NC}"
-  docker compose $COMPOSE_FILES up -d --quiet-pull "$@"
+  docker --log-level error compose $COMPOSE_FILES up -d --quiet-pull "$@"
   if [ $? != 0 ]; then
     echo -e "${RED}Error: Failed to start up services${NC}"
     exit 1

@@ -1250,4 +1250,3 @@ services:
     image: "zookeeper:${ZOOKEEPER_VERSION:-3.9.2}"
     ports:
       - "2181:2181"
-version: "3.9"
