@@ -77,10 +77,10 @@ connect_to_service() {
 shutdown_service() {
   if [ -z "$1" ]; then
     echo "Shutting down all services..."
-    docker compose -f "$SCRIPT_DIR/docker-compose.yaml" down
+    docker --log-level error compose -f "$SCRIPT_DIR/docker-compose.yaml" down
   else
     echo "Shutting down services: $*..."
-    docker compose -f "$SCRIPT_DIR/docker-compose.yaml" down "$@"
+    docker --log-level error compose -f "$SCRIPT_DIR/docker-compose.yaml" down "$@"
   fi
 }
 
