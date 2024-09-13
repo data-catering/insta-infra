@@ -77,10 +77,10 @@ connect_to_service() {
 shutdown_service() {
   if [ -z "$1" ]; then
     echo "Shutting down all services..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" down
+    docker compose -f "$SCRIPT_DIR/docker-compose.yaml" down
   else
     echo "Shutting down services: $*..."
-    docker-compose -f "$SCRIPT_DIR/docker-compose.yaml" down "$@"
+    docker compose -f "$SCRIPT_DIR/docker-compose.yaml" down "$@"
   fi
 }
 
@@ -94,8 +94,8 @@ check_docker_installed() {
     echo -e "${RED}Error: docker could not be found${NC}"
     exit 1
   fi
-  if ! command -v docker-compose &>/dev/null; then
-    echo -e "${RED}Error: docker-compose could not be found${NC}"
+  if ! command -v docker compose &>/dev/null; then
+    echo -e "${RED}Error: docker compose could not be found${NC}"
     exit 1
   fi
 }
@@ -112,7 +112,7 @@ check_persist_flag() {
 
 startup_services() {
   echo -e "${GREEN}Starting up services...${NC}"
-  docker-compose $COMPOSE_FILES up -d --quiet-pull "$@"
+  docker compose $COMPOSE_FILES up -d --quiet-pull "$@"
   if [ $? != 0 ]; then
     echo -e "${RED}Error: Failed to start up services${NC}"
     exit 1
