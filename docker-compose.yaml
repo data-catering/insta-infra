@@ -573,7 +573,7 @@ services:
       - TLS_ENABLED=1
       - "FLIGHT_PASSWORD=${FLIGHT_SQL_PASSWORD:-flight_password}"
       - PRINT_QUERIES=1
-    image: "voltrondata/flight-sql:${FLIGHT_SQL_VERSION:-v1.4.0}"
+    image: "voltrondata/flight-sql:${FLIGHT_SQL_VERSION:-v1.4.1}"
     ports:
       - "31337:31337"
   flink:
