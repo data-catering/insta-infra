@@ -118,7 +118,7 @@ services:
       - PROXY_HOST=bolt://amundsen-neo4j
       - PROXY_ENCRYPTED=True
       - PROXY_VALIDATE_SSL=False
-    image: "amundsendev/amundsen-metadata:${AMUNDSEN_METADATA_VERSION:-3.11.0}"
+    image: "amundsendev/amundsen-metadata:${AMUNDSEN_METADATA_VERSION:-3.13.0}"
     ports:
       - "5002:5000"
   amundsen-neo4j:
