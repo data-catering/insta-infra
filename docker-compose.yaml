@@ -106,7 +106,7 @@ services:
       - SEARCHSERVICE_BASE=http://amundsen-search:5000
       - METADATASERVICE_BASE=http://amundsen-metadata:5000
       - FRONTEND_SVC_CONFIG_MODULE_CLASS=amundsen_application.config.TestConfig
-    image: "amundsendev/amundsen-frontend:${AMUNDSEN_FRONTEND_VERSION:-4.2.0}"
+    image: "amundsendev/amundsen-frontend:${AMUNDSEN_FRONTEND_VERSION:-4.3.0}"
     ports:
       - "5003:5000"
   amundsen-metadata:
