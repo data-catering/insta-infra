@@ -587,7 +587,7 @@ services:
     expose:
       - 6121
       - 6122
-    image: "flink:${FLINK_VERSION:-1.19.0-scala_2.12-java17}"
+    image: "flink:${FLINK_VERSION:-1.20.0-scala_2.12-java17}"
     links: []
   flink-jobmanager:
     command: jobmanager
@@ -597,7 +597,7 @@ services:
       - "FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager"
     expose:
       - 6123
-    image: "flink:${FLINK_VERSION:-1.19.0-scala_2.12-java17}"
+    image: "flink:${FLINK_VERSION:-1.20.0-scala_2.12-java17}"
     ports:
       - "8081:8081"
   fluentd:
