@@ -142,7 +142,7 @@ services:
       - elasticsearch
     environment:
       - PROXY_ENDPOINT=elasticsearch
-    image: "amundsendev/amundsen-search:${AMUNDSEN_SEARCH_VERSION:-4.0.2}"
+    image: "amundsendev/amundsen-search:${AMUNDSEN_SEARCH_VERSION:-4.2.0}"
     ports:
       - "5001:5000"
   cassandra:
