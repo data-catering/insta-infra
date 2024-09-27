@@ -154,7 +154,7 @@ services:
     entrypoint: /bin/bash
     environment:
       - DS_LICENSE=accept
-    image: "datacatering/dse-server:6.8.48"
+    image: "datacatering/dse-server:${CASSANDRA_VERSION:-6.8.48}"
     volumes:
       - "./data/cassandra/init.sh:/tmp/scripts/init.sh"
       - "${CASSANDRA_DATA:-./data/cassandra/data}:/tmp/data"
@@ -169,7 +169,7 @@ services:
       retries: 3
       test: [CMD-SHELL, "[ $$(nodetool statusgossip) = running ]"]
       timeout: 10s
-    image: "datacatering/dse-server:6.8.48"
+    image: "datacatering/dse-server:${CASSANDRA_VERSION:-6.8.48}"
     ports:
       - "9042:9042"
     ulimits:
@@ -634,7 +634,7 @@ services:
   jupyter:
     command: [jupyter, notebook, --no-browser, "--NotebookApp.token=''", "--NotebookApp.password=''"]
     container_name: jupyter
-    image: "quay.io/jupyter/minimal-notebook:2024-07-02"
+    image: "quay.io/jupyter/minimal-notebook:${JUPYTER_VERSION:-2024-07-02}"
     ports:
       - "8888:8888"
   kafka:
@@ -662,7 +662,7 @@ services:
       retries: 5
       test: [CMD-SHELL, /bin/sh, -c, kafka-topics, --bootstrap-server, "kafka:29092", --list]
       timeout: 5s
-    image: "confluentinc/confluent-local:7.7.1"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.7.1}"
     ports:
       - "9092:9092"
   keycloak:
@@ -740,7 +740,6 @@ services:
       - migrations
       - bootstrap
     container_name: kong-data
-
     depends_on:
       postgres:
         condition: service_completed_successfully
@@ -749,7 +748,7 @@ services:
       - KONG_PG_HOST=postgres
       - KONG_PG_USER=postgres
       - KONG_PG_PASSWORD=postgres
-    image: kong:3.8.0
+    image: "kong:${KONG_VERSION:-3.8.0}"
   logstash:
     container_name: logstash
     depends_on:
@@ -1206,7 +1205,7 @@ services:
   sqlite:
     command: [tail, -f, /dev/null]
     container_name: sqlite
-    image: "keinos/sqlite3:3.46.1"
+    image: "keinos/sqlite3:${SQLITE_VERSION:-3.46.1}"
     volumes:
       - "./data/sqlite:/opt/data"
   temporal:
