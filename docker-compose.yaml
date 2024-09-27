@@ -933,7 +933,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
       timeout: 10s
-    image: "neo4j:${NEO4J_VERSION:-5.20.0}"
+    image: "neo4j:${NEO4J_VERSION:-5.23.0}"
     ports:
       - "7474:7474"
       - "7687:7687"
