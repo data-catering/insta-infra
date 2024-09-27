@@ -7,7 +7,7 @@
     {
       "customType": "regex",
       "fileMatch": ["^docker(.*).yml$"],
-      "matchStrings": ["image: \"(?<depName>.*?):\\${(?:.*):?-(?<currentValue>.*?)}\""],
+      "matchStrings": ["image: \"(?<depName>.*?):\\${(?:.*?):?-(?<currentValue>.*?)}\""],
       "datasourceTemplate": "docker"
     }
   ]
