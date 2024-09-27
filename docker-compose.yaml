@@ -1021,7 +1021,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:8098/health/readiness"]
       timeout: 5s
-    image: "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
+    image: "apachepinot/pinot:${PINOT_VERSION:-1.2.0}"
     ports:
       - "8098:8098"
     restart: unless-stopped
@@ -1038,7 +1038,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:8099/health"]
       timeout: 5s
-    image: "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
+    image: "apachepinot/pinot:${PINOT_VERSION:-1.2.0}"
     ports:
       - "8099:8099"
     restart: unless-stopped
@@ -1055,7 +1055,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:9000/pinot-controller/admin"]
       timeout: 5s
-    image: "apachepinot/pinot:${PINOT_VERSION:-1.1.0}"
+    image: "apachepinot/pinot:${PINOT_VERSION:-1.2.0}"
     ports:
       - "9000:9000"
     restart: unless-stopped
