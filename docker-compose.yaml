@@ -822,7 +822,7 @@ services:
     entrypoint: /bin/bash
     environment:
       - "MARQUEZ_URL=http://marquez:5000"
-    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
+    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.49.0}"
     volumes:
       - "./data/marquez/init.sh:/tmp/scripts/init.sh"
       - "${MARQUEZ_DATA:-./data/marquez/data}:/tmp/data"
@@ -845,7 +845,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:5001/healthcheck"]
       timeout: 5s
-    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.47.0}"
+    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.49.0}"
     ports:
       - "5002:5000"
       - "5001:5001"
