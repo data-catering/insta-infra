@@ -1,5 +1,7 @@
 # insta-infra
 
+![insta-infra services](docs/img/insta-infra.gif)
+
 Spin up any service straight away on your local laptop. Tells you how to connect to it.
 
 - Simple commands
