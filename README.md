@@ -149,6 +149,7 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Data Collector              | fluentd                   | ✅         |
 | Data Collector              | logstash                  | ✅         |
 | Data Visualisation          | superset                  | ✅         |
+| Data Visualisation          | metabase                  | ✅         |
 | Distributed Coordination    | zookeeper                 | ✅         |
 | Distributed Data Processing | flink                     | ✅         |
 | Identity Management         | keycloak                  | ✅         |

@@ -54,3 +54,4 @@ CREATE DATABASE druid;
 CREATE DATABASE kong;
 CREATE DATABASE superset;
 CREATE DATABASE superset_examples;
+CREATE DATABASE metabase;
