@@ -851,6 +851,28 @@ services:
       - "5001:5001"
     volumes:
       - "./data/marquez/conf:/opt/app"
+  metabase:
+    container_name: metabase
+    depends_on:
+      postgres:
+        condition: service_completed_successfully
+    environment:
+      MB_DB_DBNAME: metabase
+      MB_DB_HOST: postgres
+      MB_DB_PASS: postgres
+      MB_DB_PORT: 5432
+      MB_DB_TYPE: postgres
+      MB_DB_USER: postgres
+    healthcheck:
+      interval: 15s
+      retries: 5
+      test: [CMD-SHELL, curl, --fail, -I, http://localhost:3000/api/health || exit 1]
+      timeout: 5s
+    image: "metabase/metabase:${METABASE_VERSION:-v0.50.28}"
+    ports:
+      - "3000:3000"
+    volumes:
+      - /dev/urandom:/dev/random:ro
   minio:
     command: [server, /data, --console-address, ":9001"]
     container_name: minio
