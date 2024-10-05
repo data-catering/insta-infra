@@ -1172,6 +1172,65 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+  redash:
+    command: scheduler
+    container_name: redash-scheduler
+    depends_on:
+      postgres:
+        condition: service_completed_successfully
+      redash-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      interval: 5s
+      test: [CMD, /bin/sh, -c, /app/bin/docker-entrypoint workers_healthcheck]
+      retries: 5
+      timeout: 5s
+    image: "redash/redash:${REDASH_VERSION:-10.1.0.b50633}"
+    environment:
+      PYTHONUNBUFFERED: 0
+      REDASH_LOG_LEVEL: "INFO"
+      REDASH_REDIS_URL: "redis://redis:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres:postgres@postgres/redash"
+      QUEUES: "queries,scheduled_queries,celery"
+      WORKERS_COUNT: 1
+      REDASH_COOKIE_SECRET: veryverysecret
+#      REDASH_MAIL_SERVER: "smtp2http"
+#      REDASH_MAIL_DEFAULT_SENDER: "dalong@qq.com"
+  redash-server:
+    container_name: redash
+    image: "redash/redash:${REDASH_VERSION:-10.1.0.b50633}"
+    command: server
+    depends_on:
+      redash-data:
+        condition: service_completed_successfully
+    healthcheck:
+      interval: 5s
+      test: [ CMD, curl, --output, /dev/null, --silent, --head, --fail, http://localhost:5000/ping ]
+      retries: 5
+      timeout: 5s
+    environment:
+      PYTHONUNBUFFERED: 0
+      REDASH_LOG_LEVEL: "INFO"
+      REDASH_REDIS_URL: "redis://redis:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres:postgres@postgres/redash"
+      REDASH_COOKIE_SECRET: veryverysecret
+      REDASH_WEB_WORKERS: 4
+  #      REDASH_MAIL_SERVER: "smtp2http"
+  #      REDASH_MAIL_DEFAULT_SENDER: "dalong@qq.com"
+    ports:
+      - "5000:5000"
+  redash-data:
+    container_name: redash-data
+    image: "redash/redash:${REDASH_VERSION:-10.1.0.b50633}"
+    command: [ /app/bin/docker-entrypoint, create_db ]
+    environment:
+      PYTHONUNBUFFERED: 0
+      REDASH_LOG_LEVEL: "INFO"
+      REDASH_REDIS_URL: "redis://redis:6379/0"
+      REDASH_DATABASE_URL: "postgresql://postgres:postgres@postgres/redash"
+      REDASH_COOKIE_SECRET: veryverysecret
   redis:
     container_name: redis
     healthcheck:
