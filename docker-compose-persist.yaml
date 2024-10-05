@@ -89,6 +89,9 @@ services:
   rabbitmq:
     volumes:
       - "./data/rabbitmq/persist:/var/lib/rabbitmq"
+  redis:
+    volumes:
+      - "./data/redis/persist:/data"
   solace-server:
     volumes:
       - "./data/solace/persist:/var/lib/solace"
