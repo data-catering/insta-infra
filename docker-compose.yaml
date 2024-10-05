@@ -1155,7 +1155,7 @@ services:
     healthcheck:
       interval: 5s
       retries: 3
-      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      test: [CMD, redis-cli, --raw, incr, ping]
       timeout: 5s
     image: "redis:${REDIS_VERSION:-7.4.0}"
     ports:
@@ -1219,7 +1219,7 @@ services:
     volumes:
       - "./data/sqlite:/opt/data"
   superset:
-    command: ["/app/docker/docker-init.sh"]
+    command: [/app/docker/docker-init.sh]
     container_name: superset_init
     depends_on:
       postgres:
@@ -1229,27 +1229,27 @@ services:
       superset-server:
         condition: service_healthy
     env_file:
-      - "./data/superset/docker/.env"
+      - ./data/superset/docker/.env
     healthcheck:
       disable: true
     image: "apache/superset:${SUPERSET_VERSION:-4.0.2}"
-    user: "root"
+    user: root
     volumes:
       - "./data/superset/docker:/app/docker"
   superset-server:
-    command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    command: [/app/docker/docker-bootstrap.sh, app-gunicorn]
     container_name: superset
     env_file:
-      - "./data/superset/docker/.env"
+      - ./data/superset/docker/.env
     healthcheck:
       interval: 5s
       retries: 3
-      test: [ CMD, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8088/health" ]
+      test: [CMD, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8088/health"]
       timeout: 5s
     image: "apache/superset:${SUPERSET_VERSION:-4.0.2}"
     ports:
       - "8088:8088"
-    user: "root"
+    user: root
     volumes:
       - "./data/superset/docker:/app/docker"
   temporal:
