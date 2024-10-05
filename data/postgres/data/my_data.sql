@@ -55,3 +55,4 @@ CREATE DATABASE kong;
 CREATE DATABASE superset;
 CREATE DATABASE superset_examples;
 CREATE DATABASE metabase;
+CREATE DATABASE redash;
