@@ -52,3 +52,5 @@ CREATE DATABASE keycloak;
 CREATE DATABASE marquez;
 CREATE DATABASE druid;
 CREATE DATABASE kong;
+CREATE DATABASE superset;
+CREATE DATABASE superset_examples;

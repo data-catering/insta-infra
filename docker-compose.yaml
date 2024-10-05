@@ -1150,6 +1150,16 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+  redis:
+    container_name: redis
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test: [CMD, redis-cli, --raw, incr, ping]
+      timeout: 5s
+    image: "redis:${REDIS_VERSION:-7.4.0}"
+    ports:
+      - "6379:6379"
   solace:
     container_name: solace-data
     depends_on:
@@ -1208,6 +1218,40 @@ services:
     image: "keinos/sqlite3:${SQLITE_VERSION:-3.46.1}"
     volumes:
       - "./data/sqlite:/opt/data"
+  superset:
+    command: [/app/docker/docker-init.sh]
+    container_name: superset_init
+    depends_on:
+      postgres:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      superset-server:
+        condition: service_healthy
+    env_file:
+      - ./data/superset/docker/.env
+    healthcheck:
+      disable: true
+    image: "apache/superset:${SUPERSET_VERSION:-4.0.2}"
+    user: root
+    volumes:
+      - "./data/superset/docker:/app/docker"
+  superset-server:
+    command: [/app/docker/docker-bootstrap.sh, app-gunicorn]
+    container_name: superset
+    env_file:
+      - ./data/superset/docker/.env
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test: [CMD, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8088/health"]
+      timeout: 5s
+    image: "apache/superset:${SUPERSET_VERSION:-4.0.2}"
+    ports:
+      - "8088:8088"
+    user: root
+    volumes:
+      - "./data/superset/docker:/app/docker"
   temporal:
     command: [server, start-dev, --db-filename, /opt/data/db/temporal.db, --ip, 0.0.0.0, --metrics-port, "9233"]
     container_name: temporal

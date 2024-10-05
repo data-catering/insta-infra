@@ -125,6 +125,7 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Service Type                | Service                   | Supported  |
 |-----------------------------|---------------------------|------------|
 | Api Gateway                 | kong                      | ✅         |
+| Cache                       | redis                     | ✅         |
 | Change Data Capture         | debezium                  | ✅         |
 | Code Analysis               | sonarqube                 | ✅         |
 | Database                    | cassandra                 | ✅         |
@@ -147,6 +148,7 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Data Catalog                | unitycatalog              | ✅         |
 | Data Collector              | fluentd                   | ✅         |
 | Data Collector              | logstash                  | ✅         |
+| Data Visualisation          | superset                  | ✅         |
 | Distributed Coordination    | zookeeper                 | ✅         |
 | Distributed Data Processing | flink                     | ✅         |
 | Identity Management         | keycloak                  | ✅         |
