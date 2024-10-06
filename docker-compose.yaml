@@ -146,8 +146,8 @@ services:
     ports:
       - "5001:5000"
   blazer:
-    container_name: blazer
     command: sh -c "rails db:migrate && puma -C /app/config/puma.rb"
+    container_name: blazer
     depends_on:
       postgres:
         condition: service_completed_successfully
