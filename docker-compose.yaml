@@ -563,6 +563,14 @@ services:
     restart: unless-stopped
     volumes:
       - "./data/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z"
+  evidence:
+    container_name: evidence
+    image: "evidencedev/devenv:${EVIDENCE_VERSION:-latest}"
+    init: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - "./data/evidence/persist:/evidence-workspace"
   flight-sql:
     command: [tail, -f, /dev/null]
     container_name: flight-sql
