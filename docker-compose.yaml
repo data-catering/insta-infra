@@ -145,6 +145,20 @@ services:
     image: "amundsendev/amundsen-search:${AMUNDSEN_SEARCH_VERSION:-4.2.0}"
     ports:
       - "5001:5000"
+  blazer:
+    container_name: blazer
+    command: sh -c "rails db:migrate && puma -C /app/config/puma.rb"
+    depends_on:
+      postgres:
+        condition: service_completed_successfully
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/blazer
+      - DATABASE_CUSTOMER_URL=postgres://postgres:postgres@postgres:5432/customer
+    image: "ankane/blazer:${BLAZER_VERSION:-v3.0.4}"
+    ports:
+      - "8080:8080"
+    volumes:
+      - "./data/blazer/blazer.yml:/app/config/blazer.yml"
   cassandra:
     command: [-c, /tmp/scripts/init.sh]
     container_name: cassandra-data
