@@ -148,6 +148,7 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Data Catalog                | unitycatalog              | ✅         |
 | Data Collector              | fluentd                   | ✅         |
 | Data Collector              | logstash                  | ✅         |
+| Data Visualisation          | evidence                  | ✅         |
 | Data Visualisation          | metabase                  | ✅         |
 | Data Visualisation          | redash                    | ✅         |
 | Data Visualisation          | superset                  | ✅         |
