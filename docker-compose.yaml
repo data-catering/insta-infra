@@ -956,7 +956,6 @@ services:
       - "./data/mysql/init.sh:/tmp/scripts/init.sh"
       - "${MYSQL_DATA:-./data/mysql/data}:/tmp/data"
   mysql-server:
-    command: --mysql-native-password=ON
     container_name: mysql
     environment:
       - "MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-root}"
@@ -1228,8 +1227,6 @@ services:
       REDASH_LOG_LEVEL: INFO
       REDASH_REDIS_URL: "redis://redis:6379/0"
     image: "redash/redash:${REDASH_VERSION:-10.1.0.b50633}"
-  #      REDASH_MAIL_SERVER: "smtp2http"
-  #      REDASH_MAIL_DEFAULT_SENDER: "dalong@qq.com"
   redash-server:
     command: server
     container_name: redash
@@ -1249,8 +1246,6 @@ services:
       test: [CMD, curl, --output, /dev/null, --silent, --head, --fail, http://localhost:5000/ping]
       timeout: 5s
     image: "redash/redash:${REDASH_VERSION:-10.1.0.b50633}"
-    #      REDASH_MAIL_SERVER: "smtp2http"
-    #      REDASH_MAIL_DEFAULT_SENDER: "dalong@qq.com"
     ports:
       - "5000:5000"
   redis:
