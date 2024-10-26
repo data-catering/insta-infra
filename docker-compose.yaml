@@ -925,7 +925,7 @@ services:
     environment:
       - "MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER:-user}"
       - "MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-password}"
-    image: "mongo:${MONGODB_VERSION:-8.0.1}"
+    image: "mongo:${MONGODB_VERSION:-8.0.3}"
     ports:
       - "27017:27017"
   mssql:
