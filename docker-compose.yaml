@@ -534,7 +534,7 @@ services:
       postgres:
         condition: service_completed_successfully
     entrypoint: [tail, -F, anything]
-    image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.1.2}"
+    image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.1.3}"
     volumes:
       - "./data/duckdb:/opt/data"
   elasticsearch:
