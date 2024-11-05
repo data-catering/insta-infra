@@ -32,7 +32,7 @@ services:
       start_period: 30s
       test: [CMD, curl, --fail, "http://localhost:8080/health"]
       timeout: 10s
-    image: "apache/airflow:${AIRFLOW_VERSION:-2.10.2}"
+    image: "apache/airflow:${AIRFLOW_VERSION:-2.10.3}"
     ports:
       - "8081:8080"
     restart: always
@@ -94,7 +94,7 @@ services:
       - "_AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_USER:-airflow}"
       - "_AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_PASSWORD:-airflow}"
       - _PIP_ADDITIONAL_REQUIREMENTS=
-    image: "apache/airflow:${AIRFLOW_VERSION:-2.10.2}"
+    image: "apache/airflow:${AIRFLOW_VERSION:-2.10.3}"
     user: "0:0"
   amundsen:
     command: gunicorn -w 2 --bind :5000 amundsen_application.wsgi
