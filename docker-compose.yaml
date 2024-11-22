@@ -701,7 +701,7 @@ services:
       - KC_REALM_NAME=myrealm
       - "KEYCLOAK_ADMIN=${KEYCLOAK_USER:-admin}"
       - "KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_PASSWORD:-admin}"
-    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.0.5}"
+    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.0.6}"
     ports:
       - "8082:8080"
     restart: unless-stopped
