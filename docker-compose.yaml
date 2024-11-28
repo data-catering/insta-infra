@@ -810,7 +810,7 @@ services:
     container_name: mage-ai
     environment:
       - USER_CODE_PATH=/home/src/your_first_project
-    image: "mageai/mageai:${MAGE_AI_VERSION:-0.9.74}"
+    image: "mageai/mageai:${MAGE_AI_VERSION:-0.9.75}"
     ports:
       - "6789:6789"
     restart: on-failure
