@@ -1017,7 +1017,7 @@ services:
       retries: 5
       test: [CMD, wget, -q, --spider,  "http://localhost:8586/healthcheck"]
       timeout: 5s
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.5.13}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.1}"
     ports:
       - "8585:8585"
       - "8586:8586"
@@ -1036,7 +1036,7 @@ services:
       - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
       - "ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}"
       - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.5.13}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.1}"
   opensearch:
     container_name: opensearch
     environment:
