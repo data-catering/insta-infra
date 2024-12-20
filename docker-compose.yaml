@@ -239,7 +239,7 @@ services:
       - "26257:26257"
       - "8080:8080"
   confluent-schema-registry:
-    container_name: schema-registry
+    container_name: confluent-schema-registry
     depends_on:
       kafka-server:
         condition: service_healthy
@@ -247,9 +247,9 @@ services:
     healthcheck:
       interval: 10s
       retries: 5
-      test: nc -z schema-registry 8081
+      test: nc -z confluent-schema-registry 8081
       timeout: 5s
-    hostname: schema-registry
+    hostname: confluent-schema-registry
     image: confluentinc/cp-schema-registry:${CONFLUENT_SCHEMA_REGISTRY_VERSION:-7.4.0}
     ports:
       - "8081:8081"
