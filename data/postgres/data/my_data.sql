@@ -5,7 +5,7 @@ CREATE SCHEMA IF NOT EXISTS account;
 CREATE TABLE IF NOT EXISTS account.accounts
 (
     id                      BIGSERIAL PRIMARY KEY,
-    account_number          VARCHAR(20) NOT NULL,
+    account_number          VARCHAR(20) NOT NULL UNIQUE,
     account_status          VARCHAR(10),
     created_by              TEXT,
     created_by_fixed_length CHAR(10),
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS account.accounts
 
 CREATE TABLE IF NOT EXISTS account.balances
 (
-    account_number VARCHAR(20) NOT NULL,
+    account_number VARCHAR(20) NOT NULL REFERENCES account.accounts (account_number),
     create_time    TIMESTAMP,
     account_status VARCHAR(10),
     balance        DOUBLE PRECISION,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS account.balances
 
 CREATE TABLE IF NOT EXISTS account.transactions
 (
-    account_number VARCHAR(20) NOT NULL REFERENCES account.balances (account_number),
+    account_number VARCHAR(20) NOT NULL REFERENCES account.accounts (account_number),
     create_time    TIMESTAMP,
     transaction_id VARCHAR(20),
     amount         DOUBLE PRECISION,
