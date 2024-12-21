@@ -751,7 +751,7 @@ services:
       retries: 5
       test: [CMD-SHELL, kong health]
       timeout: 10s
-    image: "kong:${KONG_VERSION:-3.8.0}"
+    image: "kong:${KONG_VERSION:-3.9.0}"
     ports:
       - 8001:8001
       - 8000:8000
@@ -770,7 +770,7 @@ services:
       - KONG_PG_HOST=postgres
       - KONG_PG_USER=postgres
       - KONG_PG_PASSWORD=postgres
-    image: "kong:${KONG_VERSION:-3.8.0}"
+    image: "kong:${KONG_VERSION:-3.9.0}"
   logstash:
     container_name: logstash
     depends_on:
