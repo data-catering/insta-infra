@@ -222,7 +222,7 @@ services:
     depends_on:
       cockroachdb-server:
         condition: service_healthy
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.3.1}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.3.2}"
     volumes:
       - "./data/cockroachdb/init.sh:/tmp/scripts/init.sh"
       - "${COCKROACHDB_DATA:-./data/cockroachdb/data}:/tmp/data"
@@ -234,7 +234,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "curl --fail http://localhost:8080/ || exit 1"]
       timeout: 5s
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.3.1}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.3.2}"
     ports:
       - "26257:26257"
       - "8080:8080"
