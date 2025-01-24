@@ -644,7 +644,7 @@ services:
     container_name: httpd
     depends_on:
       - fluentd
-    image: "httpd:${HTTPD_VERSION:-2.4.62}"
+    image: "httpd:${HTTPD_VERSION:-2.4.63}"
     logging:
       driver: fluentd
       options:
