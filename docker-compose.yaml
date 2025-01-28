@@ -1264,7 +1264,7 @@ services:
       solace-server:
         condition: service_healthy
     entrypoint: [/bin/sh, -c, /opt/app/my_data.sh]
-    image: "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.10}"
+    image: "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.11}"
     volumes:
       - "./data/solace:/opt/app"
   solace-server:
@@ -1282,7 +1282,7 @@ services:
       retries: 3
       test: [CMD-SHELL, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8080"]
       timeout: 5s
-    image: "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.10}"
+    image: "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.11}"
     ports:
       - "8080:8080"
       - "55554:55555"
