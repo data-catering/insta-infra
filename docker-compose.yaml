@@ -1172,7 +1172,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    image: "prestodb/presto:${PRESTO_VERSION:-0.290}"
+    image: "prestodb/presto:${PRESTO_VERSION:-0.291}"
     ports:
       - "8083:8080"
     volumes:
