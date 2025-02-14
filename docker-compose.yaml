@@ -1122,7 +1122,7 @@ services:
     environment:
       - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
       - "PGPASSWORD=${POSTGRES_PASSWORD:-postgres}"
-    image: "postgres:${POSTGRES_VERSION:-17.2}"
+    image: "postgres:${POSTGRES_VERSION:-17.3}"
     volumes:
       - "./data/postgres/init.sh:/tmp/scripts/init.sh"
       - "${POSTGRES_DATA:-./data/postgres/data}:/tmp/data"
@@ -1137,7 +1137,7 @@ services:
       retries: 3
       test: [CMD-SHELL, pg_isready]
       timeout: 5s
-    image: "postgres:${POSTGRES_VERSION:-17.2}"
+    image: "postgres:${POSTGRES_VERSION:-17.3}"
     ports:
       - "5432:5432"
   prefect:
