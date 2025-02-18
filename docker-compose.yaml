@@ -1280,7 +1280,7 @@ services:
     healthcheck:
       interval: 30s
       retries: 3
-      test: [CMD-SHELL, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8080"]
+      test: [CMD, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8080"]
       timeout: 5s
     image: "solace/solace-pubsub-standard:${SOLACE_VERSION:-10.11}"
     ports:
