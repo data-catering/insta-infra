@@ -1358,7 +1358,7 @@ services:
     expose:
       - 8233
       - 7233
-    image: "temporalio/server:${TEMPORAL_VERSION:-1.25.2.0}"
+    image: "temporalio/server:${TEMPORAL_VERSION:-1.27.0.0}"
     ports:
       - "8233:8233"
       - "7233:7233"
