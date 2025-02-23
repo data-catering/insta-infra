@@ -265,7 +265,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.1}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.2}"
     ports:
       - "3000:3000"
     volumes:
@@ -1306,7 +1306,7 @@ services:
       - "9000:9000"
   spanner:
     container_name: spanner
-    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.28}"
+    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.29}"
     ports:
       - "9010:9010"
       - "9020:9020"
