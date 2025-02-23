@@ -265,7 +265,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.1}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.2}"
     ports:
       - "3000:3000"
     volumes:
@@ -1122,7 +1122,7 @@ services:
     environment:
       - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
       - "PGPASSWORD=${POSTGRES_PASSWORD:-postgres}"
-    image: "postgres:${POSTGRES_VERSION:-17.3}"
+    image: "postgres:${POSTGRES_VERSION:-17.4}"
     volumes:
       - "./data/postgres/init.sh:/tmp/scripts/init.sh"
       - "${POSTGRES_DATA:-./data/postgres/data}:/tmp/data"
@@ -1137,7 +1137,7 @@ services:
       retries: 3
       test: [CMD-SHELL, pg_isready]
       timeout: 5s
-    image: "postgres:${POSTGRES_VERSION:-17.3}"
+    image: "postgres:${POSTGRES_VERSION:-17.4}"
     ports:
       - "5432:5432"
   prefect:
@@ -1306,7 +1306,7 @@ services:
       - "9000:9000"
   spanner:
     container_name: spanner
-    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.28}"
+    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.29}"
     ports:
       - "9010:9010"
       - "9020:9020"
