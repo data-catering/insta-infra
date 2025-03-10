@@ -277,7 +277,7 @@ services:
         condition: service_completed_successfully
     environment:
       - DEPLOY_MODE=standalone
-    image: "datacatering/data-caterer:${DATA_CATERER_VERSION:-0.15.3}"
+    image: "datacatering/data-caterer:${DATA_CATERER_VERSION:-0.15.4}"
     ports:
       - "9898:9898"
     volumes:
