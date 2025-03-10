@@ -195,7 +195,7 @@ services:
       clickhouse-server:
         condition: service_healthy
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.1.7}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.2.1}"
     user: "101:101"
     volumes:
       - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
@@ -211,7 +211,7 @@ services:
       test: "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"
       timeout: 5s
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.1.7}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.2.1}"
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -222,7 +222,7 @@ services:
     depends_on:
       cockroachdb-server:
         condition: service_healthy
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.3.6}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.0}"
     volumes:
       - "./data/cockroachdb/init.sh:/tmp/scripts/init.sh"
       - "${COCKROACHDB_DATA:-./data/cockroachdb/data}:/tmp/data"
@@ -234,7 +234,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "curl --fail http://localhost:8080/ || exit 1"]
       timeout: 5s
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.3.6}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.0}"
     ports:
       - "26257:26257"
       - "8080:8080"
@@ -265,7 +265,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.3}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.4}"
     ports:
       - "3000:3000"
     volumes:
@@ -277,7 +277,7 @@ services:
         condition: service_completed_successfully
     environment:
       - DEPLOY_MODE=standalone
-    image: "datacatering/data-caterer:${DATA_CATERER_VERSION:-0.15.2}"
+    image: "datacatering/data-caterer:${DATA_CATERER_VERSION:-0.15.4}"
     ports:
       - "9898:9898"
     volumes:
