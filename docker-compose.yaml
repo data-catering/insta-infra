@@ -154,7 +154,7 @@ services:
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/blazer
       - DATABASE_CUSTOMER_URL=postgres://postgres:postgres@postgres:5432/customer
-    image: "ankane/blazer:${BLAZER_VERSION:-v3.1.0}"
+    image: "ankane/blazer:${BLAZER_VERSION:-v3.2.0}"
     ports:
       - "8080:8080"
     volumes:
