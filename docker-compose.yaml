@@ -1368,7 +1368,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    image: "trinodb/trino:${TRINO_VERSION:-472}"
+    image: "trinodb/trino:${TRINO_VERSION:-473}"
     ports:
       - "8084:8080"
     volumes:
