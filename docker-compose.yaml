@@ -9,7 +9,7 @@ services:
       retries: 3
       test: [CMD-SHELL, "curl -k -f http://localhost:8161/admin"]
       timeout: 5s
-    image: "apache/activemq-artemis:${ACTIVEMQ_VERSION:-2.39.0}"
+    image: "apache/activemq-artemis:${ACTIVEMQ_VERSION:-2.40.0}"
     ports:
       - "61616:61616"
       - "8161:8161"
@@ -154,7 +154,7 @@ services:
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/blazer
       - DATABASE_CUSTOMER_URL=postgres://postgres:postgres@postgres:5432/customer
-    image: "ankane/blazer:${BLAZER_VERSION:-v3.1.0}"
+    image: "ankane/blazer:${BLAZER_VERSION:-v3.2.1}"
     ports:
       - "8080:8080"
     volumes:
@@ -195,7 +195,7 @@ services:
       clickhouse-server:
         condition: service_healthy
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.1.4}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.3.1}"
     user: "101:101"
     volumes:
       - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
@@ -211,7 +211,7 @@ services:
       test: "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"
       timeout: 5s
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.1.4}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.3.1}"
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -222,7 +222,7 @@ services:
     depends_on:
       cockroachdb-server:
         condition: service_healthy
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.3.5}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.2}"
     volumes:
       - "./data/cockroachdb/init.sh:/tmp/scripts/init.sh"
       - "${COCKROACHDB_DATA:-./data/cockroachdb/data}:/tmp/data"
@@ -234,7 +234,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "curl --fail http://localhost:8080/ || exit 1"]
       timeout: 5s
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v24.3.5}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.2}"
     ports:
       - "26257:26257"
       - "8080:8080"
@@ -265,7 +265,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.1}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.6}"
     ports:
       - "3000:3000"
     volumes:
@@ -277,7 +277,7 @@ services:
         condition: service_completed_successfully
     environment:
       - DEPLOY_MODE=standalone
-    image: "datacatering/data-caterer:${DATA_CATERER_VERSION:-0.14.7}"
+    image: "datacatering/data-caterer:${DATA_CATERER_VERSION:-0.15.4}"
     ports:
       - "9898:9898"
     volumes:
@@ -339,7 +339,7 @@ services:
     entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
     environment:
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-MetadataAuditEvent_v4,MetadataChangeEvent_v4,FailedMetadataChangeEvent_v4,MetadataChangeLog_Versioned_v1,MetadataChangeLog_Timeseries_v1,MetadataChangeProposal_v1,FailedMetadataChangeProposal_v1,PlatformEvent_v1,DataHubUpgradeHistory_v1}"
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.8.1}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.9.0}"
     volumes:
       - "./data/kafka/init.sh:/tmp/scripts/init.sh"
   datahub-upgrade:
@@ -438,7 +438,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8888/status/health || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-32.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-32.0.1}"
     ports:
       - "8888:8888"
   druid-broker:
@@ -460,7 +460,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8082/druid/broker/v1/loadstatus || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-32.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-32.0.1}"
     ports:
       - "8082:8082"
   druid-coordinator:
@@ -480,7 +480,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8081/status/health || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-32.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-32.0.1}"
     ports:
       - "8081:8081"
   druid-historical:
@@ -502,7 +502,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8083/druid/historical/v1/readiness || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-32.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-32.0.1}"
     ports:
       - "8083:8083"
   druid-middlemanager:
@@ -524,7 +524,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8091/status/health || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-32.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-32.0.1}"
     ports:
       - "8091:8091"
       - "8100-8105:8100-8105"
@@ -534,7 +534,7 @@ services:
       postgres:
         condition: service_completed_successfully
     entrypoint: [tail, -F, anything]
-    image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.2.0}"
+    image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.2.1}"
     volumes:
       - "./data/duckdb:/opt/data"
   elasticsearch:
@@ -552,7 +552,7 @@ services:
       - "HEARTBEAT_INTERNAL_PASSWORD=${HEARTBEAT_INTERNAL_PASSWORD:-}"
       - "MONITORING_INTERNAL_PASSWORD=${MONITORING_INTERNAL_PASSWORD:-}"
       - "BEATS_SYSTEM_PASSWORD=${BEATS_SYSTEM_PASSWORD:-}"
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.2}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.3}"
     volumes:
       - "./data/elasticsearch/data/entrypoint.sh:/tmp/entrypoint.sh"
       - "./data/elasticsearch/data/lib.sh:/tmp/lib.sh"
@@ -570,7 +570,7 @@ services:
       retries: 5
       test: "curl -sS --fail http://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=0s"
       timeout: 5s
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.2}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.3}"
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -609,7 +609,7 @@ services:
     expose:
       - 6121
       - 6122
-    image: "flink:${FLINK_VERSION:-1.20.0-scala_2.12-java17}"
+    image: "flink:${FLINK_VERSION:-2.0.0-scala_2.12-java17}"
     links: []
   flink-jobmanager:
     command: jobmanager
@@ -619,7 +619,7 @@ services:
       - "FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager"
     expose:
       - 6123
-    image: "flink:${FLINK_VERSION:-1.20.0-scala_2.12-java17}"
+    image: "flink:${FLINK_VERSION:-2.0.0-scala_2.12-java17}"
     ports:
       - "8081:8081"
   fluentd:
@@ -667,7 +667,7 @@ services:
     entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
     environment:
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-accounts,transactions}"
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.8.1}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.9.0}"
     volumes:
       - "./data/kafka/init.sh:/tmp/scripts/init.sh"
   kafka-server:
@@ -684,7 +684,7 @@ services:
       retries: 5
       test: [CMD-SHELL, /bin/sh, -c, kafka-topics, --bootstrap-server, "kafka:29092", --list]
       timeout: 5s
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.8.1}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.9.0}"
     ports:
       - "9092:9092"
   keycloak:
@@ -701,7 +701,7 @@ services:
       - KC_REALM_NAME=myrealm
       - "KEYCLOAK_ADMIN=${KEYCLOAK_USER:-admin}"
       - "KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_PASSWORD:-admin}"
-    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.1.2}"
+    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.1.4}"
     ports:
       - "8082:8080"
     restart: unless-stopped
@@ -721,7 +721,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:5601/api/status"]
       timeout: 5s
-    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-8.17.2}"
+    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-8.17.3}"
     ports:
       - "5601:5601"
     restart: always
@@ -784,7 +784,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:9600"]
       timeout: 5s
-    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-8.17.2}"
+    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-8.17.3}"
     ports:
       - "5044:5044"
       - "50000:50000/tcp"
@@ -890,7 +890,7 @@ services:
       retries: 5
       test: [CMD-SHELL, curl, --fail, -I, http://localhost:3000/api/health || exit 1]
       timeout: 5s
-    image: "metabase/metabase:${METABASE_VERSION:-v0.53.2}"
+    image: "metabase/metabase:${METABASE_VERSION:-v0.53.7}"
     ports:
       - "3000:3000"
     volumes:
@@ -917,7 +917,7 @@ services:
       - mongodb-server
     environment:
       - "CONN_STR=mongodb://${MONGODB_USER:-user}:${MONGODB_PASSWORD:-password}@mongodb-server"
-    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.4-ubi8}"
+    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.5-ubi8}"
     volumes:
       - "./data/mongodb:/opt/app"
   mongodb-server:
@@ -925,7 +925,7 @@ services:
     environment:
       - "MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER:-user}"
       - "MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-password}"
-    image: "mongo:${MONGODB_VERSION:-8.0.4}"
+    image: "mongo:${MONGODB_VERSION:-8.0.5}"
     ports:
       - "27017:27017"
   mssql:
@@ -976,7 +976,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
       timeout: 10s
-    image: "neo4j:${NEO4J_VERSION:-2025.01.0}"
+    image: "neo4j:${NEO4J_VERSION:-2025.02.0}"
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -998,7 +998,7 @@ services:
       start_period: 30s
       test: [CMD, curl, --fail, "http://localhost:8080/health"]
       timeout: 10s
-    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.6.3}"
+    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.6.6}"
     ports:
       - "8080:8080"
   openmetadata-server:
@@ -1017,7 +1017,7 @@ services:
       retries: 5
       test: [CMD, wget, -q, --spider,  "http://localhost:8586/healthcheck"]
       timeout: 5s
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.3}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.6}"
     ports:
       - "8585:8585"
       - "8586:8586"
@@ -1036,7 +1036,7 @@ services:
       - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
       - "ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}"
       - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.3}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.6}"
   opensearch:
     container_name: opensearch
     environment:
@@ -1047,7 +1047,7 @@ services:
       retries: 5
       test: [CMD, curl, --fail, "https://localhost:9200", -ku, "admin:${OPENSEARCH_PASSWORD:-!BigData#1}"]
       timeout: 5s
-    image: "opensearchproject/opensearch:${OPENSEARCH_VERSION:-2.19.0}"
+    image: "opensearchproject/opensearch:${OPENSEARCH_VERSION:-2.19.1}"
     ports:
       - "9600:9600"
       - "9200:9200"
@@ -1122,7 +1122,7 @@ services:
     environment:
       - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
       - "PGPASSWORD=${POSTGRES_PASSWORD:-postgres}"
-    image: "postgres:${POSTGRES_VERSION:-17.3}"
+    image: "postgres:${POSTGRES_VERSION:-17.4}"
     volumes:
       - "./data/postgres/init.sh:/tmp/scripts/init.sh"
       - "${POSTGRES_DATA:-./data/postgres/data}:/tmp/data"
@@ -1137,7 +1137,7 @@ services:
       retries: 3
       test: [CMD-SHELL, pg_isready]
       timeout: 5s
-    image: "postgres:${POSTGRES_VERSION:-17.3}"
+    image: "postgres:${POSTGRES_VERSION:-17.4}"
     ports:
       - "5432:5432"
   prefect:
@@ -1147,7 +1147,7 @@ services:
     entrypoint: [/opt/prefect/app/start_flows.sh]
     environment:
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.2.2-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.2.14-python3.11}"
     volumes:
       - "./data/prefect/flows:/root/flows"
       - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
@@ -1163,7 +1163,7 @@ services:
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
       - PREFECT_SERVER_API_HOST=0.0.0.0
       - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/prefect"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.2.2-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.2.14-python3.11}"
     ports:
       - "4200:4200"
     restart: always
@@ -1189,7 +1189,7 @@ services:
       test: rabbitmq-diagnostics -q ping
       timeout: 30s
     hostname: my-rabbit
-    image: "rabbitmq:${RABBITMQ_VERSION:-4.0.6-management}"
+    image: "rabbitmq:${RABBITMQ_VERSION:-4.0.7-management}"
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -1306,7 +1306,7 @@ services:
       - "9000:9000"
   spanner:
     container_name: spanner
-    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.28}"
+    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.30}"
     ports:
       - "9010:9010"
       - "9020:9020"
@@ -1358,7 +1358,7 @@ services:
     expose:
       - 8233
       - 7233
-    image: "temporalio/server:${TEMPORAL_VERSION:-1.25.2.0}"
+    image: "temporalio/server:${TEMPORAL_VERSION:-1.27.1.0}"
     ports:
       - "8233:8233"
       - "7233:7233"
@@ -1368,7 +1368,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    image: "trinodb/trino:${TRINO_VERSION:-470}"
+    image: "trinodb/trino:${TRINO_VERSION:-474}"
     ports:
       - "8084:8080"
     volumes:
