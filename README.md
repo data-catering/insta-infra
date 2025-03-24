@@ -10,6 +10,56 @@ Spin up any service straight away on your local laptop. Tells you how to connect
 - Don't worry about startup configuration
 - Don't think about what hostname, port, or credentials to use to connect
 
+## Installation
+
+### Prerequisites
+- Docker and Docker Compose
+
+### Option 1: Quick Install (Recommended)
+```shell
+curl -fsSL https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | bash
+```
+This will install insta-infra to `~/.insta-infra` and create a symbolic link in `/usr/local/bin` if possible.
+
+### Option 2: With npm
+```shell
+npm install -g insta-infra
+```
+This will install the `insta` command globally on your system.
+
+### Option 3: With Homebrew (macOS)
+```shell
+brew tap data-catering/insta-infra
+brew install insta-infra
+```
+
+### Option 4: Using Docker
+```shell
+docker run -it --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v $PWD/data:/app/data \
+  data-catering/insta-infra postgres
+```
+Or create an alias in your shell configuration:
+```shell
+alias insta='docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD/data:/app/data data-catering/insta-infra'
+```
+
+### Option 5: Manual Install
+```shell
+# Clone the repository
+git clone https://github.com/data-catering/insta-infra.git
+cd insta-infra
+chmod +x run.sh
+```
+
+### Option 6: As a Shell Alias (Any OS)
+In your `.bashrc, .zshrc, ...`, add:
+```shell
+alias insta=/path/to/insta-infra/run.sh
+```
+Then run `source ~/.bashrc` or `source ~/.zshrc` or open a new terminal session.
+
 ## How
 
 ### Start
@@ -180,4 +230,28 @@ POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
 | Web Server                  | httpd                     | ✅         |
 | Workflow                    | maestro                   | ✅         |
 | Workflow                    | temporal                  | ✅         | 
+
+## Testing
+
+The project includes comprehensive tests to ensure reliability and correctness. To run the tests:
+
+```shell
+# Run all unit tests
+./tests/run.sh
+
+# Run integration tests (requires Docker)
+./tests/test_integration.sh
+```
+
+### Test Categories
+
+1. **Core Tests**: Validate the main script functionality
+2. **Docker Compose Tests**: Ensure docker-compose files are valid
+3. **Installation Tests**: Verify the installation script works properly
+4. **Package Tests**: Check npm package configuration
+5. **Integration Tests**: Start and stop a real service to ensure everything works end-to-end
+
+### Continuous Integration
+
+Tests are automatically run on GitHub Actions for every pull request and push to main branch.
 
