@@ -2,4 +2,3 @@
 __pycache__
 data/*/persist
 node_modules
-package*.json
