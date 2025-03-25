@@ -832,7 +832,7 @@ services:
     environment:
       - MARQUEZ_HOST=host.docker.internal
       - MARQUEZ_PORT=5002
-    image: "marquezproject/marquez-web:${MARQUEZ_VERSION:-0.50.0}"
+    image: "marquezproject/marquez-web:${MARQUEZ_VERSION:-0.51.0}"
     ports:
       - "3001:3000"
   marquez-data:
