@@ -67,8 +67,9 @@ connect_to_service() {
 
   if [ -z "$connection_command" ]
   then
-    echo -e "${RED}Error: Failed to find connection command for $1${NC}"
-    exit 1
+    echo -e "${YELLOW}Warning: Failed to find connection command for $1, connecting to bash${NC}"
+    container_name=$1
+    connection_command='bash'
   fi
 
   docker exec -it "$container_name" bash -c "$connection_command"

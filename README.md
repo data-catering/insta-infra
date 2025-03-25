@@ -62,113 +62,93 @@ Then run `source ~/.bashrc` or `source ~/.zshrc` or open a new terminal session.
 
 ## How
 
-### Start
+After installation, you can use insta-infra with the `insta` command (or `./run.sh` if manually installed).
+
+### Basic Commands
 
 ```shell
-./run.sh <services>
-./run.sh postgres mysql
-```
-
-#### Example Output
-
-```shell
-How to connect:
-Service   Container To Container  Host To Container  Container To Host
-postgres  postgres:5432           localhost:5432     host.docker.internal:5432
-mysql     mysql:3306              localhost:3306     host.docker.internal:3306
-```
-
-### Connect
-
-```shell
-./run.sh [connect|-c] <service>
-./run.sh -c postgres
-./run.sh connect postgres
-```
-
-### Shutdown
-
-```shell
-./run.sh [down|-d] <services>
-./run.sh -d #bring all services down
-./run.sh down postgres
-```
-
-### List supported services
-
-```shell
-./run.sh -l
-./run.sh list
-```
-
-### Persist data
-
-```shell
-./run.sh -p postgres
-```
-
-### Remove persisted data
-
-```shell
-./run.sh [remove|-r] <services>
-./run.sh -r #remove all service persisted data
-./run.sh remove postgres
-```
-
-### Run version
-
-```shell
-<service>_VERSION=0.1 ./run.sh <services>
-POSTGRES_VERSION=14.0 ./run.sh postgres
-```
-
-### Run from anywhere
-
-In your `.bashrc, .zshrc, ...`, add:
-
-```shell
-alias insta=<checkout directory>/insta-infra/run.sh
-```
-
-Run `source ~/.bashrc` or `source ~/.zshrc` or open a new terminal session. Then you can run:
-
-```shell
+# List available services
 insta -l
-insta postgres
-insta -c postgres
-insta -d
-insta -r postgres
+
+# Start a service
+insta postgres                  # Start PostgreSQL
+insta mysql redis               # Start multiple services
+
+# Connect to a service
+insta -c postgres              # Connect to PostgreSQL
+
+# Stop services
+insta -d                       # Stop all services
+insta -d postgres              # Stop specific service
+
+# Run with persisted data
+insta -p postgres             # Data will persist across restarts
+
+# Remove persisted data
+insta -r                      # Remove all persisted data
+insta -r postgres             # Remove specific service data
 ```
 
-### Custom data
+### Using with Docker Installation
 
-Alter data in [`data`](data) folder.
-  
-You may notice that for some services (such as Cassandra, Postgres, MySQL), they follow the same pattern for custom
-data. They have a `data` directory which contains data files with DDL statements and an `init.sh` script that will help
-execute them at startup. This allows you to dump all your `.sql` files into the directory, and it will be automatically
-run at startup.
+If you're using the Docker installation method, prefix your commands with `docker run`:
 
+```shell
+docker run -it --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v $PWD/data:/app/data \
+  data-catering/insta-infra -l  # List services
 
-### Persisted data
+# Or use the alias if you set it up:
+insta -l
+```
 
-If any data is persisted (via running with `-p`) from the services to carry across sessions, it gets pushed to folder:
+### Custom Data
 
-`./data/<service>/persist`
+You can add custom initialization data for services in the `data` directory:
+
+```
+data/
+├── postgres/
+│   ├── init.sql
+│   └── data.sql
+├── mysql/
+│   └── init.sql
+└── ...
+```
+
+These files will be automatically executed when the service starts.
 
 ### Authentication
 
-By default, users and passwords follow what is default in the service. For those services where the user and password
-can be altered at startup, it can be altered using environment variable pattern:
+By default, services use their standard authentication. You can override these using environment variables:
+
 ```shell
-<service>_USER=...
-<service>_PASSWORD=...
+# Example: Custom PostgreSQL credentials
+POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password insta postgres
+
+# Example: Custom MySQL credentials
+MYSQL_USER=my-user MYSQL_PASSWORD=my-password insta mysql
 ```
 
-For example:
+### Version Selection
+
+You can specify a particular version of a service:
+
 ```shell
-POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password ./run.sh postgres
+POSTGRES_VERSION=14.0 insta postgres
+MYSQL_VERSION=8.0 insta mysql
 ```
+
+### Data Persistence
+
+Data can be persisted to the host machine using the `-p` flag:
+
+```shell
+insta -p postgres              # Data will be saved in data/postgres/persist/
+```
+
+The data will survive container restarts and removals.
 
 ## Services
 
