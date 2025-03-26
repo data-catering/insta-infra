@@ -1,0 +1,14 @@
+Source: insta
+Section: utils
+Priority: optional
+Maintainer: Peter Flook <peter.flook@data.catering>
+Build-Depends: debhelper-compat (= 13), golang-go (>= 1.20)
+Standards-Version: 4.5.1
+
+Package: insta
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, docker.io | podman
+Description: A simple, fast CLI tool for spinning up data infrastructure services
+ Insta is a command-line tool that makes it easy to run data infrastructure
+ services using Docker or Podman. It provides pre-configured services
+ with optional data persistence and simple connection management. 

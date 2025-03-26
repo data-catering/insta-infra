@@ -2,153 +2,119 @@
 
 ![insta-infra services](docs/img/insta-infra.gif)
 
-Spin up any service straight away on your local laptop. Tells you how to connect to it.
+A simple, fast CLI tool for spinning up data infrastructure services using Docker or Podman.
 
-- Simple commands
-- Add custom data (i.e startup SQL scripts)
-- Works anywhere
-- Don't worry about startup configuration
-- Don't think about what hostname, port, or credentials to use to connect
+## Features
+
+- Run data infrastructure services with a single command
+- Supports both Docker and Podman container runtimes
+- Embed all configuration files in the binary for easy distribution
+- Optional data persistence
+- Connect to services with pre-configured environment variables
 
 ## Installation
 
-### Prerequisites
-- Docker and Docker Compose
+### From Source
 
-### Option 1: Quick Install (Recommended)
-```shell
-curl -fsSL https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | bash
-```
-This will install insta-infra to `~/.insta-infra` and create a symbolic link in `/usr/local/bin` if possible.
-
-### Option 2: With npm
-```shell
-npm install -g insta-infra
-```
-This will install the `insta` command globally on your system.
-
-### Option 3: With Homebrew (macOS)
-```shell
-brew tap data-catering/insta-infra
-brew install insta-infra
-```
-
-### Option 4: Using Docker
-```shell
-docker run -it --rm \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v $PWD/data:/app/data \
-  data-catering/insta-infra postgres
-```
-Or create an alias in your shell configuration:
-```shell
-alias insta='docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD/data:/app/data data-catering/insta-infra'
-```
-
-### Option 5: Manual Install
-```shell
+```bash
 # Clone the repository
 git clone https://github.com/data-catering/insta-infra.git
 cd insta-infra
-chmod +x run.sh
+
+# Build and install
+make install
 ```
 
-### Option 6: As a Shell Alias (Any OS)
-In your `.bashrc, .zshrc, ...`, add:
-```shell
-alias insta=/path/to/insta-infra/run.sh
+### Using Go
+
+```bash
+go install github.com/data-catering/insta-infra/cmd/insta@latest
 ```
-Then run `source ~/.bashrc` or `source ~/.zshrc` or open a new terminal session.
 
-## How
+## Requirements
 
-After installation, you can use insta-infra with the `insta` command (or `./run.sh` if manually installed).
+- Docker (20.10+) or Podman (3.0+)
+- For Docker: Docker Compose plugin
+- For Podman: Podman Compose plugin or podman-compose
 
-### Basic Commands
+## Usage
 
-```shell
+```bash
 # List available services
 insta -l
 
 # Start a service
-insta postgres                  # Start PostgreSQL
-insta mysql redis               # Start multiple services
+insta postgres
 
-# Connect to a service
-insta -c postgres              # Connect to PostgreSQL
+# Start multiple services
+insta postgres mysql elasticsearch
 
-# Stop services
-insta -d                       # Stop all services
-insta -d postgres              # Stop specific service
+# Start a service with persistent data
+insta -p postgres
 
-# Run with persisted data
-insta -p postgres             # Data will persist across restarts
+# Connect to a running service
+insta -c postgres
 
-# Remove persisted data
-insta -r                      # Remove all persisted data
-insta -r postgres             # Remove specific service data
+# Shutdown services
+insta -d postgres
+
+# Shutdown all services
+insta -d
+
+# Explicitly start a service in docker or podman
+insta -r docker postgres
+insta -r podman postgres
+
+# Show help
+insta -h
+
+# Show version
+insta -v
 ```
 
-### Using with Docker Installation
+## Data Persistence
 
-If you're using the Docker installation method, prefix your commands with `docker run`:
+By default, all data is stored in memory and will be lost when the containers are stopped. To enable persistence, use the `-p` flag:
 
-```shell
-docker run -it --rm \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v $PWD/data:/app/data \
-  data-catering/insta-infra -l  # List services
-
-# Or use the alias if you set it up:
-insta -l
+```bash
+insta -p postgres
 ```
 
-### Custom Data
+This will store data in `~/.insta/data/<service_name>/persist/`.
 
-You can add custom initialization data for services in the `data` directory:
+## Development
+
+### Project Structure
 
 ```
-data/
-├── postgres/
-│   ├── init.sql
-│   └── data.sql
-├── mysql/
-│   └── init.sql
-└── ...
+.
+├── cmd/
+│   └── insta/          # Main CLI application
+│       ├── container/  # Container runtime implementations
+│       ├── resources/  # Embedded resources
+│       │   ├── data/   # Service configuration files
+│       │   └── *.yaml  # Docker compose files
+│       ├── models.go   # Service definitions
+│       └── main.go     # CLI entry point
+├── tests/              # Integration tests
+├── Makefile            # Build and development tasks
+└── README.md           # Documentation
 ```
 
-These files will be automatically executed when the service starts.
+### Development Workflow
 
-### Authentication
+1. Clone the repository
+2. Make changes
+3. Run tests: `make test`
+4. Build: `make build`
+5. Run: `./insta`
 
-By default, services use their standard authentication. You can override these using environment variables:
+### Adding a New Service
 
-```shell
-# Example: Custom PostgreSQL credentials
-POSTGRES_USER=my-user POSTGRES_PASSWORD=my-password insta postgres
-
-# Example: Custom MySQL credentials
-MYSQL_USER=my-user MYSQL_PASSWORD=my-password insta mysql
-```
-
-### Version Selection
-
-You can specify a particular version of a service:
-
-```shell
-POSTGRES_VERSION=14.0 insta postgres
-MYSQL_VERSION=8.0 insta mysql
-```
-
-### Data Persistence
-
-Data can be persisted to the host machine using the `-p` flag:
-
-```shell
-insta -p postgres              # Data will be saved in data/postgres/persist/
-```
-
-The data will survive container restarts and removals.
+1. Add service configuration to [`docker-compose.yaml`](cmd/insta/resources/docker-compose.yaml)
+2. Add service definition to [`models.go`](cmd/insta/models.go)
+3. Add any necessary initialization scripts to [`cmd/insta/resources/data/<service_name>/`](cmd/insta/resources/data/)
+4. Update tests
 
 ## Services
 
@@ -211,27 +177,49 @@ The data will survive container restarts and removals.
 | Workflow                    | maestro                   | ✅         |
 | Workflow                    | temporal                  | ✅         | 
 
-## Testing
+## Updating
 
-The project includes comprehensive tests to ensure reliability and correctness. To run the tests:
+### Using the CLI
 
-```shell
-# Run all unit tests
-./tests/run.sh
+The easiest way to update is using the built-in update command:
 
-# Run integration tests (requires Docker)
-./tests/test_integration.sh
+```bash
+insta -u
 ```
 
-### Test Categories
+This will automatically:
+1. Check for the latest version
+2. Download the appropriate binary for your platform
+3. Install the update
+4. Create a backup of the old version
 
-1. **Core Tests**: Validate the main script functionality
-2. **Docker Compose Tests**: Ensure docker-compose files are valid
-3. **Installation Tests**: Verify the installation script works properly
-4. **Package Tests**: Check npm package configuration
-5. **Integration Tests**: Start and stop a real service to ensure everything works end-to-end
+### Using Package Managers
 
-### Continuous Integration
+If you installed via a package manager, you can update using the standard update commands:
 
-Tests are automatically run on GitHub Actions for every pull request and push to main branch.
+```bash
+# Debian/Ubuntu
+sudo apt update && sudo apt upgrade
 
+# RHEL/CentOS/Fedora
+sudo dnf update
+# or
+sudo yum update
+
+# Arch Linux
+sudo pacman -Syu
+
+# macOS (Homebrew)
+brew upgrade
+
+# Windows (Chocolatey)
+choco upgrade insta
+```
+
+### Manual Update
+
+If you prefer to update manually:
+
+1. Download the latest release from the [GitHub releases page](https://github.com/data-catering/insta-infra/releases)
+2. Replace your existing binary with the new one
+3. Make sure the binary is executable: `chmod +x insta`

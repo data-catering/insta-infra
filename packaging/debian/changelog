@@ -1,0 +1,9 @@
+insta (0.1.0) unstable; urgency=medium
+
+  * Initial release
+  * Support for Docker and Podman
+  * Pre-configured data infrastructure services
+  * Optional data persistence
+  * Simple service connection management
+
+ -- Peter Flook <peter.flook@data.catering>  Mon, 25 Mar 2024 12:00:00 +0000 

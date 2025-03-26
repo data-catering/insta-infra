@@ -1,4 +1,18 @@
-.idea
-__pycache__
-data/*/persist
+# IDE
+.idea/
+.vscode/
+
+# Go build artifacts
+build
+/insta
+release
+
+# Data persistence
+cmd/insta/resources/data/*/persist/
+
+# Temporary files
+*.tmp
+*.log
 node_modules
+package.json
+package-lock.json
