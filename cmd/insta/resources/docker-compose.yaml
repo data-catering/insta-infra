@@ -552,7 +552,7 @@ services:
       - "HEARTBEAT_INTERNAL_PASSWORD=${HEARTBEAT_INTERNAL_PASSWORD:-}"
       - "MONITORING_INTERNAL_PASSWORD=${MONITORING_INTERNAL_PASSWORD:-}"
       - "BEATS_SYSTEM_PASSWORD=${BEATS_SYSTEM_PASSWORD:-}"
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.3}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.4}"
     volumes:
       - "./data/elasticsearch/data/entrypoint.sh:/tmp/entrypoint.sh"
       - "./data/elasticsearch/data/lib.sh:/tmp/lib.sh"
@@ -570,7 +570,7 @@ services:
       retries: 5
       test: "curl -sS --fail http://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=0s"
       timeout: 5s
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.3}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.4}"
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -721,7 +721,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:5601/api/status"]
       timeout: 5s
-    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-8.17.3}"
+    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-8.17.4}"
     ports:
       - "5601:5601"
     restart: always
@@ -784,7 +784,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:9600"]
       timeout: 5s
-    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-8.17.3}"
+    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-8.17.4}"
     ports:
       - "5044:5044"
       - "50000:50000/tcp"
@@ -832,7 +832,7 @@ services:
     environment:
       - MARQUEZ_HOST=host.docker.internal
       - MARQUEZ_PORT=5002
-    image: "marquezproject/marquez-web:${MARQUEZ_VERSION:-0.50.0}"
+    image: "marquezproject/marquez-web:${MARQUEZ_VERSION:-0.51.0}"
     ports:
       - "3001:3000"
   marquez-data:
@@ -844,7 +844,7 @@ services:
     entrypoint: /bin/bash
     environment:
       - "MARQUEZ_URL=http://marquez:5000"
-    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.50.0}"
+    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.51.0}"
     volumes:
       - "./data/marquez/init.sh:/tmp/scripts/init.sh"
       - "${MARQUEZ_DATA:-./data/marquez/data}:/tmp/data"
@@ -867,7 +867,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:5001/healthcheck"]
       timeout: 5s
-    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.50.0}"
+    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.51.0}"
     ports:
       - "5002:5000"
       - "5001:5001"
@@ -890,7 +890,7 @@ services:
       retries: 5
       test: [CMD-SHELL, curl, --fail, -I, http://localhost:3000/api/health || exit 1]
       timeout: 5s
-    image: "metabase/metabase:${METABASE_VERSION:-v0.53.7}"
+    image: "metabase/metabase:${METABASE_VERSION:-v0.53.8}"
     ports:
       - "3000:3000"
     volumes:
