@@ -22,13 +22,12 @@ help:
 
 build:
 	@chmod +x scripts/build.sh
-	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) ./scripts/build.sh
+	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=false ./scripts/build.sh
 
 test:
 	go test -v ./...
 
 clean:
-	go clean
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_NAME)-*.tar.gz
 	rm -f $(BINARY_NAME)-*.zip
@@ -48,7 +47,7 @@ fmt:
 
 packages:
 	@chmod +x scripts/packaging.sh
-	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) ./scripts/packaging.sh
+	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true ./scripts/packaging.sh
 
 release: clean
 	@chmod +x scripts/packaging.sh
