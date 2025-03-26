@@ -11,9 +11,9 @@ jobs:
       - name: Install eslint eslint-plugin-yml
         run: npm install eslint @eslint/js eslint-plugin-yml
       - name: Format docker-compose.yaml
-        run: npx eslint "docker-compose.yaml" --fix
+        run: npx eslint "cmd/insta/resources/docker-compose.yaml" --fix
       - name: Format docker-compose-persist.yaml
-        run: npx eslint "docker-compose-persist.yaml" --fix
+        run: npx eslint "cmd/insta/resources/docker-compose-persist.yaml" --fix
       - name: Push commit to pull request
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
