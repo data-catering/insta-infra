@@ -110,7 +110,15 @@ create_release_archives() {
     # Calculate SHA256 checksums
     print_status "Calculating SHA256 checksums..."
     SOURCE_SHA256=$(calculate_sha256 "${RELEASE_DIR}/insta-${VERSION}.tar.gz")
-    BINARY_SHA256=$(calculate_sha256 "${RELEASE_DIR}/${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${GOOS == "windows" ? "zip" : "tar.gz"}")
+    
+    # Determine binary archive extension
+    if [ "$GOOS" = "windows" ]; then
+        BINARY_EXT="zip"
+    else
+        BINARY_EXT="tar.gz"
+    fi
+    
+    BINARY_SHA256=$(calculate_sha256 "${RELEASE_DIR}/${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${BINARY_EXT}")
     
     # Update package files with new SHA256
     update_rpm_spec "${SOURCE_SHA256}"
@@ -123,7 +131,7 @@ create_release_archives() {
         echo "Source tarball (insta-${VERSION}.tar.gz):"
         echo "SHA256: ${SOURCE_SHA256}"
         echo ""
-        echo "Binary archive (${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${GOOS == "windows" ? "zip" : "tar.gz"}):"
+        echo "Binary archive (${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${BINARY_EXT}):"
         echo "SHA256: ${BINARY_SHA256}"
     } > "${RELEASE_DIR}/checksums.txt"
 }
