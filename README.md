@@ -61,11 +61,15 @@ insta -d postgres
 # Shutdown all services
 insta -d
 
+# Explicitly start a service in docker or podman
+insta -r docker postgres
+insta -r podman postgres
+
 # Show help
-insta --help
+insta -h
 
 # Show version
-insta --version
+insta -v
 ```
 
 ## Data Persistence
@@ -180,7 +184,7 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 The easiest way to update is using the built-in update command:
 
 ```bash
-insta --update
+insta -u
 ```
 
 This will automatically:
