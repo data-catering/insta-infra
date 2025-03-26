@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>insta</id>
+    <version>0.1.0</version>
+    <title>Insta</title>
+    <authors>Peter Flook</authors>
+    <description>A simple, fast CLI tool for spinning up data infrastructure services</description>
+    <projectUrl>https://github.com/data-catering/insta-infra</projectUrl>
+    <tags>docker podman infrastructure devops</tags>
+    <licenseUrl>https://github.com/data-catering/insta-infra/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <copyright>Copyright 2024</copyright>
+    <dependencies>
+      <dependency id="docker-desktop" version="4.0.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package> 

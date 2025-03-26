@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	dh_auto_build -- VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev") BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
+
+override_dh_auto_install:
+	dh_auto_install
+	mkdir -p debian/insta/usr/bin
+	cp insta debian/insta/usr/bin/
+	mkdir -p debian/insta/usr/share/man/man1
+	gzip -9 -c docs/man/insta.1 > debian/insta/usr/share/man/man1/insta.1.gz 
