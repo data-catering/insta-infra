@@ -17,5 +17,7 @@
   </metadata>
   <files>
     <file src="tools\**" target="tools" />
+    <file src="LICENSE" target="LICENSE" />
+    <file src="README.md" target="README.md" />
   </files>
 </package> 

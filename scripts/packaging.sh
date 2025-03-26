@@ -18,6 +18,7 @@ BUILD_TIME=${BUILD_TIME:-$(date -u '+%Y-%m-%d_%H:%M:%S')}
 GOOS=${GOOS:-$(go env GOOS)}
 GOARCH=${GOARCH:-$(go env GOARCH)}
 BINARY_NAME=${BINARY_NAME:-insta}
+BUILD_PACKAGES=${BUILD_PACKAGES:-false}
 
 # Build directory
 BUILD_DIR="build/packages"
@@ -120,10 +121,12 @@ create_release_archives() {
     
     BINARY_SHA256=$(calculate_sha256 "${RELEASE_DIR}/${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${BINARY_EXT}")
     
-    # Update package files with new SHA256
-    update_rpm_spec "${SOURCE_SHA256}"
-    update_pkgbuild "${SOURCE_SHA256}"
-    update_chocolatey_nuspec "${BINARY_SHA256}"
+    # Update package files with new SHA256 if building packages
+    if [ "$BUILD_PACKAGES" = "true" ]; then
+        update_rpm_spec "${SOURCE_SHA256}"
+        update_pkgbuild "${SOURCE_SHA256}"
+        update_chocolatey_nuspec "${BINARY_SHA256}"
+    fi
     
     # Create checksums file
     print_status "Creating checksums file..."
@@ -160,19 +163,24 @@ build_debian() {
     print_status "Building Debian package..."
     check_command "dpkg-buildpackage"
     
-    cd packaging/debian
-    # Copy the binary to the build directory
-    cp ../../${BINARY_NAME} .
+    # Create a temporary build directory
+    TEMP_DIR=$(mktemp -d)
+    cp -r packaging/debian/* "$TEMP_DIR/"
+    cp "${BINARY_NAME}" "$TEMP_DIR/"
     
     # Update version in changelog
-    sed -i "s/^insta (.*) unstable/insta ($VERSION) unstable/" changelog
+    sed -i "s/^insta (.*) unstable/insta ($VERSION) unstable/" "$TEMP_DIR/changelog"
     
     # Build the package
+    cd "$TEMP_DIR"
     dpkg-buildpackage -us -uc
     
     # Move the package to build directory
     mv ../insta_${VERSION}_*.deb ../../$BUILD_DIR/
     cd ../..
+    
+    # Clean up
+    rm -rf "$TEMP_DIR"
 }
 
 # Function to build RPM package
@@ -321,45 +329,48 @@ main() {
         create_release_archives
     fi
     
-    # Build packages based on platform
-    case "$(uname -s)" in
-        Linux)
-            if [ -f /etc/debian_version ]; then
-                build_debian
-                if [ "${PUBLISH:-false}" = "true" ]; then
-                    publish_debian
+    # Build packages based on platform if BUILD_PACKAGES=true
+    if [ "$BUILD_PACKAGES" = "true" ]; then
+        case "$(uname -s)" in
+            Linux)
+                if [ -f /etc/debian_version ]; then
+                    build_debian
+                    if [ "${PUBLISH:-false}" = "true" ]; then
+                        publish_debian
+                    fi
+                elif [ -f /etc/redhat-release ]; then
+                    build_rpm
+                    if [ "${PUBLISH:-false}" = "true" ]; then
+                        publish_rpm
+                    fi
+                elif [ -f /etc/arch-release ]; then
+                    build_arch
+                    if [ "${PUBLISH:-false}" = "true" ]; then
+                        publish_arch
+                    fi
+                else
+                    print_warning "Unsupported Linux distribution"
                 fi
-            elif [ -f /etc/redhat-release ]; then
-                build_rpm
-                if [ "${PUBLISH:-false}" = "true" ]; then
-                    publish_rpm
-                fi
-            elif [ -f /etc/arch-release ]; then
-                build_arch
-                if [ "${PUBLISH:-false}" = "true" ]; then
-                    publish_arch
-                fi
-            else
-                print_warning "Unsupported Linux distribution"
+                ;;
+            Darwin)
+                print_warning "Package building on macOS is not fully supported"
+                ;;
+            *)
+                print_warning "Unsupported operating system"
+                ;;
+        esac
+        
+        # Build Chocolatey package if on Windows
+        if [[ "$(uname -s)" == "MINGW"* ]] || [[ "$(uname -s)" == "MSYS"* ]]; then
+            build_chocolatey
+            if [ "${PUBLISH:-false}" = "true" ]; then
+                publish_chocolatey
             fi
-            ;;
-        Darwin)
-            print_warning "Package building on macOS is not fully supported"
-            ;;
-        *)
-            print_warning "Unsupported operating system"
-            ;;
-    esac
-    
-    # Build Chocolatey package if on Windows
-    if [[ "$(uname -s)" == "MINGW"* ]] || [[ "$(uname -s)" == "MSYS"* ]]; then
-        build_chocolatey
-        if [ "${PUBLISH:-false}" = "true" ]; then
-            publish_chocolatey
         fi
+        
+        print_status "Build process completed. Packages are in $BUILD_DIR"
     fi
     
-    print_status "Build process completed. Packages are in $BUILD_DIR"
     if [ "${RELEASE:-false}" = "true" ]; then
         print_status "Release files are in $RELEASE_DIR"
     fi

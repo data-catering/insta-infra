@@ -53,7 +53,7 @@ release: clean
 	@chmod +x scripts/build.sh
 	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true ./scripts/build.sh
 	@chmod +x scripts/packaging.sh
-	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true ./scripts/packaging.sh
+	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true BUILD_PACKAGES=false ./scripts/packaging.sh
 
 publish: clean
 	@chmod +x scripts/packaging.sh

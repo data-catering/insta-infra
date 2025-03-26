@@ -9,6 +9,7 @@ URL:            https://github.com/data-catering/insta-infra
 Source0:        insta-%{version}.tar.gz
 BuildRequires:  golang >= 1.20
 Requires:       docker >= 20.10 || podman >= 3.0
+BuildRequires:  upx
 
 %description
 Insta is a command-line tool that makes it easy to run data infrastructure
@@ -20,6 +21,10 @@ with optional data persistence and simple connection management.
 
 %build
 %gobuild -o %{name} ./cmd/insta
+# Apply UPX compression if not on macOS ARM64
+if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
+    upx -q --best --lzma %{name}
+fi
 
 %install
 mkdir -p %{buildroot}%{_bindir}
