@@ -13,3 +13,6 @@ cmd/insta/resources/data/*/persist/
 # Temporary files
 *.tmp
 *.log
+node_modules
+package.json
+package-lock.json
