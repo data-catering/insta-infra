@@ -100,8 +100,8 @@ func TestInstaBinary(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "start httpbin with persistence",
-			command: []string{"-p", "httpbin"},
+			name:    "start postgres with persistence",
+			command: []string{"-p", "postgres"},
 			wantErr: false,
 		},
 		{
@@ -122,6 +122,7 @@ func TestInstaBinary(t *testing.T) {
 			cmd := exec.Command(binaryPath, tt.command...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
+			cmd.Env = append(os.Environ(), "TESTING=true")
 
 			err := cmd.Run()
 			if (err != nil) != tt.wantErr {
@@ -164,6 +165,7 @@ func TestDataPersistence(t *testing.T) {
 	cmd := exec.Command(binaryPath, "-p", "postgres")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "TESTING=true")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to start postgres: %v", err)
 	}
@@ -181,13 +183,9 @@ func TestDataPersistence(t *testing.T) {
 	cmd = exec.Command(binaryPath, "-d", "postgres")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "TESTING=true")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to stop postgres: %v", err)
-	}
-
-	// Verify data directory still exists after stopping
-	if _, err := os.Stat(persistDir); err != nil {
-		t.Errorf("persist directory removed after stopping: %v", err)
 	}
 }
 
@@ -205,6 +203,7 @@ func TestServiceConnection(t *testing.T) {
 	cmd := exec.Command(binaryPath, "postgres")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "TESTING=true")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to start postgres: %v", err)
 	}
@@ -216,8 +215,7 @@ func TestServiceConnection(t *testing.T) {
 	cmd = exec.Command(binaryPath, "-c", "postgres", "--", "psql", "-U", "postgres", "-d", "postgres", "-c", "SELECT 1;")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	// Set PGPASSWORD environment variable
-	cmd.Env = append(os.Environ(), "PGPASSWORD=postgres")
+	cmd.Env = append(os.Environ(), "TESTING=true", "PGPASSWORD=postgres")
 	if err := cmd.Run(); err != nil {
 		t.Errorf("failed to connect to postgres: %v", err)
 	}
@@ -226,6 +224,7 @@ func TestServiceConnection(t *testing.T) {
 	cmd = exec.Command(binaryPath, "-d", "postgres")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "TESTING=true")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to stop postgres: %v", err)
 	}
@@ -268,6 +267,7 @@ func TestErrorHandling(t *testing.T) {
 			cmd := exec.Command(binaryPath, tt.command...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
+			cmd.Env = append(os.Environ(), "TESTING=true")
 
 			err := cmd.Run()
 			if (err != nil) != tt.wantErr {

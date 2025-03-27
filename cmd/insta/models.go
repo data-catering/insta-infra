@@ -14,7 +14,7 @@ type Service struct {
 var Services = map[string]Service{
 	"activemq": {
 		Name:             "activemq",
-		ConnectionCmd:    "/var/lib/artemis-instance/bin/artemis shell",
+		ConnectionCmd:    "/var/lib/artemis-instance/bin/artemis shell --user ${ARTEMIS_USER:-artemis} --password ${ARTEMIS_PASSWORD:-artemis}",
 		DefaultUser:      "artemis",
 		DefaultPassword:  "artemis",
 		RequiresPassword: true,
@@ -45,7 +45,7 @@ var Services = map[string]Service{
 	},
 	"elasticsearch": {
 		Name:             "elasticsearch",
-		ConnectionCmd:    "elasticsearch-sql-cli",
+		ConnectionCmd:    "elasticsearch-sql-cli http://elastic:${ELASTICSEARCH_PASSWORD:-elasticsearch}@localhost:9200",
 		DefaultUser:      "elastic",
 		DefaultPassword:  "elasticsearch",
 		DefaultPort:      9200,
@@ -53,7 +53,7 @@ var Services = map[string]Service{
 	},
 	"flight-sql": {
 		Name:             "flight-sql",
-		ConnectionCmd:    "flight_sql_client --command Execute --host localhost --port 31337 --use-tls --tls-skip-verify",
+		ConnectionCmd:    "flight_sql_client --command Execute --host localhost --port 31337 --use-tls --tls-skip-verify --username ${FLIGHT_SQL_USER:-flight_username} --password ${FLIGHT_SQL_PASSWORD:-flight_password} --query 'SELECT version()'",
 		DefaultUser:      "flight_username",
 		DefaultPassword:  "flight_password",
 		DefaultPort:      31337,
@@ -61,7 +61,7 @@ var Services = map[string]Service{
 	},
 	"mariadb": {
 		Name:             "mariadb",
-		ConnectionCmd:    "mariadb",
+		ConnectionCmd:    "mariadb --user=${MARIADB_USER:-user} --password=${MARIADB_PASSWORD:-password}",
 		DefaultUser:      "user",
 		DefaultPassword:  "password",
 		DefaultPort:      3306,
@@ -69,7 +69,7 @@ var Services = map[string]Service{
 	},
 	"mongodb": {
 		Name:             "mongodb",
-		ConnectionCmd:    "mongosh",
+		ConnectionCmd:    "mongosh mongodb://${MONGODB_USER:-root}:${MONGODB_PASSWORD:-root}@mongodb",
 		DefaultUser:      "root",
 		DefaultPassword:  "root",
 		DefaultPort:      27017,
@@ -77,7 +77,7 @@ var Services = map[string]Service{
 	},
 	"mysql": {
 		Name:             "mysql",
-		ConnectionCmd:    "mysql",
+		ConnectionCmd:    "mysql -u ${MYSQL_USER:-root} -p${MYSQL_PASSWORD:-root}",
 		DefaultUser:      "root",
 		DefaultPassword:  "root",
 		DefaultPort:      3306,
@@ -85,7 +85,7 @@ var Services = map[string]Service{
 	},
 	"mssql": {
 		Name:             "mssql",
-		ConnectionCmd:    "/opt/mssql-tools/bin/sqlcmd -S localhost",
+		ConnectionCmd:    "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"${MSSQL_PASSWORD:-yourStrong(!)Password}\"",
 		DefaultUser:      "sa",
 		DefaultPassword:  "yourStrong(!)Password",
 		DefaultPort:      1433,
@@ -93,7 +93,7 @@ var Services = map[string]Service{
 	},
 	"neo4j": {
 		Name:             "neo4j",
-		ConnectionCmd:    "cypher-shell",
+		ConnectionCmd:    "cypher-shell -u neo4j -p test",
 		DefaultUser:      "neo4j",
 		DefaultPassword:  "test",
 		DefaultPort:      7687,
@@ -101,7 +101,7 @@ var Services = map[string]Service{
 	},
 	"postgres": {
 		Name:             "postgres",
-		ConnectionCmd:    "psql",
+		ConnectionCmd:    "PGPASSWORD=${POSTGRES_PASSWORD:-postgres} psql -U${POSTGRES_USER:-postgres}",
 		DefaultUser:      "postgres",
 		DefaultPassword:  "postgres",
 		DefaultPort:      5432,

@@ -215,8 +215,43 @@ func (a *App) startServices(services []string, persist bool) error {
 
 	fmt.Printf("%sStarting up services...%s\n", colorGreen, colorReset)
 	if err := a.runtime.ComposeUp(composeFiles, services, true); err != nil {
-		return fmt.Errorf("%sError: Failed to start up services%s", colorRed, colorReset)
+		return fmt.Errorf("%sError: Failed to start up services: %v%s", colorRed, err, colorReset)
 	}
+
+	// Display connection information for all services in a single table
+	fmt.Printf("\n%sConnection Information Table%s\n", colorBlue, colorReset)
+	fmt.Printf("%s┌────────────┬──────────────────────────────┬──────────────────────────────┬──────────────────────────────┬────────────┬────────────┐%s\n", colorYellow, colorReset)
+	fmt.Printf("%s│ Service    │ Container to Container       │ Host to Container            │ Container to Host            │ Username   │ Password   │%s\n", colorYellow, colorReset)
+	fmt.Printf("%s├────────────┼──────────────────────────────┼──────────────────────────────┼──────────────────────────────┼────────────┼────────────┤%s\n", colorYellow, colorReset)
+
+	// Print each service row
+	for _, serviceName := range services {
+		if service, exists := Services[serviceName]; exists {
+			// Get username and password, defaulting to empty string if not set
+			username := ""
+			if service.DefaultUser != "" {
+				username = service.DefaultUser
+			}
+			password := ""
+			if service.DefaultPassword != "" {
+				password = service.DefaultPassword
+			}
+
+			fmt.Printf("%s│ %-10s │ %-28s │ %-28s │ %-28s │ %-10s │ %-10s │%s\n",
+				colorYellow,
+				serviceName,
+				fmt.Sprintf("%s:%d", serviceName, service.DefaultPort),
+				fmt.Sprintf("localhost:%d", service.DefaultPort),
+				fmt.Sprintf("host.docker.internal:%d", service.DefaultPort),
+				username,
+				password,
+				colorReset)
+		}
+	}
+
+	// Print footer
+	fmt.Printf("%s└────────────┴──────────────────────────────┴──────────────────────────────┴──────────────────────────────┴────────────┴────────────┘%s\n", colorYellow, colorReset)
+	fmt.Println()
 
 	return nil
 }

@@ -20,14 +20,14 @@ func TestServiceDefinitions(t *testing.T) {
 	}{
 		{
 			serviceName:        "postgres",
-			expectedCmd:        "psql",
+			expectedCmd:        "PGPASSWORD=${POSTGRES_PASSWORD:-postgres} psql -U${POSTGRES_USER:-postgres}",
 			expectedPort:       5432,
 			requiresPassword:   true,
 			passwordCredential: true,
 		},
 		{
 			serviceName:        "mysql",
-			expectedCmd:        "mysql",
+			expectedCmd:        "mysql -u ${MYSQL_USER:-root} -p${MYSQL_PASSWORD:-root}",
 			expectedPort:       3306,
 			requiresPassword:   true,
 			passwordCredential: true,

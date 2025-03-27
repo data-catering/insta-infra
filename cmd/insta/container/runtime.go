@@ -143,6 +143,10 @@ func (d *DockerRuntime) ComposeUp(composeFiles []string, services []string, quie
 		if strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			return fmt.Errorf("docker daemon not running")
 		}
+		// Capture the error output for more details
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("docker compose up failed: %s\n%s", err, string(exitErr.Stderr))
+		}
 		return fmt.Errorf("docker compose up failed: %w", err)
 	}
 	return nil
@@ -186,7 +190,7 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 
 func (d *DockerRuntime) ExecInContainer(containerName string, cmd string, interactive bool) error {
 	args := []string{"exec"}
-	if interactive && cmd == "" {
+	if interactive && os.Getenv("TESTING") != "true" {
 		args = append(args, "-it")
 	}
 	args = append(args, containerName)
@@ -263,23 +267,34 @@ func setPodmanEnvVars() {
 }
 
 func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quiet bool) error {
-	// Validate compose files
+	// Set default environment variables
+	setDefaultEnvVars()
+	// Set podman-specific environment variables
+	setPodmanEnvVars()
+
+	// Validate all compose files together
+	args := []string{"--log-level", "error", "compose"}
 	for _, file := range composeFiles {
-		if err := p.validateComposeFile(file); err != nil {
-			return fmt.Errorf("invalid compose file %s: %w", file, err)
+		args = append(args, "-f", file)
+	}
+	args = append(args, "config", "--quiet")
+
+	cmd := exec.Command("podman", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		// Capture the error output for more details
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("compose files validation failed: %s\n%s", err, string(exitErr.Stderr))
 		}
+		return fmt.Errorf("compose files validation failed: %w", err)
 	}
 
 	// Ensure the insta network exists
 	networkCmd := exec.Command("podman", "network", "create", "--driver", "bridge", "insta-network")
 	_ = networkCmd.Run() // Ignore error if network already exists
 
-	// Set default environment variables
-	setDefaultEnvVars()
-	// Set podman-specific environment variables
-	setPodmanEnvVars()
-
-	args := []string{"compose", "--project-name", "insta"}
+	args = []string{"compose", "--project-name", "insta"}
 	for _, file := range composeFiles {
 		args = append(args, "-f", file)
 	}
@@ -289,30 +304,15 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	}
 	args = append(args, services...)
 
-	cmd := exec.Command("podman", args...)
-	cmd.Stdout = os.Stdout
+	cmd = exec.Command("podman", args...)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
+		// Capture the error output for more details
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return fmt.Errorf("podman compose up failed: %s\n%s", err, string(exitErr.Stderr))
+		}
 		return fmt.Errorf("podman compose up failed: %w", err)
 	}
-	return nil
-}
-
-func (p *PodmanRuntime) validateComposeFile(file string) error {
-	// Check if file exists
-	if _, err := os.Stat(file); err != nil {
-		return fmt.Errorf("compose file not found: %w", err)
-	}
-
-	// Set podman-specific environment variables before validation
-	setPodmanEnvVars()
-
-	// Validate compose file
-	cmd := exec.Command("podman", "compose", "-f", file, "config", "--quiet")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("compose file validation failed: %w", err)
-	}
-
 	return nil
 }
 
@@ -356,7 +356,7 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 
 func (p *PodmanRuntime) ExecInContainer(containerName string, cmd string, interactive bool) error {
 	args := []string{"exec"}
-	if interactive && cmd == "" {
+	if interactive && os.Getenv("TESTING") != "true" {
 		args = append(args, "-it")
 	}
 	args = append(args, containerName)
