@@ -4,6 +4,9 @@ BINARY_NAME=insta
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
+# Define supported OS/ARCH combinations
+PLATFORMS=linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
+
 help:
 	@echo "insta-infra - A tool for running data infrastructure services"
 	@echo ""
@@ -47,11 +50,13 @@ fmt:
 
 packages:
 	@chmod +x scripts/packaging.sh
-	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true ./scripts/packaging.sh
+	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true BUILD_PACKAGES=true ./scripts/packaging.sh
 
 release: clean
-	@chmod +x scripts/build.sh
-	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true ./scripts/build.sh
+	@mkdir -p release
+	@for platform in $(PLATFORMS); do \
+		GOOS=$${platform%/*} GOARCH=$${platform##*/} CGO_ENABLED=0 VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true ./scripts/build.sh; \
+	done
 	@chmod +x scripts/packaging.sh
 	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true BUILD_PACKAGES=false ./scripts/packaging.sh
 

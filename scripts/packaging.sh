@@ -97,59 +97,63 @@ create_release_archives() {
     # Copy README and LICENSE to release directory
     cp README.md LICENSE "${RELEASE_DIR}/"
     
-    # Create binary archive
-    if [ "$GOOS" = "windows" ]; then
-        (cd "${RELEASE_DIR}" && zip -q "${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.zip" "${BINARY_NAME}" ../README.md ../LICENSE)
-    else
-        (cd "${RELEASE_DIR}" && tar -czf "${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.tar.gz" "${BINARY_NAME}" ../README.md ../LICENSE)
-    fi
+    # Create binary archives for each platform
+    for platform in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+        GOOS=${platform%/*}
+        GOARCH=${platform##*/}
+        BINARY_EXT="tar.gz"
+        
+        if [ "$GOOS" = "windows" ]; then
+            BINARY_EXT="zip"
+        fi
+        
+        # Create binary archive
+        if [ "$GOOS" = "windows" ]; then
+            (cd "${RELEASE_DIR}" && zip -q "${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.zip" "${BINARY_NAME}-${GOOS}-${GOARCH}" README.md LICENSE)
+        else
+            (cd "${RELEASE_DIR}" && tar -czf "${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.tar.gz" "${BINARY_NAME}-${GOOS}-${GOARCH}" README.md LICENSE)
+        fi
+    done
     
     # Create source tarball
     print_status "Creating source tarball..."
     git archive --format=tar.gz --prefix="insta-$VERSION/" HEAD > "${RELEASE_DIR}/insta-${VERSION}.tar.gz"
     
     # Calculate SHA256 checksums
-    print_status "Calculating SHA256 checksums..."
-    SOURCE_SHA256=$(calculate_sha256 "${RELEASE_DIR}/insta-${VERSION}.tar.gz")
-    
-    # Determine binary archive extension
-    if [ "$GOOS" = "windows" ]; then
-        BINARY_EXT="zip"
-    else
-        BINARY_EXT="tar.gz"
-    fi
-    
-    BINARY_SHA256=$(calculate_sha256 "${RELEASE_DIR}/${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${BINARY_EXT}")
-    
-    # Update package files with new SHA256 if building packages
-    if [ "$BUILD_PACKAGES" = "true" ]; then
-        update_rpm_spec "${SOURCE_SHA256}"
-        update_pkgbuild "${SOURCE_SHA256}"
-        update_chocolatey_nuspec "${BINARY_SHA256}"
-    fi
-    
-    # Create checksums file
     print_status "Creating checksums file..."
     {
         echo "Source tarball (insta-${VERSION}.tar.gz):"
-        echo "SHA256: ${SOURCE_SHA256}"
+        echo "SHA256: $(calculate_sha256 "${RELEASE_DIR}/insta-${VERSION}.tar.gz")"
         echo ""
-        echo "Binary archive (${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${BINARY_EXT}):"
-        echo "SHA256: ${BINARY_SHA256}"
+        
+        # Add checksums for each platform
+        for platform in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            GOOS=${platform%/*}
+            GOARCH=${platform##*/}
+            BINARY_EXT="tar.gz"
+            
+            if [ "$GOOS" = "windows" ]; then
+                BINARY_EXT="zip"
+            fi
+            
+            echo "Binary archive (${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${BINARY_EXT}):"
+            echo "SHA256: $(calculate_sha256 "${RELEASE_DIR}/${BINARY_NAME}-${VERSION}-${GOOS}-${GOARCH}.${BINARY_EXT}")"
+            echo ""
+        done
     } > "${RELEASE_DIR}/checksums.txt"
 }
 
 # Function to build the Go binary
 build_binary() {
-    print_status "Building Go binary..."
-    go build -ldflags "-s -w -X main.version=$VERSION -X main.buildTime=$BUILD_TIME" -o "${BINARY_NAME}" ./cmd/insta
+    print_status "Building Go binary for ${GOOS}/${GOARCH}..."
+    go build -ldflags "-s -w -X main.version=$VERSION -X main.buildTime=$BUILD_TIME" -o "${BINARY_NAME}-${GOOS}-${GOARCH}" ./cmd/insta
     
     # Apply UPX compression if available and supported
     if command -v upx >/dev/null 2>&1; then
         # Skip UPX on macOS ARM64
         if [ "$GOOS" != "darwin" ] || [ "$GOARCH" != "arm64" ]; then
             print_status "Compressing with UPX..."
-            upx -q --best --lzma "${BINARY_NAME}"
+            upx -q --best --lzma "${BINARY_NAME}-${GOOS}-${GOARCH}"
         else
             print_warning "Skipping UPX compression on macOS ARM64"
         fi
@@ -321,7 +325,7 @@ publish_chocolatey() {
 main() {
     print_status "Starting package build process..."
     
-    # Build the Go binary first
+    # Build the Go binary for current platform
     build_binary
     
     # Create release archives if RELEASE=true
