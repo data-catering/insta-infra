@@ -639,7 +639,7 @@ services:
       - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
     image: "kennethreitz/httpbin:${HTTPBIN_VERSION:-latest}"
     ports:
-      - "80:80"
+      - "8080:80"
   httpd:
     container_name: httpd
     depends_on:
@@ -652,7 +652,7 @@ services:
         fluentd-async-connect: "true"
         tag: httpd.access
     ports:
-      - "80:80"
+      - "8080:80"
   jupyter:
     command: [jupyter, notebook, --no-browser, "--NotebookApp.token=''", "--NotebookApp.password=''"]
     container_name: jupyter
