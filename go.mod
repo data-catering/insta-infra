@@ -1,4 +1,4 @@
-module github.com/data-catering/insta-infra
+module github.com/data-catering/insta-infra/v2
 
 go 1.23.0
 

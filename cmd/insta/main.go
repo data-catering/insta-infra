@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/data-catering/insta-infra/cmd/insta/container"
+	"github.com/data-catering/insta-infra/v2/cmd/insta/container"
 )
 
 // Version information - these will be set during build via ldflags

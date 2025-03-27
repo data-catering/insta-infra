@@ -14,6 +14,16 @@ A simple, fast CLI tool for spinning up data infrastructure services using Docke
 
 ## Installation
 
+### Using Homebrew
+
+```bash
+# Add the tap
+brew tap data-catering/insta-infra
+
+# Install insta-infra
+brew install insta-infra
+```
+
 ### From Source
 
 ```bash
@@ -28,8 +38,44 @@ make install
 ### Using Go
 
 ```bash
-go install github.com/data-catering/insta-infra/cmd/insta@latest
+go install github.com/data-catering/insta-infra/v2/cmd/insta@v2.0.1
 ```
+
+### Manual Installation
+
+If you prefer to install manually from release archives:
+
+1. Visit the [GitHub releases page](https://github.com/data-catering/insta-infra/releases)
+2. Download the appropriate archive for your system:
+   - For macOS ARM64: `insta-v2.0.0-darwin-arm64.tar.gz`
+   - For macOS Intel: `insta-v2.0.0-darwin-amd64.tar.gz`
+   - For Linux ARM64: `insta-v2.0.0-linux-arm64.tar.gz`
+   - For Linux Intel: `insta-v2.0.0-linux-amd64.tar.gz`
+   - For Windows ARM64: `insta-v2.0.0-windows-arm64.zip`
+   - For Windows Intel: `insta-v2.0.0-windows-amd64.zip`
+
+3. Extract the archive:
+   ```bash
+   # For .tar.gz files
+   tar -xzf insta-v2.0.0-<os>-<arch>.tar.gz
+   
+   # For .zip files (Windows)
+   unzip insta-v2.0.0-windows-<arch>.zip
+   ```
+
+4. Move the binary to a directory in your PATH:
+   ```bash
+   # For macOS/Linux
+   sudo mv insta /usr/local/bin/
+   
+   # For Windows (PowerShell as Administrator)
+   Move-Item insta.exe C:\Windows\System32\
+   ```
+
+5. Make the binary executable (macOS/Linux only):
+   ```bash
+   chmod +x /usr/local/bin/insta
+   ```
 
 ## Requirements
 
