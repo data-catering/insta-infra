@@ -6,7 +6,7 @@ pkgdesc="A simple, fast CLI tool for spinning up data infrastructure services"
 arch=('x86_64' 'aarch64')
 url="https://github.com/data-catering/insta-infra"
 license=('MIT')
-makedepends=('go>=1.20')
+makedepends=('go>=1.20' 'upx')
 depends=('docker>=20.10' 'podman>=3.0')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/data-catering/insta-infra/archive/v$pkgver.tar.gz")
 sha256sums=('e42bf2a6cf992c7b6a71caf3fcfaa17f5b85b1c8b585cf115efa4edb28aab691')
@@ -14,6 +14,11 @@ sha256sums=('e42bf2a6cf992c7b6a71caf3fcfaa17f5b85b1c8b585cf115efa4edb28aab691')
 build() {
   cd "$pkgname-$pkgver"
   go build -o "$pkgname" ./cmd/insta
+  
+  # Apply UPX compression if not on macOS ARM64
+  if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
+    upx -q --best --lzma "$pkgname"
+  fi
 }
 
 package() {

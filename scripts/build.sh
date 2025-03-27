@@ -15,6 +15,7 @@ RELEASE=${RELEASE:-false}
 # Set output directory based on RELEASE flag
 if [ "$RELEASE" = "true" ]; then
     OUTPUT_DIR="release"
+    BINARY_NAME="${BINARY_NAME}-${GOOS}-${GOARCH}"
 else
     OUTPUT_DIR="."
 fi
@@ -25,9 +26,17 @@ mkdir -p "$OUTPUT_DIR"
 # Build flags
 LDFLAGS="-s -w -X main.version=${VERSION} -X main.buildTime=${BUILD_TIME}"
 
+# Print build information
+echo "Building binary:"
+echo "  OS: ${GOOS}"
+echo "  ARCH: ${GOARCH}"
+echo "  Output: ${OUTPUT_DIR}/${BINARY_NAME}"
+echo "  Version: ${VERSION}"
+echo "  Build Time: ${BUILD_TIME}"
+
 # Build the binary
 echo "Building for ${GOOS}/${GOARCH}..."
-go build -ldflags "${LDFLAGS}" -o "${OUTPUT_DIR}/${BINARY_NAME}" ./cmd/insta
+CGO_ENABLED=0 go build -ldflags "${LDFLAGS}" -o "${OUTPUT_DIR}/${BINARY_NAME}" ./cmd/insta
 
 # Apply UPX compression if available and supported
 if command -v upx >/dev/null 2>&1; then
