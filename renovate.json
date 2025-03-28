@@ -6,8 +6,10 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^docker(.*).yaml$"],
-      "matchStrings": ["image: \"(?<depName>.*?):\\${(?:.*?):?-(?<currentValue>.*?)}\""],
+      "fileMatch": ["^cmd/insta/resources/docker(.*).yaml$"],
+      "matchStrings": [
+        "image: \"(?<depName>.*?):\\${(?<versionName>[^:]+)(?::-(?<currentValue>.*?))?}\""
+      ],
       "datasourceTemplate": "docker"
     }
   ],
