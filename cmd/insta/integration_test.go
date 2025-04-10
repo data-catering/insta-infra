@@ -158,8 +158,8 @@ func TestDataPersistence(t *testing.T) {
 	}
 	defer os.RemoveAll(testDataDir)
 
-	// Set INSTA_DATA_DIR environment variable
-	os.Setenv("INSTA_DATA_DIR", testDataDir)
+	// Set INSTA_HOME environment variable
+	os.Setenv("INSTA_HOME", testDataDir)
 
 	// Start a service with persistence
 	cmd := exec.Command(binaryPath, "-p", "postgres")
