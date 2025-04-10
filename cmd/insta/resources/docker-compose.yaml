@@ -649,10 +649,10 @@ services:
     environment:
       - "GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}"
       - "GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}"
-      - "GF_SECURITY_ANGULAR_SUPPORT_ENABLED=true"
-      - "GF_SECURITY_ALLOW_EMBEDDING=true"
-      - "GF_SECURITY_COOKIE_SAMESITE=none"
-      - "GF_SECURITY_COOKIE_SECURE=true"
+      - GF_SECURITY_ANGULAR_SUPPORT_ENABLED=true
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_SECURITY_COOKIE_SAMESITE=none
+      - GF_SECURITY_COOKIE_SECURE=true
     healthcheck:
       interval: 10s
       retries: 3
@@ -856,7 +856,7 @@ services:
       - "./data/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml"
       - "./data/logstash/pipeline:/usr/share/logstash/pipeline"
   loki:
-    command: "-config.file=/etc/loki/local-config.yaml"
+    command: -config.file=/etc/loki/local-config.yaml
     container_name: loki
     healthcheck:
       interval: 10s
@@ -1293,7 +1293,7 @@ services:
       - "./data/presto/etc:/opt/presto-server/etc"
       - "./data/presto/catalog:/opt/presto-server/etc/catalog"
   prometheus:
-    command: "--config.file=/etc/prometheus/prometheus.yml"
+    command: --config.file=/etc/prometheus/prometheus.yml
     container_name: prometheus
     healthcheck:
       interval: 10s
@@ -1348,7 +1348,7 @@ services:
       - "5672:5672"
       - "15672:15672"
   ray:
-    command: [bash, -c, "ray start --head --port=6379 --dashboard-host=0.0.0.0 --dashboard-port=8265 --metrics-export-port=8080 --block"]
+    command: [bash, -c, ray start --head --port=6379 --dashboard-host=0.0.0.0 --dashboard-port=8265 --metrics-export-port=8080 --block]
     container_name: ray
     depends_on:
       grafana:
@@ -1372,12 +1372,12 @@ services:
       - "${RAY_PORT:-8265}:8265"
       - "6379:6379"
       - "8080:8080"
-    shm_size: "4gb"
+    shm_size: 4gb
     ulimits:
       memlock: -1
       nofile:
-        soft: 65536
         hard: 65536
+        soft: 65536
   redash:
     command: scheduler
     container_name: redash-scheduler

@@ -116,9 +116,15 @@ services:
   pulsar:
     volumes:
       - "./data/pulsar/persist/data:/pulsar/data"
+  qdrant:
+    volumes:
+      - "./data/qdrant/persist:/qdrant/storage"
   rabbitmq:
     volumes:
       - "./data/rabbitmq/persist:/var/lib/rabbitmq"
+  ray:
+    volumes:
+      - "./data/ray/persist:/tmp/ray"
   redis:
     volumes:
       - "./data/redis/persist:/data"
@@ -131,18 +137,12 @@ services:
   temporal:
     volumes:
       - "./data/temporal/persist:/opt/data/db"
-  unitycatalog:
-    volumes:
-      - "./data/unitycatalog/persist:/opt/app/etc"
-  qdrant:
-    volumes:
-      - "./data/qdrant/persist:/qdrant/storage"
-  ray:
-    volumes:
-      - "./data/ray/persist:/tmp/ray"
   timescaledb:
     volumes:
       - "./data/timescaledb/persist:/var/lib/postgresql/data"
+  unitycatalog:
+    volumes:
+      - "./data/unitycatalog/persist:/opt/app/etc"
   vault:
     volumes:
       - "./data/vault/persist:/vault/file"
