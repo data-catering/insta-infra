@@ -1587,7 +1587,7 @@ services:
       retries: 3
       test: [CMD, vault, status]
       timeout: 5s
-    image: "hashicorp/vault:${VAULT_VERSION:-1.15}"
+    image: "hashicorp/vault:${VAULT_VERSION:-1.19}"
     ports:
       - "${VAULT_PORT:-8200}:8200"
   weaviate:
