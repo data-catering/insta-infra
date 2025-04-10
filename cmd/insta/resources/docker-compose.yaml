@@ -195,7 +195,7 @@ services:
       clickhouse-server:
         condition: service_healthy
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.3.1}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.3.2}"
     user: "101:101"
     volumes:
       - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
@@ -211,7 +211,7 @@ services:
       test: "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"
       timeout: 5s
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.3.1}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.3.2}"
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -222,7 +222,7 @@ services:
     depends_on:
       cockroachdb-server:
         condition: service_healthy
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.2}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.4}"
     volumes:
       - "./data/cockroachdb/init.sh:/tmp/scripts/init.sh"
       - "${COCKROACHDB_DATA:-./data/cockroachdb/data}:/tmp/data"
@@ -234,7 +234,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "curl --fail http://localhost:8080/ || exit 1"]
       timeout: 5s
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.2}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.4}"
     ports:
       - "26257:26257"
       - "8080:8080"
@@ -265,7 +265,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.6}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.9}"
     ports:
       - "3000:3000"
     volumes:
@@ -534,7 +534,7 @@ services:
       postgres:
         condition: service_completed_successfully
     entrypoint: [tail, -F, anything]
-    image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.2.1}"
+    image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.2.2}"
     volumes:
       - "./data/duckdb:/opt/data"
   elasticsearch:
@@ -884,7 +884,7 @@ services:
     container_name: mage-ai
     environment:
       - USER_CODE_PATH=/home/src/your_first_project
-    image: "mageai/mageai:${MAGE_AI_VERSION:-0.9.75}"
+    image: "mageai/mageai:${MAGE_AI_VERSION:-0.9.76}"
     ports:
       - "6789:6789"
     restart: on-failure
@@ -906,7 +906,7 @@ services:
     environment:
       - MARQUEZ_HOST=host.docker.internal
       - MARQUEZ_PORT=5002
-    image: "marquezproject/marquez-web:${MARQUEZ_VERSION:-0.51.0}"
+    image: "marquezproject/marquez-web:${MARQUEZ_VERSION:-0.51.1}"
     ports:
       - "3001:3000"
   marquez-data:
@@ -918,7 +918,7 @@ services:
     entrypoint: /bin/bash
     environment:
       - "MARQUEZ_URL=http://marquez:5000"
-    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.51.0}"
+    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.51.1}"
     volumes:
       - "./data/marquez/init.sh:/tmp/scripts/init.sh"
       - "${MARQUEZ_DATA:-./data/marquez/data}:/tmp/data"
@@ -941,7 +941,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:5001/healthcheck"]
       timeout: 5s
-    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.51.0}"
+    image: "marquezproject/marquez:${MARQUEZ_VERSION:-0.51.1}"
     ports:
       - "5002:5000"
       - "5001:5001"
@@ -964,7 +964,7 @@ services:
       retries: 5
       test: [CMD-SHELL, curl, --fail, -I, http://localhost:3000/api/health || exit 1]
       timeout: 5s
-    image: "metabase/metabase:${METABASE_VERSION:-v0.53.8}"
+    image: "metabase/metabase:${METABASE_VERSION:-v0.54.2}"
     ports:
       - "3000:3000"
     volumes:
@@ -1019,7 +1019,7 @@ services:
       - mongodb-server
     environment:
       - "CONN_STR=mongodb://${MONGODB_USER:-user}:${MONGODB_PASSWORD:-password}@mongodb-server"
-    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.5-ubi8}"
+    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.6-ubi8}"
     volumes:
       - "./data/mongodb:/opt/app"
   mongodb-server:
@@ -1090,7 +1090,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
       timeout: 10s
-    image: "neo4j:${NEO4J_VERSION:-2025.02.0}"
+    image: "neo4j:${NEO4J_VERSION:-2025.03.0}"
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -1112,7 +1112,7 @@ services:
       start_period: 30s
       test: [CMD, curl, --fail, "http://localhost:8080/health"]
       timeout: 10s
-    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.6.6}"
+    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.6.8}"
     ports:
       - "8080:8080"
   openmetadata-server:
@@ -1131,7 +1131,7 @@ services:
       retries: 5
       test: [CMD, wget, -q, --spider,  "http://localhost:8586/healthcheck"]
       timeout: 5s
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.6}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.8}"
     ports:
       - "8585:8585"
       - "8586:8586"
@@ -1150,7 +1150,7 @@ services:
       - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
       - "ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}"
       - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.6}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.8}"
   opensearch:
     container_name: opensearch
     environment:
@@ -1261,7 +1261,7 @@ services:
     entrypoint: [/opt/prefect/app/start_flows.sh]
     environment:
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.2.14-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.3.3-python3.11}"
     volumes:
       - "./data/prefect/flows:/root/flows"
       - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
@@ -1277,7 +1277,7 @@ services:
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
       - PREFECT_SERVER_API_HOST=0.0.0.0
       - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/prefect"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.2.14-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.3.3-python3.11}"
     ports:
       - "4200:4200"
     restart: always
@@ -1343,7 +1343,7 @@ services:
       test: rabbitmq-diagnostics -q ping
       timeout: 30s
     hostname: my-rabbit
-    image: "rabbitmq:${RABBITMQ_VERSION:-4.0.7-management}"
+    image: "rabbitmq:${RABBITMQ_VERSION:-4.0.8-management}"
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -1491,14 +1491,14 @@ services:
       - "9000:9000"
   spanner:
     container_name: spanner
-    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.30}"
+    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.31}"
     ports:
       - "9010:9010"
       - "9020:9020"
   sqlite:
     command: [tail, -f, /dev/null]
     container_name: sqlite
-    image: "keinos/sqlite3:${SQLITE_VERSION:-3.49.0}"
+    image: "keinos/sqlite3:${SQLITE_VERSION:-3.49.1}"
     volumes:
       - "./data/sqlite:/opt/data"
   superset:
@@ -1541,7 +1541,7 @@ services:
     expose:
       - 8233
       - 7233
-    image: "temporalio/server:${TEMPORAL_VERSION:-1.27.1.0}"
+    image: "temporalio/server:${TEMPORAL_VERSION:-1.27.2.0}"
     ports:
       - "8233:8233"
       - "7233:7233"
