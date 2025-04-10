@@ -62,7 +62,7 @@ func TestCleanup(t *testing.T) {
 
 	// Create an App with the temp directory
 	app := &App{
-		tempDir: tempDir,
+		instaDir: tempDir,
 	}
 
 	// Test cleanup

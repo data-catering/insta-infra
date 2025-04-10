@@ -1,0 +1,20 @@
+authentication:
+  anonymous_access:
+    enabled: true
+
+vector_index:
+  enabled: true
+  efConstruction: 128
+  maxConnections: 64
+
+persistence:
+  dataPath: /var/lib/weaviate
+
+logging:
+  level: info
+
+query_defaults:
+  limit: 25
+
+telemetry:
+  disabled: true 

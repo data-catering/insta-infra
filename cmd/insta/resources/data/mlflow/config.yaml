@@ -1,0 +1,14 @@
+default_artifact_root: /mlruns
+
+server:
+  host: 0.0.0.0
+  port: 5000
+
+tracking:
+  file_store:
+    path: /mlruns
+  
+  allow_run_submit_from_anywhere: true
+  
+  default_experiment_name: "Default"
+  default_experiment_lifecycle_stage: "active" 

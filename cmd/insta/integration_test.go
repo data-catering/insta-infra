@@ -36,6 +36,7 @@ func cleanup(t *testing.T, binaryPath string) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
+		// Just log the error but continue with cleanup
 		t.Logf("warning: failed to stop services during cleanup: %v", err)
 	}
 
@@ -44,7 +45,9 @@ func cleanup(t *testing.T, binaryPath string) {
 	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
 		cmd = exec.Command("docker", "rm", "-f", string(output))
-		cmd.Run() // Ignore errors
+		if err := cmd.Run(); err != nil {
+			t.Logf("warning: failed to remove containers: %v", err)
+		}
 	}
 
 	// Wait for containers to be fully removed
@@ -151,16 +154,6 @@ func TestDataPersistence(t *testing.T) {
 		t.Fatalf("failed to get home directory: %v", err)
 	}
 
-	// Define test data directory
-	testDataDir := filepath.Join(homeDir, ".insta", "test-data")
-	if err := os.MkdirAll(testDataDir, 0755); err != nil {
-		t.Fatalf("failed to create test data directory: %v", err)
-	}
-	defer os.RemoveAll(testDataDir)
-
-	// Set INSTA_DATA_DIR environment variable
-	os.Setenv("INSTA_DATA_DIR", testDataDir)
-
 	// Start a service with persistence
 	cmd := exec.Command(binaryPath, "-p", "postgres")
 	cmd.Stdout = os.Stdout
@@ -174,7 +167,7 @@ func TestDataPersistence(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Verify data directory was created
-	persistDir := filepath.Join(testDataDir, "data", "postgres", "persist")
+	persistDir := filepath.Join(homeDir, ".insta", "data", "postgres", "persist")
 	if _, err := os.Stat(persistDir); err != nil {
 		t.Errorf("persist directory not created: %v", err)
 	}

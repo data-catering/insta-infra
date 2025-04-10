@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -138,6 +139,8 @@ func (d *DockerRuntime) ComposeUp(composeFiles []string, services []string, quie
 	cmd := exec.Command("docker", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// Set working directory to the directory containing the first compose file
+	cmd.Dir = filepath.Dir(composeFiles[0])
 	if err := cmd.Run(); err != nil {
 		// If the error indicates Docker daemon is not running, return a specific error
 		if strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
@@ -166,6 +169,8 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	cmd := exec.Command("docker", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// Set working directory to the directory containing the first compose file
+	cmd.Dir = filepath.Dir(composeFiles[0])
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("docker compose stop failed: %w", err)
 	}
@@ -181,6 +186,8 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	cmd = exec.Command("docker", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// Set working directory to the directory containing the first compose file
+	cmd.Dir = filepath.Dir(composeFiles[0])
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("docker compose rm failed: %w", err)
 	}
@@ -282,6 +289,8 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	cmd := exec.Command("podman", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// Set working directory to the directory containing the first compose file
+	cmd.Dir = filepath.Dir(composeFiles[0])
 	if err := cmd.Run(); err != nil {
 		// Capture the error output for more details
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -306,6 +315,8 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 
 	cmd = exec.Command("podman", args...)
 	cmd.Stderr = os.Stderr
+	// Set working directory to the directory containing the first compose file
+	cmd.Dir = filepath.Dir(composeFiles[0])
 	if err := cmd.Run(); err != nil {
 		// Capture the error output for more details
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -332,6 +343,8 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 	cmd := exec.Command("podman", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// Set working directory to the directory containing the first compose file
+	cmd.Dir = filepath.Dir(composeFiles[0])
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("podman compose stop failed: %w", err)
 	}
@@ -347,6 +360,8 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 	cmd = exec.Command("podman", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// Set working directory to the directory containing the first compose file
+	cmd.Dir = filepath.Dir(composeFiles[0])
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("podman compose rm failed: %w", err)
 	}

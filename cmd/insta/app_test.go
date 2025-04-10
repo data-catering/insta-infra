@@ -60,9 +60,9 @@ func TestAppWithMockRuntime(t *testing.T) {
 	// Setup App with mock runtime
 	mockRuntime := &MockRuntime{name: "mock-runtime"}
 	app := &App{
-		dataDir: filepath.Join(tempDir, "data"),
-		tempDir: tempDir,
-		runtime: mockRuntime,
+		dataDir:  filepath.Join(tempDir, "data"),
+		instaDir: tempDir,
+		runtime:  mockRuntime,
 	}
 
 	// Test starting services

@@ -36,9 +36,9 @@ const (
 const defaultDataDir = "~/.insta/data"
 
 type App struct {
-	dataDir string
-	tempDir string
-	runtime container.Runtime
+	dataDir    string
+	instaDir   string
+	runtime    container.Runtime
 }
 
 func NewApp(runtimeName string) (*App, error) {
@@ -68,54 +68,74 @@ For Podman:
 		}
 	}
 
-	// Expand the default data directory
+	// Get home directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
 	}
 
-	// Use INSTA_DATA_DIR if set, otherwise use default
-	dataDir := os.Getenv("INSTA_DATA_DIR")
-	if dataDir == "" {
-		dataDir = filepath.Join(homeDir, ".insta/data")
+	// Use INSTA_HOME if set, otherwise use ~/.insta
+	instaDir := os.Getenv("INSTA_HOME")
+	if instaDir == "" {
+		instaDir = filepath.Join(homeDir, ".insta")
 	}
 
-	// Create a temporary directory for docker-compose files
-	tempDir, err := os.MkdirTemp("", "insta-*")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
+	// Create insta directory
+	if err := os.MkdirAll(instaDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create insta directory: %w", err)
 	}
 
-	// Extract embedded docker-compose files to temp directory
-	composeContent, err := embedFS.ReadFile("resources/docker-compose.yaml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read embedded docker-compose.yaml: %w", err)
-	}
-	if err := os.WriteFile(filepath.Join(tempDir, "docker-compose.yaml"), composeContent, 0644); err != nil {
-		return nil, fmt.Errorf("failed to write docker-compose.yaml: %w", err)
+	// Data directory is always relative to insta directory
+	dataDir := filepath.Join(instaDir, "data")
+
+	// Check if docker-compose.yaml exists
+	composePath := filepath.Join(instaDir, "docker-compose.yaml")
+	if _, err := os.Stat(composePath); os.IsNotExist(err) {
+		// Extract docker-compose.yaml only if it doesn't exist
+		composeContent, err := embedFS.ReadFile("resources/docker-compose.yaml")
+		if err != nil {
+			return nil, fmt.Errorf("failed to read embedded docker-compose.yaml: %w", err)
+		}
+		if err := os.WriteFile(composePath, composeContent, 0644); err != nil {
+			return nil, fmt.Errorf("failed to write docker-compose.yaml: %w", err)
+		}
 	}
 
-	persistContent, err := embedFS.ReadFile("resources/docker-compose-persist.yaml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read embedded docker-compose-persist.yaml: %w", err)
-	}
-	if err := os.WriteFile(filepath.Join(tempDir, "docker-compose-persist.yaml"), persistContent, 0644); err != nil {
-		return nil, fmt.Errorf("failed to write docker-compose-persist.yaml: %w", err)
+	// Check if docker-compose-persist.yaml exists
+	persistPath := filepath.Join(instaDir, "docker-compose-persist.yaml")
+	if _, err := os.Stat(persistPath); os.IsNotExist(err) {
+		// Extract docker-compose-persist.yaml only if it doesn't exist
+		persistContent, err := embedFS.ReadFile("resources/docker-compose-persist.yaml")
+		if err != nil {
+			return nil, fmt.Errorf("failed to read embedded docker-compose-persist.yaml: %w", err)
+		}
+		if err := os.WriteFile(persistPath, persistContent, 0644); err != nil {
+			return nil, fmt.Errorf("failed to write docker-compose-persist.yaml: %w", err)
+		}
 	}
 
-	// Extract data directory files
-	if err := extractDataFiles(tempDir, embedFS); err != nil {
-		return nil, fmt.Errorf("failed to extract data files: %w", err)
+	// Check if data directory exists and extract files if needed
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		// Extract data directory files only if the directory doesn't exist
+		if err := extractDataFiles(instaDir, embedFS); err != nil {
+			return nil, fmt.Errorf("failed to extract data files: %w", err)
+		}
 	}
 
 	return &App{
-		dataDir: dataDir,
-		tempDir: tempDir,
-		runtime: provider.SelectedRuntime(),
+		dataDir:    dataDir,
+		instaDir:   instaDir,
+		runtime:    provider.SelectedRuntime(),
 	}, nil
 }
 
 func extractDataFiles(tempDir string, embedFS embed.FS) error {
+	// Create data directory in temp dir
+	dataDir := filepath.Join(tempDir, "data")
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return fmt.Errorf("failed to create data directory: %w", err)
+	}
+
 	return fs.WalkDir(embedFS, "resources/data", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -130,13 +150,13 @@ func extractDataFiles(tempDir string, embedFS embed.FS) error {
 		}
 
 		// Get relative path from resources/data to use for target
-		relPath, err := filepath.Rel("resources", path)
+		relPath, err := filepath.Rel("resources/data", path)
 		if err != nil {
 			return fmt.Errorf("failed to get relative path for %s: %w", path, err)
 		}
 
 		if d.IsDir() {
-			targetDir := filepath.Join(tempDir, relPath)
+			targetDir := filepath.Join(dataDir, relPath)
 			if err := os.MkdirAll(targetDir, 0755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", targetDir, err)
 			}
@@ -148,7 +168,7 @@ func extractDataFiles(tempDir string, embedFS embed.FS) error {
 			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
 		}
 
-		targetFile := filepath.Join(tempDir, relPath)
+		targetFile := filepath.Join(dataDir, relPath)
 		targetDir := filepath.Dir(targetFile)
 
 		if err := os.MkdirAll(targetDir, 0755); err != nil {
@@ -164,7 +184,10 @@ func extractDataFiles(tempDir string, embedFS embed.FS) error {
 }
 
 func (a *App) Cleanup() error {
-	return os.RemoveAll(a.tempDir)
+	if a.instaDir != "" {
+		return os.RemoveAll(a.instaDir)
+	}
+	return nil
 }
 
 func (a *App) checkRuntime() error {
@@ -208,9 +231,9 @@ func (a *App) startServices(services []string, persist bool) error {
 		}
 	}
 
-	composeFiles := []string{filepath.Join(a.tempDir, "docker-compose.yaml")}
+	composeFiles := []string{filepath.Join(a.instaDir, "docker-compose.yaml")}
 	if persist {
-		composeFiles = append(composeFiles, filepath.Join(a.tempDir, "docker-compose-persist.yaml"))
+		composeFiles = append(composeFiles, filepath.Join(a.instaDir, "docker-compose-persist.yaml"))
 	}
 
 	fmt.Printf("%sStarting up services...%s\n", colorGreen, colorReset)
@@ -258,8 +281,8 @@ func (a *App) startServices(services []string, persist bool) error {
 
 func (a *App) stopServices(services []string) error {
 	composeFiles := []string{
-		filepath.Join(a.tempDir, "docker-compose.yaml"),
-		filepath.Join(a.tempDir, "docker-compose-persist.yaml"),
+		filepath.Join(a.instaDir, "docker-compose.yaml"),
+		filepath.Join(a.instaDir, "docker-compose-persist.yaml"),
 	}
 
 	if len(services) > 0 {
@@ -327,7 +350,7 @@ Examples:
     %s -l                   List supported services
     %s postgres             Spin up Postgres
     %s -c postgres          Connect to Postgres
-    %s -d                   Bring Postgres down
+    %s -d postgres          Bring Postgres down
     %s -p postgres          Run Postgres with persisted data
     %s -r docker postgres   Run Postgres using Docker
     %s -r podman postgres   Run Postgres using Podman
@@ -363,7 +386,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
 			os.Exit(1)
 		}
-		defer app.Cleanup()
 
 		if err := app.listServices(); err != nil {
 			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
@@ -376,7 +398,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
 			os.Exit(1)
 		}
-		defer app.Cleanup()
 
 		connectCmd.Parse(os.Args[2:])
 		if connectCmd.NArg() < 1 {
@@ -394,7 +415,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
 			os.Exit(1)
 		}
-		defer app.Cleanup()
 
 		downCmd.Parse(os.Args[2:])
 		if err := app.stopServices(downCmd.Args()); err != nil {
@@ -408,7 +428,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
 			os.Exit(1)
 		}
-		defer app.Cleanup()
 
 		// Check for persist flag
 		startArgs := os.Args[1:]
@@ -444,7 +463,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-		defer app.Cleanup()
 
 		if err := app.update(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
