@@ -1286,7 +1286,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    image: "prestodb/presto:${PRESTO_VERSION:-0.291}"
+    image: "prestodb/presto:${PRESTO_VERSION:-0.292}"
     ports:
       - "8083:8080"
     volumes:
@@ -1491,7 +1491,7 @@ services:
       - "9000:9000"
   spanner:
     container_name: spanner
-    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.31}"
+    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.32}"
     ports:
       - "9010:9010"
       - "9020:9020"
