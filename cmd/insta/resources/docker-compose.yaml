@@ -708,7 +708,7 @@ services:
       retries: 3
       test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:16686"]
       timeout: 5s
-    image: "jaegertracing/all-in-one:${JAEGER_VERSION:-1.55}"
+    image: "jaegertracing/all-in-one:${JAEGER_VERSION:-1.60}"
     ports:
       - "${JAEGER_PORT:-16686}:16686"
       - "14250:14250"
