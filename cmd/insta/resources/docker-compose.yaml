@@ -593,7 +593,7 @@ services:
       retries: 3
       test: [CMD, feast, status]
       timeout: 10s
-    image: "feastdev/feature-server:${FEAST_VERSION:-0.34.1}"
+    image: "feastdev/feature-server:${FEAST_VERSION:-0.46.0}"
     ports:
       - "${FEAST_PORT:-6566}:6566"
   flight-sql:
