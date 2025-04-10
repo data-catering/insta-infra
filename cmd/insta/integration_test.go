@@ -36,6 +36,7 @@ func cleanup(t *testing.T, binaryPath string) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
+		// Just log the error but continue with cleanup
 		t.Logf("warning: failed to stop services during cleanup: %v", err)
 	}
 
@@ -44,7 +45,9 @@ func cleanup(t *testing.T, binaryPath string) {
 	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
 		cmd = exec.Command("docker", "rm", "-f", string(output))
-		cmd.Run() // Ignore errors
+		if err := cmd.Run(); err != nil {
+			t.Logf("warning: failed to remove containers: %v", err)
+		}
 	}
 
 	// Wait for containers to be fully removed
@@ -198,6 +201,20 @@ func TestServiceConnection(t *testing.T) {
 
 	// Clean up before test
 	cleanup(t, binaryPath)
+
+	// Create test data directory if needed
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("failed to get home directory: %v", err)
+	}
+	testDataDir := filepath.Join(homeDir, ".insta", "test-data")
+	if err := os.MkdirAll(testDataDir, 0755); err != nil {
+		t.Fatalf("failed to create test data directory: %v", err)
+	}
+	defer os.RemoveAll(testDataDir)
+
+	// Set INSTA_HOME environment variable
+	os.Setenv("INSTA_HOME", testDataDir)
 
 	// Start postgres service
 	cmd := exec.Command(binaryPath, "postgres")
