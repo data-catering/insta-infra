@@ -154,16 +154,6 @@ func TestDataPersistence(t *testing.T) {
 		t.Fatalf("failed to get home directory: %v", err)
 	}
 
-	// Define test data directory
-	testDataDir := filepath.Join(homeDir, ".insta", "test-data")
-	if err := os.MkdirAll(testDataDir, 0755); err != nil {
-		t.Fatalf("failed to create test data directory: %v", err)
-	}
-	defer os.RemoveAll(testDataDir)
-
-	// Set INSTA_HOME environment variable
-	os.Setenv("INSTA_HOME", testDataDir)
-
 	// Start a service with persistence
 	cmd := exec.Command(binaryPath, "-p", "postgres")
 	cmd.Stdout = os.Stdout
@@ -177,7 +167,7 @@ func TestDataPersistence(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Verify data directory was created
-	persistDir := filepath.Join(testDataDir, "data", "postgres", "persist")
+	persistDir := filepath.Join(homeDir, ".insta", "data", "postgres", "persist")
 	if _, err := os.Stat(persistDir); err != nil {
 		t.Errorf("persist directory not created: %v", err)
 	}
