@@ -1,0 +1,129 @@
+---
+description: Guide for adding new services to insta-infra
+globs: cmd/insta/models.go,cmd/insta/resources/docker-compose.yaml,cmd/insta/resources/docker-compose-persist.yaml
+alwaysApply: false
+---
+# Adding a New Service to Insta-Infra
+This rule guides you through the process of adding a new service.
+
+## Required Steps
+
+### 1. Service Definition in models.go
+Add a new service entry to the `Services` map in `cmd/insta/models.go`:
+```go
+"service_name": {
+    Name:             "service_name",
+    ConnectionCmd:    "command to connect to service",
+    DefaultUser:      "default username if required",
+    DefaultPassword:  "default password if required",
+    DefaultPort:      port_number,
+    RequiresPassword: true/false,
+},
+```
+
+### 2. Docker Compose Configuration
+Add service configuration to `cmd/insta/resources/docker-compose.yaml`:
+```yaml
+service_name:
+    container_name: service_name
+    image: "repository/image:${VERSION_VAR:-default_version}"
+    ports:
+      - "${PORT:-default_port}:internal_port"
+    environment:
+      - "ENV_VAR=${ENV_VAR:-default_value}"
+    healthcheck:
+      interval: 15s
+      retries: 3
+      test: [CMD-SHELL, "health check command"]
+      timeout: 5s
+```
+
+### 3. Persistent Storage (If Required)
+If the service needs persistent storage, add to `cmd/insta/resources/docker-compose-persist.yaml`:
+```yaml
+service_name:
+    volumes:
+      - "./data/service_name:/container/data/path"
+```
+Startup data and configuration files get added to `cmd/insta/resources/data/service_name` folder.
+
+### 4. Environment Variables
+Define required environment variables:
+- VERSION_VAR: for image version control
+- Service-specific variables (credentials, ports, etc.)
+- Use format: ${VAR_NAME:-default_value}
+
+### 5. Health Check
+Implement health check for service monitoring:
+- Define appropriate health check command
+- Set reasonable intervals and timeouts
+- Ensure health check is meaningful for the service
+
+### 6. Integration Test
+Add integration test in `cmd/insta/integration_test.go`:
+```go
+func TestService_Integration(t *testing.T) {
+    // Setup test
+    // Verify service connectivity
+    // Test basic functionality
+}
+```
+
+## Best Practices
+1. Use environment variables with defaults
+2. Follow naming conventions:
+   - Container name = service name
+   - Volume path = ./data/service_name
+3. Include comprehensive health checks
+4. Document connection details
+5. Add integration tests
+
+## Common Configurations
+
+### Database Service Template
+```yaml
+db_service:
+    container_name: db_service
+    image: "db/image:${VERSION:-v1.2.3}"
+    environment:
+      - "USER=${DB_USER:-default}"
+      - "PASSWORD=${DB_PASSWORD:-default}"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD", "db-health-check"]
+    volumes:
+      - "./data/db:/var/lib/db"
+```
+
+### Message Queue Template
+```yaml
+queue_service:
+    container_name: queue_service
+    image: "queue/image:${VERSION:-v1.2.3}"
+    ports:
+      - "${QUEUE_PORT:-5672}:5672"
+      - "${ADMIN_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "queue-health-check"]
+```
+
+### Cache Service Template
+```yaml
+cache_service:
+    container_name: cache_service
+    image: "cache/image:${VERSION:-v1.2.3}"
+    ports:
+      - "${CACHE_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "cache-health-check"]
+```
+
+## Checklist
+- [ ] Service definition added to models.go
+- [ ] Docker Compose configuration added
+- [ ] Persistent storage configured (if needed)
+- [ ] Environment variables defined
+- [ ] Health check implemented
+- [ ] Integration tests added
+- [ ] Documentation updated 

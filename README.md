@@ -173,15 +173,20 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 | Database                    | cassandra                 | ✅         |
 | Database                    | cockroachdb               | ✅         |
 | Database                    | elasticsearch             | ✅         |
+| Database                    | influxdb                  | ✅         |
 | Database                    | mariadb                   | ✅         |
+| Database                    | milvus                    | ✅         |
 | Database                    | mongodb                   | ✅         |
 | Database                    | mssql                     | ✅         |
 | Database                    | mysql                     | ✅         |
 | Database                    | neo4j                     | ✅         |
 | Database                    | opensearch                | ✅         |
 | Database                    | postgres                  | ✅         |
+| Database                    | qdrant                    | ✅         |
 | Database                    | spanner                   | ✅         |
 | Database                    | sqlite                    | ✅         |
+| Database                    | timescaledb               | ✅         |
+| Database                    | weaviate                  | ✅         |
 | Data Catalog                | amundsen                  | ✅         |
 | Data Catalog                | datahub                   | ✅         |
 | Data Catalog                | marquez                   | ✅         |
@@ -192,11 +197,14 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 | Data Collector              | logstash                  | ✅         |
 | Data Visualisation          | blazer                    | ✅         |
 | Data Visualisation          | evidence                  | ✅         |
+| Data Visualisation          | grafana                   | ✅         |
 | Data Visualisation          | metabase                  | ✅         |
 | Data Visualisation          | redash                    | ✅         |
 | Data Visualisation          | superset                  | ✅         |
 | Distributed Coordination    | zookeeper                 | ✅         |
 | Distributed Data Processing | flink                     | ✅         |
+| Distributed Data Processing | ray                       | ✅         |
+| Feature Store               | feast                     | ✅         |
 | Identity Management         | keycloak                  | ✅         |
 | Job Orchestrator            | airflow                   | ✅         |
 | Job Orchestrator            | dagster                   | ✅         |
@@ -204,8 +212,13 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 | Job Orchestrator            | prefect                   | ✅         |
 | Messaging                   | activemq                  | ✅         |
 | Messaging                   | kafka                     | ✅         |
+| Messaging                   | nats                      | ✅         |
+| Messaging                   | pulsar                    | ✅         |
 | Messaging                   | rabbitmq                  | ✅         |
 | Messaging                   | solace                    | ✅         |
+| ML Platform                 | mlflow                    | ✅         |
+| Monitoring                  | loki                      | ✅         |
+| Monitoring                  | prometheus                | ✅         |
 | Notebook                    | jupyter                   | ✅         |
 | Object Storage              | minio                     | ✅         |
 | Query Engine                | duckdb                    | ✅         |
@@ -217,7 +230,9 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 | Real-time OLAP              | druid                     | ✅         |
 | Real-time OLAP              | pinot                     | ✅         |
 | Schema Registry             | confluent-schema-registry | ✅         |
+| Secret Management           | vault                     | ✅         |
 | Test Data Management        | data-caterer              | ✅         |
+| Tracing                     | jaeger                    | ✅         |
 | Web Server                  | httpbin                   | ✅         |
 | Web Server                  | httpd                     | ✅         |
 | Workflow                    | maestro                   | ✅         |

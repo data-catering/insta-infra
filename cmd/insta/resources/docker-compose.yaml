@@ -426,7 +426,7 @@ services:
       druid-middlemanager:
         condition: service_healthy
       postgres:
-        condition: service_healthy
+        condition: service_completed_successfully
       zookeeper:
         condition: service_healthy
     env_file: ./data/druid/environment
@@ -448,7 +448,7 @@ services:
       druid-coordinator:
         condition: service_healthy
       postgres:
-        condition: service_healthy
+        condition: service_completed_successfully
       zookeeper:
         condition: service_healthy
     env_file: ./data/druid/environment
@@ -490,7 +490,7 @@ services:
       druid-coordinator:
         condition: service_healthy
       postgres:
-        condition: service_healthy
+        condition: service_completed_successfully
       zookeeper:
         condition: service_healthy
     env_file: ./data/druid/environment
@@ -512,7 +512,7 @@ services:
       druid-coordinator:
         condition: service_healthy
       postgres:
-        condition: service_healthy
+        condition: service_completed_successfully
       zookeeper:
         condition: service_healthy
     env_file: ./data/druid/environment
@@ -585,6 +585,17 @@ services:
       - "3000:3000"
     volumes:
       - "./data/evidence/persist:/evidence-workspace"
+  feast:
+    command: [feast, serve, -h, 0.0.0.0]
+    container_name: feast
+    healthcheck:
+      interval: 30s
+      retries: 3
+      test: [CMD, feast, status]
+      timeout: 10s
+    image: "feastdev/feature-server:${FEAST_VERSION:-0.34.1}"
+    ports:
+      - "${FEAST_PORT:-6566}:6566"
   flight-sql:
     command: [tail, -f, /dev/null]
     container_name: flight-sql
@@ -633,6 +644,26 @@ services:
       - "24224:24224/udp"
     volumes:
       - "./data/fluentd/etc/fluent.conf:/fluentd/etc/fluent.conf"
+  grafana:
+    container_name: grafana
+    environment:
+      - "GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}"
+      - "GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}"
+      - "GF_SECURITY_ANGULAR_SUPPORT_ENABLED=true"
+      - "GF_SECURITY_ALLOW_EMBEDDING=true"
+      - "GF_SECURITY_COOKIE_SAMESITE=none"
+      - "GF_SECURITY_COOKIE_SECURE=true"
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD-SHELL, "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      timeout: 5s
+    image: "grafana/grafana:${GRAFANA_VERSION:-11.6.0}"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - "./data/grafana/dashboards:/etc/grafana/dashboards"
+      - "./data/grafana/provisioning:/etc/grafana/provisioning"
   httpbin:
     container_name: http
     environment:
@@ -653,6 +684,36 @@ services:
         tag: httpd.access
     ports:
       - "8080:80"
+  influxdb:
+    container_name: influxdb
+    environment:
+      - "DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USER:-admin}"
+      - "DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-admin}"
+      - DOCKER_INFLUXDB_INIT_ORG=myorg
+      - DOCKER_INFLUXDB_INIT_BUCKET=mybucket
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD, curl, --fail, "http://localhost:8086/health"]
+      timeout: 5s
+    image: "influxdb:${INFLUXDB_VERSION:-2.7}"
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"
+  jaeger:
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:16686"]
+      timeout: 5s
+    image: "jaegertracing/all-in-one:${JAEGER_VERSION:-1.55}"
+    ports:
+      - "${JAEGER_PORT:-16686}:16686"
+      - "14250:14250"
+      - "14268:14268"
+      - "6831:6831/udp"
   jupyter:
     command: [jupyter, notebook, --no-browser, "--NotebookApp.token=''", "--NotebookApp.password=''"]
     container_name: jupyter
@@ -794,6 +855,19 @@ services:
     volumes:
       - "./data/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml"
       - "./data/logstash/pipeline:/usr/share/logstash/pipeline"
+  loki:
+    command: "-config.file=/etc/loki/local-config.yaml"
+    container_name: loki
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD-SHELL, "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      timeout: 5s
+    image: "grafana/loki:${LOKI_VERSION:-2.9.5}"
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - "./data/loki/config.yaml:/etc/loki/local-config.yaml"
   maestro:
     container_name: maestro
     depends_on:
@@ -895,6 +969,21 @@ services:
       - "3000:3000"
     volumes:
       - /dev/urandom:/dev/random:ro
+  milvus:
+    command: [standalone]
+    container_name: milvus
+    environment:
+      - ETCD_ENDPOINTS=localhost:2379
+      - MINIO_ADDRESS=localhost
+    healthcheck:
+      interval: 30s
+      retries: 3
+      test: [CMD, curl, -f, "http://localhost:9091/healthz"]
+      timeout: 10s
+    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.4.0}"
+    ports:
+      - "${MILVUS_PORT:-19530}:19530"
+      - "9091:9091"
   minio:
     command: [server, /data, --console-address, ":9001"]
     container_name: minio
@@ -910,6 +999,19 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+  mlflow:
+    command: mlflow server --host 0.0.0.0
+    container_name: mlflow
+    environment:
+      - "MLFLOW_TRACKING_URI=http://localhost:5000"
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD, curl, --fail, "http://localhost:5000/health"]
+      timeout: 5s
+    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.11.1}"
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
   mongodb:
     command: [/bin/sh, -c, /opt/app/my_data.sh]
     container_name: mongodb-connect
@@ -967,6 +1069,18 @@ services:
     image: "mysql:${MYSQL_VERSION:-9.2.0}"
     ports:
       - "3306:3306"
+  nats:
+    command: [--http_port, "8222"]
+    container_name: nats
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD, /bin/sh, -c, "curl -f http://localhost:8222/healthz"]
+      timeout: 5s
+    image: "nats:${NATS_VERSION:-2.10.12}"
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+      - "8222:8222"
   neo4j:
     container_name: neo4j
     environment:
@@ -1178,6 +1292,46 @@ services:
     volumes:
       - "./data/presto/etc:/opt/presto-server/etc"
       - "./data/presto/catalog:/opt/presto-server/etc/catalog"
+  prometheus:
+    command: "--config.file=/etc/prometheus/prometheus.yml"
+    container_name: prometheus
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:9090/-/healthy"]
+      timeout: 5s
+    image: "prom/prometheus:${PROMETHEUS_VERSION:-v2.50.1}"
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - "./data/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
+  pulsar:
+    command: [bin/pulsar, standalone]
+    container_name: pulsar
+    healthcheck:
+      interval: 30s
+      retries: 3
+      test: [CMD, bin/pulsar-admin, brokers, healthcheck]
+      timeout: 10s
+    image: "apachepulsar/pulsar:${PULSAR_VERSION:-3.2.1}"
+    ports:
+      - "${PULSAR_PORT:-6650}:6650"
+      - "8080:8080"
+    volumes:
+      - "./data/pulsar/conf:/pulsar/conf"
+  qdrant:
+    container_name: qdrant
+    environment:
+      - QDRANT_ALLOW_RECOVERY_MODE=true
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD, curl, -f, "http://localhost:6333/health"]
+      timeout: 5s
+    image: "qdrant/qdrant:${QDRANT_VERSION:-v1.8.2}"
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "6334:6334"
   rabbitmq:
     container_name: rabbitmq
     environment:
@@ -1193,6 +1347,37 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+  ray:
+    command: [bash, -c, "ray start --head --port=6379 --dashboard-host=0.0.0.0 --dashboard-port=8265 --metrics-export-port=8080 --block"]
+    container_name: ray
+    depends_on:
+      grafana:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    environment:
+      - HOST=0.0.0.0
+      - RAY_ENABLE_PROMETHEUS_METRICS=true
+      - RAY_METRICS_EXPORT_PORT=8080
+      - RAY_GRAFANA_HOST=http://grafana:3000
+      - RAY_PROMETHEUS_HOST=http://prometheus:9090
+      - RAY_GRAFANA_IFRAME_HOST=http://localhost:3000
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test: [CMD, ray, status]
+      timeout: 10s
+    image: "rayproject/ray:${RAY_VERSION:-2.44.1-aarch64}"
+    ports:
+      - "${RAY_PORT:-8265}:8265"
+      - "6379:6379"
+      - "8080:8080"
+    shm_size: "4gb"
+    ulimits:
+      memlock: -1
+      nofile:
+        soft: 65536
+        hard: 65536
   redash:
     command: scheduler
     container_name: redash-scheduler
@@ -1361,6 +1546,19 @@ services:
       - "8233:8233"
       - "7233:7233"
       - "9233:9233"
+  timescaledb:
+    container_name: timescaledb
+    environment:
+      - "POSTGRES_USER=${TIMESCALEDB_USER:-postgres}"
+      - "POSTGRES_PASSWORD=${TIMESCALEDB_PASSWORD:-postgres}"
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD-SHELL, pg_isready -U postgres]
+      timeout: 5s
+    image: "timescale/timescaledb:${TIMESCALEDB_VERSION:-latest-pg15}"
+    ports:
+      - "${TIMESCALEDB_PORT:-5432}:5432"
   trino:
     container_name: trino
     depends_on:
@@ -1377,6 +1575,36 @@ services:
     image: "datacatering/unitycatalog:${UNITYCATALOG_VERSION:-0.1.0}"
     ports:
       - "8081:8081"
+  vault:
+    cap_add:
+      - IPC_LOCK
+    container_name: vault
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=root
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD, vault, status]
+      timeout: 5s
+    image: "hashicorp/vault:${VAULT_VERSION:-1.15}"
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+  weaviate:
+    container_name: weaviate
+    environment:
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      CLUSTER_HOSTNAME: node1
+      DEFAULT_VECTORIZER_MODULE: none
+      QUERY_DEFAULTS_LIMIT: 25
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD, curl, -f, "http://localhost:8080/v1/.well-known/ready"]
+      timeout: 5s
+    image: "semitechnologies/weaviate:${WEAVIATE_VERSION:-1.24.5}"
+    ports:
+      - "${WEAVIATE_PORT:-8080}:8080"
   zookeeper:
     container_name: zookeeper
     environment:
