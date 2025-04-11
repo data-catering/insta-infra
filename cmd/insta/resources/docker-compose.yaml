@@ -980,7 +980,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:9091/healthz"]
       timeout: 10s
-    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.5.8}"
+    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.5.9}"
     ports:
       - "${MILVUS_PORT:-19530}:19530"
       - "9091:9091"
