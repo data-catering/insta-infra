@@ -762,7 +762,7 @@ services:
       - KC_REALM_NAME=myrealm
       - "KEYCLOAK_ADMIN=${KEYCLOAK_USER:-admin}"
       - "KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_PASSWORD:-admin}"
-    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.1.5}"
+    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.1.4}"
     ports:
       - "8082:8080"
     restart: unless-stopped
@@ -844,7 +844,7 @@ services:
     volumes:
       - ./data/lakekeeper/access-control-advanced/notebooks:/home/jovyan/examples/
     ports:
-      - "8888:8888"
+      - "8889:8888"
   lakekeeper-opa:
     image: openpolicyagent/opa:1.0.0
     command: ["run", "--server", "--log-format", "text", "--log-level", "debug", "--addr", "0.0.0.0:8181", "/policies"]
@@ -927,6 +927,8 @@ services:
       - ./data/lakekeeper/access-control-advanced/trino/access-control.properties:/etc/trino/access-control.properties
       - ./data/lakekeeper/access-control-advanced/trino/config.properties:/etc/trino/config.properties
       - ./data/lakekeeper/access-control-advanced/trino/log.properties:/etc/trino/log.properties
+    ports:
+      - "8880:8080"
   # Emulates a reverse proxy that secures the connection to the server.
   # This is required as trino requires HTTPS in OAUTH2 settings (rightfully so!)
   lakekeeper-trino-proxy:
@@ -1007,7 +1009,9 @@ services:
       timeout: 10s
       retries: 2
       start_period: 15s
-
+    ports:
+      - "9900:9000"
+      - "9901:9001"
   lakekeeper-mc:
     depends_on:
       - lakekeeper-minio
@@ -1023,7 +1027,6 @@ services:
       /usr/bin/mc mb minio/examples;
       /usr/bin/mc anonymous set public minio/examples;
       " 
-
   lakekeeper-openfga-migrate:
     image: openfga/openfga:v1.8
     command: migrate
@@ -1524,7 +1527,7 @@ services:
       retries: 3
       test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:9090/-/healthy"]
       timeout: 5s
-    image: "prom/prometheus:${PROMETHEUS_VERSION:-v2.55.1}"
+    image: "prom/prometheus:${PROMETHEUS_VERSION:-v2.50.1}"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
