@@ -124,6 +124,18 @@ var Services = map[string]Service{
 		ConnectionCmd: "bash",
 		DefaultPort:   8001,
 	},
+	"lakekeeper": {
+		Name:            "lakekeeper",
+		ConnectionCmd:   "bash",
+		DefaultUser:     "peter",
+		DefaultPassword: "iceberg",
+		DefaultPort:     8183,
+	},
+	"lakekeeper-jupyter": {
+		Name:          "lakekeeper-jupyterspark",
+		ConnectionCmd: "bash",
+		DefaultPort:   8888,
+	},
 	"logstash": {
 		Name:             "logstash",
 		ConnectionCmd:    "bash",
