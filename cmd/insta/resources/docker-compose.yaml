@@ -832,7 +832,7 @@ services:
       - KONG_PG_PASSWORD=postgres
     image: "kong:${KONG_VERSION:-3.9.0}"
   lakekeeper-jupyter:
-    image: quay.io/jupyter/pyspark-notebook:2024-10-14
+    image: quay.io/jupyter/pyspark-notebook:${LAKEKEEPER_JUPYTER:-2024-10-14}
     depends_on:
       lakekeeper:
         condition: service_healthy
@@ -862,7 +862,8 @@ services:
       lakekeeper:
         condition: service_healthy
   lakekeeper-keycloak:
-    image: quay.io/keycloak/keycloak:26.0.7
+    image: quay.io/keycloak/keycloak:${LAKEKEEPER_KEYCLOAK:-26.0.7}
+    command: [ "start-dev", "--metrics-enabled=true", "--health-enabled=true", "--import-realm", "--verbose", "--log-level=INFO", "--features=token-exchange" ]
     environment:
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
@@ -876,9 +877,9 @@ services:
       start_period: 60s
     ports:
       - "30080:8080"
-    command: [ "start-dev", "--metrics-enabled=true", "--health-enabled=true", "--import-realm", "--verbose", "--log-level=INFO", "--features=token-exchange" ]
+    
   lakekeeper:
-    image: ${LAKEKEEPER_TEST__SERVER_IMAGE:-quay.io/lakekeeper/catalog:latest-main}
+    image: quay.io/lakekeeper/catalog:${LAKEKEEPER_IMAGE:-latest-main}
     pull_policy: if_not_present
     environment:
       - LAKEKEEPER__PG_ENCRYPTION_KEY=This-is-NOT-Secure!
@@ -911,7 +912,7 @@ services:
     ports:
       - "8183:8181"
   lakekeeper-trino:
-    image: trinodb/trino:467
+    image: trinodb/trino:${LAKEKEEPER_TRINO:-467}
     environment:
       - OIDC_ISSUER=http://localhost:30080/realms/iceberg
     healthcheck:
@@ -949,7 +950,7 @@ services:
       - ./data/lakekeeper/access-control-advanced/nginx.conf:/etc/nginx/nginx.conf
       - ./data/lakekeeper/access-control-advanced/certs:/etc/nginx/certs
   lakekeeper-migrate:
-    image: ${LAKEKEEPER_TEST__SERVER_IMAGE:-quay.io/lakekeeper/catalog:latest-main}
+    image: quay.io/lakekeeper/catalog:${LAKEKEEPER_IMAGE:-latest-main}
     pull_policy: if_not_present
     environment:
       - LAKEKEEPER__PG_ENCRYPTION_KEY=This-is-NOT-Secure!
