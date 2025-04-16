@@ -1343,7 +1343,7 @@ services:
       test: rabbitmq-diagnostics -q ping
       timeout: 30s
     hostname: my-rabbit
-    image: "rabbitmq:${RABBITMQ_VERSION:-4.0.9-management}"
+    image: "rabbitmq:${RABBITMQ_VERSION:-4.1.0-management}"
     ports:
       - "5672:5672"
       - "15672:15672"
