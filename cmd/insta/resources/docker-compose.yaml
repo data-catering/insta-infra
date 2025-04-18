@@ -1570,7 +1570,7 @@ services:
       retries: 3
       test: [CMD, bin/pulsar-admin, brokers, healthcheck]
       timeout: 10s
-    image: "apachepulsar/pulsar:${PULSAR_VERSION:-3.3.6}"
+    image: "apachepulsar/pulsar:${PULSAR_VERSION:-4.0.4}"
     ports:
       - "${PULSAR_PORT:-6650}:6650"
       - "8080:8080"
