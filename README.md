@@ -189,6 +189,7 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 | Database                    | weaviate                  | ✅         |
 | Data Catalog                | amundsen                  | ✅         |
 | Data Catalog                | datahub                   | ✅         |
+| Data Catalog                | lakekeeper                | ✅         |
 | Data Catalog                | marquez                   | ✅         |
 | Data Catalog                | openmetadata              | ✅         |
 | Data Catalog                | polaris                   | ✅         |

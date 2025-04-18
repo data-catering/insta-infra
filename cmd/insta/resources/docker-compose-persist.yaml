@@ -57,6 +57,20 @@ services:
     volumes:
       - "./data/kafka/persist/data:/var/lib/kafka/data"
       - "./data/kafka/persist/etc:/etc/kafka"
+  lakekeeper-jupyter:
+    volumes:
+      - "./data/lakekeeper-jupyter/persist:/home/jovyan/work"
+  lakekeeper-data:
+    volumes:
+      - "./data/lakekeeper-data/persist:/data/postgres"
+
+  lakekeeper-openfga-data:
+    volumes:
+      - "./data/lakekeeper-openfga-data:/persist:/data/postgres"
+
+  lakekeeper-minio:
+    volumes:
+      - "./data/lakekeeper-minio/persist:/data"
   loki:
     volumes:
       - "./data/loki/persist:/loki"
