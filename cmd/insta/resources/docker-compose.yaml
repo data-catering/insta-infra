@@ -1027,7 +1027,7 @@ services:
       start_period: 10s
       test: [CMD-SHELL, pg_isready -U postgres -p 5432 -d postgres]
       timeout: 10s
-    image: bitnami/postgresql:16.6.0
+    image: bitnami/postgresql:17.4.0
   # Lakekeeper OpenFGA database migration
   lakekeeper-openfga-migrate:
     command: migrate
