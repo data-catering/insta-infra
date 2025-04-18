@@ -586,16 +586,18 @@ services:
     volumes:
       - "./data/evidence/persist:/evidence-workspace"
   feast:
-    command: [feast, serve, -h, 0.0.0.0]
+    command: [feast, -c, /feature_repo, serve, -h, 0.0.0.0]
     container_name: feast
     healthcheck:
-      interval: 30s
+      interval: 5s
       retries: 3
-      test: [CMD, feast, status]
+      test: "curl -sS --fail http://localhost:6566/health"
       timeout: 10s
     image: "feastdev/feature-server:${FEAST_VERSION:-0.34.1}"
     ports:
       - "${FEAST_PORT:-6566}:6566"
+    volumes:
+      - "./data/feast/feature_repo:/feature_repo"
   flight-sql:
     command: [tail, -f, /dev/null]
     container_name: flight-sql
@@ -667,7 +669,7 @@ services:
   httpbin:
     container_name: http
     environment:
-      - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s}'"
+      - "GUNICORN_CMD_ARGS=--capture-output --error-logfile - --access-logfile - --access-logformat '%(h)s %(t)s %(r)s %(s)s Host: %({Host}i)s'"
     image: "kennethreitz/httpbin:${HTTPBIN_VERSION:-latest}"
     ports:
       - "8080:80"
@@ -720,6 +722,8 @@ services:
     image: "quay.io/jupyter/minimal-notebook:${JUPYTER_VERSION:-2024-07-02}"
     ports:
       - "8888:8888"
+    volumes:
+      - "./data/jupyter:/home/jovyan/work"
   kafka:
     container_name: kafka-data
     depends_on:
@@ -1002,16 +1006,35 @@ services:
   mlflow:
     command: mlflow server --host 0.0.0.0
     container_name: mlflow
+    depends_on:
+      jupyter:
+        condition: service_healthy
     environment:
       - "MLFLOW_TRACKING_URI=http://localhost:5000"
     healthcheck:
       interval: 10s
       retries: 3
-      test: [CMD, curl, --fail, "http://localhost:5000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       timeout: 5s
     image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.11.1}"
     ports:
       - "${MLFLOW_PORT:-5000}:5000"
+  mlflow-serve:
+    command: mlflow models serve -m 'models:/diabetes-predictor/latest' -h 0.0.0.0 -p 5001 --no-conda
+    container_name: mlflow-serve
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      - "MLFLOW_TRACKING_URI=http://mlflow:5000"
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      timeout: 5s
+    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.11.1}"
+    ports:
+      - "${MLFLOW_SERVE_PORT:-5001}:5001"
   mongodb:
     command: [/bin/sh, -c, /opt/app/my_data.sh]
     container_name: mongodb-connect
@@ -1282,11 +1305,9 @@ services:
       - "4200:4200"
     restart: always
   presto:
+    command: [/opt/presto-server/bin/launcher, run]
     container_name: presto
-    depends_on:
-      postgres:
-        condition: service_completed_successfully
-    image: "prestodb/presto:${PRESTO_VERSION:-0.292}"
+    image: "ahanaio/prestodb:${PRESTO_VERSION:-0.283}"
     ports:
       - "8083:8080"
     volumes:
