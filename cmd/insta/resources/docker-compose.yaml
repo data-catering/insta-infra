@@ -154,7 +154,7 @@ services:
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/blazer
       - DATABASE_CUSTOMER_URL=postgres://postgres:postgres@postgres:5432/customer
-    image: "ankane/blazer:${BLAZER_VERSION:-v3.2.1}"
+    image: "ankane/blazer:${BLAZER_VERSION:-v3.3.0}"
     ports:
       - "8080:8080"
     volumes:
@@ -265,7 +265,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.9}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.10}"
     ports:
       - "3000:3000"
     volumes:
@@ -552,7 +552,7 @@ services:
       - "HEARTBEAT_INTERNAL_PASSWORD=${HEARTBEAT_INTERNAL_PASSWORD:-}"
       - "MONITORING_INTERNAL_PASSWORD=${MONITORING_INTERNAL_PASSWORD:-}"
       - "BEATS_SYSTEM_PASSWORD=${BEATS_SYSTEM_PASSWORD:-}"
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.4}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.0.0}"
     volumes:
       - "./data/elasticsearch/data/entrypoint.sh:/tmp/entrypoint.sh"
       - "./data/elasticsearch/data/lib.sh:/tmp/lib.sh"
@@ -570,7 +570,7 @@ services:
       retries: 5
       test: "curl -sS --fail http://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=0s"
       timeout: 5s
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.17.4}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.0.0}"
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -593,7 +593,7 @@ services:
       retries: 3
       test: "curl -sS --fail http://localhost:6566/health"
       timeout: 10s
-    image: "feastdev/feature-server:${FEAST_VERSION:-0.34.1}"
+    image: "feastdev/feature-server:${FEAST_VERSION:-0.46.0}"
     ports:
       - "${FEAST_PORT:-6566}:6566"
     volumes:
@@ -710,7 +710,7 @@ services:
       retries: 3
       test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:16686"]
       timeout: 5s
-    image: "jaegertracing/all-in-one:${JAEGER_VERSION:-1.55}"
+    image: "jaegertracing/all-in-one:${JAEGER_VERSION:-1.60}"
     ports:
       - "${JAEGER_PORT:-16686}:16686"
       - "14250:14250"
@@ -766,7 +766,7 @@ services:
       - KC_REALM_NAME=myrealm
       - "KEYCLOAK_ADMIN=${KEYCLOAK_USER:-admin}"
       - "KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_PASSWORD:-admin}"
-    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.1.4}"
+    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.2.0}"
     ports:
       - "8082:8080"
     restart: unless-stopped
@@ -786,13 +786,12 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:5601/api/status"]
       timeout: 5s
-    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-8.17.4}"
+    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-9.0.0}"
     ports:
       - "5601:5601"
     restart: always
     volumes:
       - "./data/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml"
-
   kong:
     container_name: kong
     depends_on:
@@ -836,6 +835,264 @@ services:
       - KONG_PG_USER=postgres
       - KONG_PG_PASSWORD=postgres
     image: "kong:${KONG_VERSION:-3.9.0}"
+  # Apache Iceberg Lakekeeper Catalog
+  # https://docs.lakekeeper.io/docs/nightly/configuration/
+  lakekeeper:
+    command: [serve]
+    depends_on:
+      lakekeeper-data:
+        condition: service_healthy
+      lakekeeper-mc:
+        condition: service_completed_successfully
+      lakekeeper-migrate:
+        condition: service_completed_successfully
+      lakekeeper-minio:
+        condition: service_healthy
+    environment:
+      - LAKEKEEPER__PG_ENCRYPTION_KEY=This-is-NOT-Secure!
+      - LAKEKEEPER__PG_DATABASE_URL_READ=postgresql://postgres:postgres@lakekeeper-data:5432/postgres
+      - LAKEKEEPER__PG_DATABASE_URL_WRITE=postgresql://postgres:postgres@lakekeeper-data:5432/postgres
+      - LAKEKEEPER__AUTHZ_BACKEND=openfga
+      - LAKEKEEPER__OPENFGA__ENDPOINT=http://lakekeeper-openfga:8081
+      - LAKEKEEPER__OPENID_PROVIDER_URI=http://lakekeeper-keycloak:8080/realms/iceberg
+      - LAKEKEEPER__OPENID_ADDITIONAL_ISSUERS=http://localhost:30080/realms/iceberg
+      - LAKEKEEPER__OPENID_AUDIENCE=lakekeeper
+      - LAKEKEEPER__UI__OPENID_CLIENT_ID=lakekeeper
+      - LAKEKEEPER__UI__OPENID_PROVIDER_URI=http://localhost:30080/realms/iceberg
+      - RUST_LOG=info
+    healthcheck:
+      interval: 1s
+      retries: 3
+      start_period: 3s
+      test: [CMD, /home/nonroot/iceberg-catalog, healthcheck]
+      timeout: 10s
+    image: quay.io/lakekeeper/catalog:${LAKEKEEPER_IMAGE:-latest-main}
+    ports:
+      - "8183:8181"
+    pull_policy: if_not_present
+  # Lakekeeper Iceberg catalog backing store
+  lakekeeper-data:
+    environment:
+      - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
+      - PGDATA=/data/postgres
+    healthcheck:
+      interval: 10s
+      retries: 3
+      test: [CMD-SHELL, pg_isready -U postgres -p 5432 -d postgres]
+      timeout: 5s
+    image: "postgres:${POSTGRES_VERSION:-17.4}"
+    ports:
+      - "5432:5432"
+  # Lakekeeper Jupyter Notebook with built-in Spark and demo notebooks
+  # https://docs.lakekeeper.io/docs/nightly/bootstrap/
+  lakekeeper-jupyter:
+    command: start-notebook.sh --NotebookApp.token=''
+    depends_on:
+      lakekeeper:
+        condition: service_healthy
+      lakekeeper-trino:
+        condition: service_healthy
+      lakekeeper-trino-proxy:
+        condition: service_healthy
+    image: quay.io/jupyter/pyspark-notebook:${LAKEKEEPER_JUPYTER_VERSION:-2024-10-14}
+    ports:
+      - "8889:8888"
+    volumes:
+      - ./data/lakekeeper/access-control-advanced/notebooks:/home/jovyan/examples/
+  # Lakekeeper IdP with Keycloak
+  # https://docs.lakekeeper.io/docs/nightly/authentication/#keycloak
+  lakekeeper-keycloak:
+    command: [start-dev, --metrics-enabled=true, --health-enabled=true, --import-realm, --verbose, --log-level=INFO, --features=token-exchange]
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+    healthcheck:
+      interval: 2s
+      retries: 2
+      start_period: 60s
+      test: [CMD-SHELL, 'exec 3<>/dev/tcp/127.0.0.1/8080;echo -e "GET /realms/master/.well-known/openid-configuration HTTP/1.1\r\nhost: 127.0.0.1:8080\r\nConnection: close\r\n\r\n" >&3;grep "jwks_uri"  <&3']
+      timeout: 10s
+    image: quay.io/keycloak/keycloak:${LAKEKEEPER_KEYCLOAK_VERSION:-26.0.7}
+    ports:
+      - "30080:8080"
+    volumes:
+      - ./data/lakekeeper/access-control-advanced/keycloak/realm.json:/opt/keycloak/data/import/realm.json
+  # Lakekeeper MinIO bucket initialization
+  # Creates bucket `examples`
+  lakekeeper-mc:
+    container_name: mc
+    depends_on:
+      - lakekeeper-minio
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc config host add minio http://lakekeeper-minio:9000 minio-root-user minio-root-password) do echo '...waiting...' && sleep 5; done;
+      /usr/bin/mc mb minio/examples;
+      /usr/bin/mc anonymous set public minio/examples;
+      " 
+    environment:
+      - MINIO_ROOT_USER=minio-root-user
+      - MINIO_ROOT_PASSWORD=minio-root-password
+    image: minio/mc
+    restart: no
+  # Lakekeeper database migration
+  lakekeeper-migrate:
+    depends_on:
+      lakekeeper-data:
+        condition: service_healthy
+      lakekeeper-keycloak:
+        condition: service_healthy
+      lakekeeper-openfga:
+        condition: service_healthy
+    entrypoint: [/home/nonroot/iceberg-catalog, migrate]
+    environment:
+      - LAKEKEEPER__PG_ENCRYPTION_KEY=This-is-NOT-Secure!
+      - LAKEKEEPER__PG_DATABASE_URL_READ=postgresql://postgres:postgres@lakekeeper-data:5432/postgres
+      - LAKEKEEPER__PG_DATABASE_URL_WRITE=postgresql://postgres:postgres@lakekeeper-data:5432/postgres
+      - LAKEKEEPER__AUTHZ_BACKEND=openfga
+      - LAKEKEEPER__OPENFGA__ENDPOINT=http://lakekeeper-openfga:8081
+      - RUST_LOG=info
+    image: quay.io/lakekeeper/catalog:${LAKEKEEPER_IMAGE_VERSION:-latest-main}
+    pull_policy: if_not_present
+    restart: no
+  # Lakekeeper MinIO object storage
+  # https://docs.lakekeeper.io/docs/nightly/storage/#s3-compatible
+  lakekeeper-minio:
+    command: [server, /data, --console-address, ":9001"]
+    environment:
+      - MINIO_ROOT_USER=minio-root-user
+      - MINIO_ROOT_PASSWORD=minio-root-password
+      - MINIO_API_PORT_NUMBER=9000
+      - MINIO_CONSOLE_PORT_NUMBER=9001
+      - MINIO_SCHEME=http
+      - MINIO_DEFAULT_BUCKETS=examples
+      - MINIO_DATA_DIR=/data
+    healthcheck:
+      interval: 2s
+      retries: 2
+      start_period: 15s
+      test: [CMD, mc, ready, local]
+      timeout: 10s
+    image: "quay.io/minio/minio:${MINIO_VERSION:-RELEASE.2025-04-08T15-41-24Z}"
+    ports:
+      - "9900:9000"
+      - "9901:9001"
+  # Lakekeeper OpenPolicy Agent for Trino
+  # https://docs.lakekeeper.io/docs/nightly/opa/
+  lakekeeper-opa:
+    command: [run, --server, --log-format, text, --log-level, debug, --addr, "0.0.0.0:8181", /policies]
+    depends_on:
+      lakekeeper:
+        condition: service_healthy
+    environment:
+      - LAKEKEEPER_URL=http://lakekeeper:8181
+      - LAKEKEEPER_TOKEN_ENDPOINT=http://lakekeeper-keycloak:8080/realms/iceberg/protocol/openid-connect/token
+      - LAKEKEEPER_CLIENT_ID=trino
+      - LAKEKEEPER_CLIENT_SECRET=AK48QgaKsqdEpP9PomRJw7l2T7qWGHdZ
+      - LAKEKEEPER_SCOPE=lakekeeper
+      - TRINO_LAKEKEEPER_CATALOG_NAME=lakekeeper
+      - LAKEKEEPER_LAKEKEEPER_WAREHOUSE=demo
+    image: openpolicyagent/opa:${LAKEKEEPER_OPA_VERSION:-1.0.0}
+    volumes:
+      - ./data/lakekeeper/access-control-advanced/authz/opa-bridge/policies:/policies
+  # Authorization backend for Lakekeeper
+  # https://docs.lakekeeper.io/docs/nightly/authorization/
+  lakekeeper-openfga:
+    command: run
+    depends_on:
+      lakekeeper-openfga-data:
+        condition: service_healthy
+      lakekeeper-openfga-migrate:
+        condition: service_completed_successfully
+    environment:
+      - OPENFGA_DATASTORE_ENGINE=postgres
+      - OPENFGA_DATASTORE_URI=postgres://postgres:postgres@lakekeeper-openfga-data:5432/postgres?sslmode=disable
+      - OPENFGA_DATASTORE_MAX_OPEN_CONNS=50
+      - OPENFGA_PLAYGROUND_ENABLED=false
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test:
+        - CMD
+        - /usr/local/bin/grpc_health_probe
+        - "-addr=lakekeeper-openfga:8081"
+        
+      timeout: 30s
+    image: openfga/openfga:${LAKEKEEPER_OPENFGA_VERSION:-v1.8}
+  # Lakekeeper OpenFGA database
+  lakekeeper-openfga-data:
+    environment:
+      - POSTGRESQL_USERNAME=postgres
+      - POSTGRESQL_PASSWORD=postgres
+      - POSTGRESQL_DATABASE=postgres
+    healthcheck:
+      interval: 2s
+      retries: 2
+      start_period: 10s
+      test: [CMD-SHELL, pg_isready -U postgres -p 5432 -d postgres]
+      timeout: 10s
+    image: bitnami/postgresql:17.4.0
+  # Lakekeeper OpenFGA database migration
+  lakekeeper-openfga-migrate:
+    command: migrate
+    depends_on:
+      lakekeeper-openfga-data:
+        condition: service_healthy
+    environment:
+      - OPENFGA_DATASTORE_ENGINE=postgres
+      - OPENFGA_DATASTORE_URI=postgres://postgres:postgres@lakekeeper-openfga-data:5432/postgres?sslmode=disable
+    image: openfga/openfga:${LAKEKEEPER_OPENFGA_VERSION:-v1.8}
+  # Lakekeeper-connected Trino with OAuth2 Authentication and OPA access control enabled
+  # https://docs.lakekeeper.io/docs/nightly/engines/#trino
+  # https://trino.io/docs/current/security/opa-access-control.html
+  lakekeeper-trino:
+    depends_on:
+      lakekeeper-opa:
+        condition: service_started
+    environment:
+      - OIDC_ISSUER=http://localhost:30080/realms/iceberg
+      - DISCOVERY_URI=http://lakekeeper-trino:8080
+      - OAUTH2_AUTH_URL=http://localhost:30080/realms/iceberg/protocol/openid-connect/auth
+      - OAUTH2_JWKS_URL=http://lakekeeper-keycloak:8080/realms/iceberg/protocol/openid-connect/certs
+      - OAUTH2_TOKEN_URL=http://lakekeeper-keycloak:8080/realms/iceberg/protocol/openid-connect/token
+      - OAUTH2_CLIENT_ID=trino
+      - OAUTH2_CLIENT_SECRET=AK48QgaKsqdEpP9PomRJw7l2T7qWGHdZ
+      - OAUTH2_SCOPES=trino
+      - INTERNAL_COMMUNICATION_SHARED_SECRET="MxeWYqiiD2vSFHm86T/jRr49PUYT3xRbVTlLwUTj7lSqt/wXqDb+d6r70yJz2MmmwOB8kV8tKnxfChyJFZk1FIhtgwlJZu18kExdZRnYQttKzeEGjsDyUMiX43cMWaHcqVVReuazfmg1EWwuwRhi40VawZKTiXh73k/02a/qVJDjWtQWcpTCj1+1OMity7zvrmLGO6XPpSqzY8YsZGuZKUDAbtjw2fifPTYThzSKDSiVPEeZQ0n7mpHylmvEyFxrZWtUWHRXIEJi2XbgBXsAOHyjwxbA2Uq0LIMXhaKHyQDoK4NGyGxV+is1BkCykBfq8IqGGty/HaOgBeEUWNEUugvqc10TyHTbSiGmbilY4bZJv+ol3wn1mtyMtkWF7v8tFCh8y0dyC7CPcXbZLg0FRDfe2ewjZgbt3/hxhmHHNrBOha/nUeUT44UqGPzf+xo8fGvcpo+0hxIxDPSSdEDMUrArfP5iebv2Esdp3+7WPFzvtpTxZIKz3FZdazd+iRaJ1pGDTFn8cTy5Owx1P8bsofFXegfoCqX2ShAXHVGNNkWo/Z66lofzQnRk+lO1b2cDybPj8LkukfMC0EgE7SdS7GXAfp3Yary82CPc38deFVffqLSFqGcVNPmiMTgJyauKZS/XjgtObK2ZvjGAwC7Mc9RsWr+xc75t768wvt5UIXo="
+      - OPA_POLICY_URI=http://lakekeeper-opa:8181/v1/data/trino/allow
+      - OPA_POLICY_BATCHED_URI=http://lakekeeper-opa:8181/v1/data/trino/batch
+    healthcheck:
+      interval: 2s
+      retries: 2
+      start_period: 10s
+      test: [CMD, curl, -I, "http://localhost:8080/v1/status"]
+      timeout: 10s
+    image: trinodb/trino:${LAKEKEEPER_TRINO_VERSION:-467}
+    ports:
+      - "8880:8080"
+    volumes:
+      - ./data/lakekeeper/access-control-advanced/trino/access-control.properties:/etc/trino/access-control.properties
+      - ./data/lakekeeper/access-control-advanced/trino/config.properties:/etc/trino/config.properties
+      - ./data/lakekeeper/access-control-advanced/trino/log.properties:/etc/trino/log.properties
+  # Lakekeeper Trino Proxy emulates a reverse proxy that secures the connection to the server.
+  # This is required as trino requires HTTPS in OAUTH2 settings.
+  lakekeeper-trino-proxy:
+    depends_on:
+      lakekeeper-trino:
+        condition: service_healthy
+    healthcheck:
+      interval: 1s
+      retries: 3
+      start_period: 3s    
+      test: [CMD, service, nginx, status]
+      timeout: 10s
+    image: nginx
+    ports:
+      - 443:443
+      - 38191:38191
+    volumes:
+      - ./data/lakekeeper/access-control-advanced/nginx.conf:/etc/nginx/nginx.conf
+      - ./data/lakekeeper/access-control-advanced/certs:/etc/nginx/certs
   logstash:
     container_name: logstash
     depends_on:
@@ -849,7 +1106,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:9600"]
       timeout: 5s
-    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-8.17.4}"
+    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-9.0.0}"
     ports:
       - "5044:5044"
       - "50000:50000/tcp"
@@ -867,7 +1124,7 @@ services:
       retries: 3
       test: [CMD-SHELL, "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
       timeout: 5s
-    image: "grafana/loki:${LOKI_VERSION:-2.9.13}"
+    image: "grafana/loki:${LOKI_VERSION:-2.9.14}"
     ports:
       - "${LOKI_PORT:-3100}:3100"
     volumes:
@@ -968,7 +1225,7 @@ services:
       retries: 5
       test: [CMD-SHELL, curl, --fail, -I, http://localhost:3000/api/health || exit 1]
       timeout: 5s
-    image: "metabase/metabase:${METABASE_VERSION:-v0.54.2}"
+    image: "metabase/metabase:${METABASE_VERSION:-v0.54.3}"
     ports:
       - "3000:3000"
     volumes:
@@ -984,7 +1241,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:9091/healthz"]
       timeout: 10s
-    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.4.0}"
+    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.5.10}"
     ports:
       - "${MILVUS_PORT:-19530}:19530"
       - "9091:9091"
@@ -1016,7 +1273,7 @@ services:
       retries: 3
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       timeout: 5s
-    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.11.1}"
+    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.21.3}"
     ports:
       - "${MLFLOW_PORT:-5000}:5000"
   mlflow-serve:
@@ -1042,7 +1299,7 @@ services:
       - mongodb-server
     environment:
       - "CONN_STR=mongodb://${MONGODB_USER:-user}:${MONGODB_PASSWORD:-password}@mongodb-server"
-    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.6-ubi8}"
+    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.8-ubi8}"
     volumes:
       - "./data/mongodb:/opt/app"
   mongodb-server:
@@ -1050,7 +1307,7 @@ services:
     environment:
       - "MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER:-user}"
       - "MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-password}"
-    image: "mongo:${MONGODB_VERSION:-8.0.6}"
+    image: "mongo:${MONGODB_VERSION:-8.0.8}"
     ports:
       - "27017:27017"
   mssql:
@@ -1076,7 +1333,7 @@ services:
         condition: service_healthy
     environment:
       - "MYSQL_PASSWORD=${MYSQL_PASSWORD:-root}"
-    image: "mysql:${MYSQL_VERSION:-9.2.0}"
+    image: "mysql:${MYSQL_VERSION:-9.3.0}"
     volumes:
       - "./data/mysql/init.sh:/tmp/scripts/init.sh"
       - "${MYSQL_DATA:-./data/mysql/data}:/tmp/data"
@@ -1089,7 +1346,7 @@ services:
       retries: 3
       test: [CMD, mysqladmin, ping, -h, localhost, -u, root, -p$$MYSQL_ROOT_PASSWORD]
       timeout: 5s
-    image: "mysql:${MYSQL_VERSION:-9.2.0}"
+    image: "mysql:${MYSQL_VERSION:-9.3.0}"
     ports:
       - "3306:3306"
   nats:
@@ -1100,7 +1357,7 @@ services:
       retries: 3
       test: [CMD, /bin/sh, -c, "curl -f http://localhost:8222/healthz"]
       timeout: 5s
-    image: "nats:${NATS_VERSION:-2.10.12}"
+    image: "nats:${NATS_VERSION:-2.11.1}"
     ports:
       - "${NATS_PORT:-4222}:4222"
       - "8222:8222"
@@ -1135,7 +1392,7 @@ services:
       start_period: 30s
       test: [CMD, curl, --fail, "http://localhost:8080/health"]
       timeout: 10s
-    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.6.8}"
+    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.6.9}"
     ports:
       - "8080:8080"
   openmetadata-server:
@@ -1154,7 +1411,7 @@ services:
       retries: 5
       test: [CMD, wget, -q, --spider,  "http://localhost:8586/healthcheck"]
       timeout: 5s
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.8}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.9}"
     ports:
       - "8585:8585"
       - "8586:8586"
@@ -1173,7 +1430,7 @@ services:
       - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
       - "ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}"
       - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.8}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.9}"
   opensearch:
     container_name: opensearch
     environment:
@@ -1201,7 +1458,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:8098/health/readiness"]
       timeout: 5s
-    image: "apachepinot/pinot:${PINOT_VERSION:-1.2.0}"
+    image: "apachepinot/pinot:${PINOT_VERSION:-1.3.0}"
     ports:
       - "8098:8098"
     restart: unless-stopped
@@ -1218,7 +1475,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:8099/health"]
       timeout: 5s
-    image: "apachepinot/pinot:${PINOT_VERSION:-1.2.0}"
+    image: "apachepinot/pinot:${PINOT_VERSION:-1.3.0}"
     ports:
       - "8099:8099"
     restart: unless-stopped
@@ -1235,7 +1492,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:9000/pinot-controller/admin"]
       timeout: 5s
-    image: "apachepinot/pinot:${PINOT_VERSION:-1.2.0}"
+    image: "apachepinot/pinot:${PINOT_VERSION:-1.3.0}"
     ports:
       - "9000:9000"
     restart: unless-stopped
@@ -1284,7 +1541,7 @@ services:
     entrypoint: [/opt/prefect/app/start_flows.sh]
     environment:
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.3.3-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.3.5-python3.11}"
     volumes:
       - "./data/prefect/flows:/root/flows"
       - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
@@ -1300,7 +1557,7 @@ services:
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
       - PREFECT_SERVER_API_HOST=0.0.0.0
       - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/prefect"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.3.3-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.3.5-python3.11}"
     ports:
       - "4200:4200"
     restart: always
@@ -1321,7 +1578,7 @@ services:
       retries: 3
       test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:9090/-/healthy"]
       timeout: 5s
-    image: "prom/prometheus:${PROMETHEUS_VERSION:-v2.50.1}"
+    image: "prom/prometheus:${PROMETHEUS_VERSION:-v3.3.0}"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
@@ -1334,7 +1591,7 @@ services:
       retries: 3
       test: [CMD, bin/pulsar-admin, brokers, healthcheck]
       timeout: 10s
-    image: "apachepulsar/pulsar:${PULSAR_VERSION:-3.3.6}"
+    image: "apachepulsar/pulsar:${PULSAR_VERSION:-4.0.4}"
     ports:
       - "${PULSAR_PORT:-6650}:6650"
       - "8080:8080"
@@ -1349,7 +1606,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:6333/health"]
       timeout: 5s
-    image: "qdrant/qdrant:${QDRANT_VERSION:-v1.8.2}"
+    image: "qdrant/qdrant:${QDRANT_VERSION:-v1.13.6}"
     ports:
       - "${QDRANT_PORT:-6333}:6333"
       - "6334:6334"
@@ -1364,7 +1621,7 @@ services:
       test: rabbitmq-diagnostics -q ping
       timeout: 30s
     hostname: my-rabbit
-    image: "rabbitmq:${RABBITMQ_VERSION:-4.0.8-management}"
+    image: "rabbitmq:${RABBITMQ_VERSION:-4.1.0-management}"
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -1608,7 +1865,7 @@ services:
       retries: 3
       test: [CMD, vault, status]
       timeout: 5s
-    image: "hashicorp/vault:${VAULT_VERSION:-1.15}"
+    image: "hashicorp/vault:${VAULT_VERSION:-1.19}"
     ports:
       - "${VAULT_PORT:-8200}:8200"
   weaviate:
@@ -1623,7 +1880,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:8080/v1/.well-known/ready"]
       timeout: 5s
-    image: "semitechnologies/weaviate:${WEAVIATE_VERSION:-1.24.5}"
+    image: "semitechnologies/weaviate:${WEAVIATE_VERSION:-1.30.1}"
     ports:
       - "${WEAVIATE_PORT:-8080}:8080"
   zookeeper:
