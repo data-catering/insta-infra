@@ -265,7 +265,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.10}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.11}"
     ports:
       - "3000:3000"
     volumes:
@@ -1369,7 +1369,7 @@ services:
       start_period: 30s
       test: [CMD, curl, --fail, "http://localhost:8080/health"]
       timeout: 10s
-    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.6.9}"
+    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.7.0}"
     ports:
       - "8080:8080"
   openmetadata-server:
@@ -1388,7 +1388,7 @@ services:
       retries: 5
       test: [CMD, wget, -q, --spider,  "http://localhost:8586/healthcheck"]
       timeout: 5s
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.9}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.7.0}"
     ports:
       - "8585:8585"
       - "8586:8586"
@@ -1407,7 +1407,7 @@ services:
       - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
       - "ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}"
       - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.6.9}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.7.0}"
   opensearch:
     container_name: opensearch
     environment:
