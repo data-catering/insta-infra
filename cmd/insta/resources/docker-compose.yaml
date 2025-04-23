@@ -766,13 +766,7 @@ services:
       - KC_REALM_NAME=myrealm
       - "KEYCLOAK_ADMIN=${KEYCLOAK_USER:-admin}"
       - "KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_PASSWORD:-admin}"
-    healthcheck:
-      interval: 2s
-      retries: 2
-      start_period: 60s
-      test: [CMD-SHELL, 'exec 3<>/dev/tcp/127.0.0.1/8080;echo -e "GET /realms/master/.well-known/openid-configuration HTTP/1.1\r\nhost: 127.0.0.1:8080\r\nConnection: close\r\n\r\n" >&3;grep "jwks_uri"  <&3']
-      timeout: 10s
-    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.2.0}"
+    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.2.1}"
     ports:
       - "8082:8080"
     restart: unless-stopped
