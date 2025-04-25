@@ -16,7 +16,7 @@ env := opa.runtime().env
 #       Used to reference this project in the query engine mappings below.
 # - lakekeeper_url: The URL where OPA can reach the Lakekeeper instance.
 # - idp_token_endpoint: The URL of the token endpoint of the identity provider. 
-#       Example: http://localhost:30080/realms/iceberg/protocol/openid-connect/token
+#       Example: http://localhost:8082/realms/myrealm/protocol/openid-connect/token
 # - client_id: The client ID used for authentication with the IdP (Client Credentials Flow)
 # - client_secret: The client secret used for authentication with the IdP (Client Credentials Flow)
 # - scope: The scope specified in the client credentials flow

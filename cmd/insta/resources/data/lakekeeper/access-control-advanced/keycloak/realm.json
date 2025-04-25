@@ -1,6 +1,6 @@
 {
   "id" : "3cbd4538-206e-4310-8846-ae9d9ba63d28",
-  "realm" : "iceberg",
+  "realm" : "myrealm",
   "displayName" : "",
   "displayNameHtml" : "",
   "notBefore" : 0,
@@ -256,15 +256,6 @@
       "admin-cli" : [ ],
       "starrocks" : [ ],
       "account-console" : [ ],
-      "broker" : [ {
-        "id" : "890b5d3d-b5e6-45e1-a2ef-302ea1b210a8",
-        "name" : "read-token",
-        "description" : "${role_read-token}",
-        "composite" : false,
-        "clientRole" : true,
-        "containerId" : "88da40ac-1d76-4365-985b-5cfb1bd3a3a2",
-        "attributes" : { }
-      } ],
       "account" : [ {
         "id" : "540ee9d3-2188-423a-8ccb-d8b0729cff9b",
         "name" : "view-profile",
@@ -484,6 +475,21 @@
     "realmRoles" : [ "default-roles-iceberg" ],
     "notBefore" : 0,
     "groups" : [ ]
+  }, {
+    "id": "airflow_devops",
+    "email": "devops@airflow.com",
+    "username": "airflow_devops",
+    "firstName": "DevOps",
+    "lastName": "SRE",
+    "enabled": true,
+    "emailVerified": true,
+    "credentials": [
+      {
+        "temporary": false,
+        "type": "password",
+        "value": "admin"
+      }
+    ]
   } ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
@@ -1100,6 +1106,21 @@
     } ],
     "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "basic", "email" ],
     "optionalClientScopes" : [ "lakekeeper", "address", "trino", "phone", "offline_access", "sign", "microprofile-jwt" ]
+  }, {
+    "id": "airflow",
+    "clientId": "airflow",
+    "name": "airflow",
+    "enabled": true,
+    "publicClient": true,
+    "rootUrl": "http://airflow:8080",
+    "adminUrl": "http://airflow:8080",
+    "baseUrl": "http://airflow:8080",
+    "redirectUris": [
+      "http://airflow:8080/*"
+    ],
+    "webOrigins": [
+      "http://airflow:8080"
+    ]
   } ],
   "clientScopes" : [ {
     "id" : "016928d2-6587-4e9a-8465-e5e889aa1c98",

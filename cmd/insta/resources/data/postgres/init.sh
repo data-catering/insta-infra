@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 count=0
 total=0
 

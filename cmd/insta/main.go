@@ -32,13 +32,10 @@ const (
 	colorReset  = "\033[0m"
 )
 
-// Default data directory for persisted data
-const defaultDataDir = "~/.insta/data"
-
 type App struct {
-	dataDir    string
-	instaDir   string
-	runtime    container.Runtime
+	dataDir  string
+	instaDir string
+	runtime  container.Runtime
 }
 
 func NewApp(runtimeName string) (*App, error) {
@@ -123,9 +120,9 @@ For Podman:
 	}
 
 	return &App{
-		dataDir:    dataDir,
-		instaDir:   instaDir,
-		runtime:    provider.SelectedRuntime(),
+		dataDir:  dataDir,
+		instaDir: instaDir,
+		runtime:  provider.SelectedRuntime(),
 	}, nil
 }
 
@@ -175,7 +172,7 @@ func extractDataFiles(tempDir string, embedFS embed.FS) error {
 			return fmt.Errorf("failed to create directory %s: %w", targetDir, err)
 		}
 
-		if err := os.WriteFile(targetFile, content, 0644); err != nil {
+		if err := os.WriteFile(targetFile, content, 0755); err != nil {
 			return fmt.Errorf("failed to write file %s: %w", targetFile, err)
 		}
 
@@ -243,22 +240,22 @@ func (a *App) startServices(services []string, persist bool) error {
 
 	// Get the expanded list of services including recursive dependencies
 	expandedServices := make(map[string]bool)
-	
+
 	// Function to recursively collect dependencies
 	var collectDependencies func(service string) error
 	collectDependencies = func(service string) error {
 		if expandedServices[service] {
 			return nil // Already processed this service
 		}
-		
+
 		expandedServices[service] = true
-		
+
 		// Get dependencies for this service
 		deps, err := a.runtime.GetDependencies(service, composeFiles)
 		if err != nil {
 			return fmt.Errorf("failed to get dependencies for %s: %w", service, err)
 		}
-		
+
 		// Recursively process each dependency
 		for _, dep := range deps {
 			if err := collectDependencies(dep); err != nil {
@@ -266,10 +263,10 @@ func (a *App) startServices(services []string, persist bool) error {
 				fmt.Printf("%sWarning: %v%s\n", colorYellow, err, colorReset)
 			}
 		}
-		
+
 		return nil
 	}
-	
+
 	// Process each requested service
 	for _, service := range services {
 		if err := collectDependencies(service); err != nil {
@@ -301,16 +298,23 @@ func (a *App) startServices(services []string, persist bool) error {
 		if err != nil || len(portMappings) == 0 {
 			continue
 		}
-		
-		// Use the first port mapping
-		portInfo := "N/A"
-		for _, hostPort := range portMappings {
-			portInfo = hostPort
-			break
+
+		// Use the first port mapping found
+		var hostPort, containerPort string = "N/A", "N/A"
+		for cPort, hPort := range portMappings {
+			// Extract container port number (e.g., "5432/tcp" -> "5432")
+			parts := strings.Split(cPort, "/")
+			if len(parts) > 0 {
+				containerPort = parts[0]
+			} else {
+				containerPort = cPort // Fallback if no '/'
+			}
+			hostPort = hPort
+			break // Use the first mapping
 		}
-		
+
 		servicesDisplayed = true
-		
+
 		if service, exists := Services[serviceName]; exists {
 			// Get username and password, defaulting to empty string if not set
 			username := ""
@@ -325,9 +329,9 @@ func (a *App) startServices(services []string, persist bool) error {
 			fmt.Printf("%s│ %-23s │ %-28s │ %-20s │ %-28s │ %-10s │ %-10s │%s\n",
 				colorYellow,
 				serviceName,
-				fmt.Sprintf("%s:%s", serviceName, portInfo),
-				fmt.Sprintf("localhost:%s", portInfo),
-				fmt.Sprintf("host.docker.internal:%s", portInfo),
+				fmt.Sprintf("%s:%s", serviceName, containerPort),
+				fmt.Sprintf("localhost:%s", hostPort),
+				fmt.Sprintf("host.docker.internal:%s", hostPort),
 				username,
 				password,
 				colorReset)
@@ -336,9 +340,9 @@ func (a *App) startServices(services []string, persist bool) error {
 			fmt.Printf("%s│ %-23s │ %-28s │ %-20s │ %-28s │ %-10s │ %-10s │%s\n",
 				colorYellow,
 				serviceName,
-				fmt.Sprintf("%s:%s", serviceName, portInfo),
-				fmt.Sprintf("localhost:%s", portInfo),
-				fmt.Sprintf("host.docker.internal:%s", portInfo),
+				fmt.Sprintf("%s:%s", serviceName, containerPort),
+				fmt.Sprintf("localhost:%s", hostPort),
+				fmt.Sprintf("host.docker.internal:%s", hostPort),
 				"N/A",
 				"N/A",
 				colorReset)

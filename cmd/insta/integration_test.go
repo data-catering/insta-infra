@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -267,5 +268,58 @@ func TestErrorHandling(t *testing.T) {
 				t.Errorf("command %v should have failed: %v", tt.command, err)
 			}
 		})
+	}
+}
+
+// TestIntegration_KeycloakConnectionTable verifies the connection info table output for keycloak.
+func TestIntegration_KeycloakConnectionTable(t *testing.T) {
+	checkContainerRuntime(t)
+
+	// Build binary if it doesn't exist
+	binaryPath := buildBinary(t)
+	defer os.Remove(binaryPath)
+
+	// Clean up before test
+	cleanup(t, binaryPath)
+
+	// Start keycloak and capture output
+	cmd := exec.Command(binaryPath, "keycloak")
+	cmd.Env = append(os.Environ(), "TESTING=true")
+	// Use CombinedOutput to capture stdout and stderr
+	outputBytes, err := cmd.CombinedOutput()
+	output := string(outputBytes)
+	if err != nil {
+		t.Fatalf("failed to start keycloak: %v\nOutput:\n%s", err, output)
+	}
+
+	// --- Assertions ---
+	// Check for table header and footer presence
+	if !strings.Contains(output, "Connection Information Table") {
+		t.Errorf("Output missing table header. Got:\n%s", output)
+	}
+	if !strings.Contains(output, "└─────") { // Check for part of the footer
+		t.Errorf("Output missing table footer. Got:\n%s", output)
+	}
+
+	// Define expected connection details
+	expectedLines := []string{
+		"│ keycloak                │ keycloak:8082                │ localhost:8082       │ host.docker.internal:8082    │ admin      │ admin      │",
+		"│ postgres                │ postgres:5432                │ localhost:5432       │ host.docker.internal:5432    │ postgres   │ postgres   │",
+	}
+
+	// Check if each expected line is present in the output
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(output, expectedLine) {
+			t.Errorf("Output does not contain expected connection info line.\nExpected:\n%s\nGot:\n%s", expectedLine, output)
+		}
+	}
+
+	// Stop the service
+	cmd = exec.Command(binaryPath, "-d")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "TESTING=true")
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to stop keycloak and postgres: %v", err)
 	}
 }

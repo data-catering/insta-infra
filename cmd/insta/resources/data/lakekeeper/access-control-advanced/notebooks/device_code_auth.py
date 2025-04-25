@@ -7,7 +7,7 @@ def authenticate_device_flow_with_pkce(
     polling_interval: int = 5,
     # Only required because we are in docker and the users's browser
     # reaches keycloak under a different hostname than the server
-    endpoint_rewrite: dict = {"lakekeeper-keycloak:8080": "localhost:30080"},
+    endpoint_rewrite: dict = {"keycloak:8080": "localhost:8082"},
 ):
     """
     Authenticate using OAuth 2.0 Device Authorization Grant with PKCE.
@@ -117,8 +117,8 @@ def authenticate_device_flow_with_pkce(
 
 if __name__ == "__main__":
     authenticate_device_flow_with_pkce(
-        token_endpoint="http://lakekeeper-keycloak:8080/realms/iceberg/protocol/openid-connect/token",
-        device_endpoint="http://lakekeeper-keycloak:8080/realms/iceberg/protocol/openid-connect/auth/device",
+        token_endpoint="http://keycloak:8080/realms/myrealm/protocol/openid-connect/token",
+        device_endpoint="http://keycloak:8080/realms/myrealm/protocol/openid-connect/auth/device",
         client_id="lakekeeper",
         scope="lakekeeper",
     )
