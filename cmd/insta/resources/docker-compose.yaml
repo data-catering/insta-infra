@@ -19,7 +19,7 @@ services:
     depends_on:
       airflow-init:
         condition: service_completed_successfully
-    env_file: "./data/airflow/.env"
+    env_file: ./data/airflow/.env
     healthcheck:
       interval: 30s
       retries: 5
@@ -35,13 +35,13 @@ services:
       - "./data/airflow/dags:/opt/airflow/dags"
       - "./data/airflow/passwords.json:/opt/airflow/passwords.json"
   airflow-init:
-    command: ["-c", "/tmp/scripts/init.sh"]
+    command: [-c, /tmp/scripts/init.sh]
     container_name: airflow-init
     depends_on:
       postgres:
         condition: service_completed_successfully
     entrypoint: /bin/bash
-    env_file: "./data/airflow/.env"
+    env_file: ./data/airflow/.env
     image: "apache/airflow:${AIRFLOW_VERSION:-3.0.0}"
     user: "0:0"
     volumes:
@@ -335,7 +335,7 @@ services:
     container_name: debezium-connect
     depends_on:
       - kafka
-    env_file: "./data/debezium/.env"
+    env_file: ./data/debezium/.env
     healthcheck:
       interval: 10s
       retries: 3
@@ -484,7 +484,7 @@ services:
       elasticsearch-server:
         condition: service_healthy
     entrypoint: /tmp/entrypoint.sh
-    env_file: "./data/elasticsearch/.env"
+    env_file: ./data/elasticsearch/.env
     image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.0.0}"
     volumes:
       - "./data/elasticsearch/data/entrypoint.sh:/tmp/entrypoint.sh"
@@ -492,7 +492,7 @@ services:
       - "./data/elasticsearch/data/roles:/tmp/roles"
   elasticsearch-server:
     container_name: elasticsearch
-    env_file: "./data/elasticsearch/.env"
+    env_file: ./data/elasticsearch/.env
     healthcheck:
       interval: 10s
       retries: 5
@@ -576,7 +576,7 @@ services:
       - "./data/fluentd/etc/fluent.conf:/fluentd/etc/fluent.conf"
   grafana:
     container_name: grafana
-    env_file: "./data/grafana/.env"
+    env_file: ./data/grafana/.env
     healthcheck:
       interval: 10s
       retries: 3
@@ -680,7 +680,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    env_file: "./data/keycloak/.env"
+    env_file: ./data/keycloak/.env
     image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.2.1}"
     ports:
       - "8082:8080"
@@ -714,7 +714,7 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_completed_successfully
-    env_file: "./data/kong/.env"
+    env_file: ./data/kong/.env
     healthcheck:
       interval: 10s
       retries: 5
@@ -734,7 +734,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    env_file: "./data/kong/.env"
+    env_file: ./data/kong/.env
     image: "kong:${KONG_VERSION:-3.9.0}"
   lakekeeper:
     command: [serve]
@@ -744,7 +744,7 @@ services:
         condition: service_completed_successfully
       lakekeeper-migrate:
         condition: service_completed_successfully
-    env_file: "./data/lakekeeper/base/.env"
+    env_file: ./data/lakekeeper/base/.env
     healthcheck:
       interval: 1s
       retries: 3
@@ -952,7 +952,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    env_file: "./data/marquez/.env"
+    env_file: ./data/marquez/.env
     healthcheck:
       interval: 10s
       retries: 3
@@ -969,7 +969,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    env_file: "./data/metabase/.env"
+    env_file: ./data/metabase/.env
     healthcheck:
       interval: 15s
       retries: 5
@@ -1393,7 +1393,7 @@ services:
         condition: service_healthy
       prometheus:
         condition: service_healthy
-    env_file: "./data/ray/.env"
+    env_file: ./data/ray/.env
     healthcheck:
       interval: 5s
       retries: 3
@@ -1420,7 +1420,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: "./data/redash/.env"
+    env_file: ./data/redash/.env
     healthcheck:
       interval: 5s
       retries: 5
@@ -1430,7 +1430,7 @@ services:
   redash-data:
     command: [/app/bin/docker-entrypoint, create_db]
     container_name: redash-data
-    env_file: "./data/redash/.env"
+    env_file: ./data/redash/.env
     image: "redash/redash:${REDASH_VERSION:-10.1.0.b50633}"
   redash-server:
     command: server
@@ -1438,7 +1438,7 @@ services:
     depends_on:
       redash-data:
         condition: service_completed_successfully
-    env_file: "./data/redash/.env"
+    env_file: ./data/redash/.env
     healthcheck:
       interval: 5s
       retries: 5
