@@ -1437,7 +1437,7 @@ services:
   presto:
     command: [/opt/presto-server/bin/launcher, run]
     container_name: presto
-    image: "ahanaio/prestodb:${PRESTO_VERSION:-0.283}"
+    image: "ahanaio/prestodb:${PRESTO_VERSION:-0.284}"
     ports:
       - "8083:8080"
     volumes:
