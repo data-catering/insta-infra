@@ -1152,7 +1152,7 @@ services:
       retries: 3
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       timeout: 5s
-    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.11.1}"
+    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.22.0}"
     ports:
       - "${MLFLOW_SERVE_PORT:-5001}:5001"
   mongodb:
