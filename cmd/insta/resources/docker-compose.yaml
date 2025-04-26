@@ -859,7 +859,6 @@ services:
     image: quay.io/lakekeeper/catalog:${LAKEKEEPER_IMAGE:-latest-main}
     ports:
       - "8183:8181"
-    pull_policy: if_not_present
   lakekeeper-jupyter:
     command: start-notebook.sh --NotebookApp.token=''
     container_name: lakekeeper-jupyter
@@ -913,10 +912,7 @@ services:
     healthcheck:
       interval: 5s
       retries: 3
-      test:
-        - CMD
-        - /usr/local/bin/grpc_health_probe
-        - "-addr=lakekeeper-openfga:8081"
+      test: [CMD, /usr/local/bin/grpc_health_probe, "-addr=lakekeeper-openfga:8081"]
       timeout: 30s
     image: openfga/openfga:${LAKEKEEPER_OPENFGA_VERSION:-v1.8}
   lakekeeper-openfga-migrate:

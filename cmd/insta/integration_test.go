@@ -303,7 +303,7 @@ func TestIntegration_KeycloakConnectionTable(t *testing.T) {
 
 	// Define expected connection details
 	expectedLines := []string{
-		"│ keycloak                │ keycloak:8082                │ localhost:8082       │ host.docker.internal:8082    │ admin      │ admin      │",
+		"│ keycloak                │ keycloak:8080                │ localhost:8082       │ host.docker.internal:8082    │ admin      │ admin      │",
 		"│ postgres                │ postgres:5432                │ localhost:5432       │ host.docker.internal:5432    │ postgres   │ postgres   │",
 	}
 
