@@ -843,7 +843,7 @@ services:
         condition: service_completed_successfully
       lakekeeper-migrate:
         condition: service_completed_successfully
-    env_file: "./data/lakekeeper/base/.env"
+    env_file: ./data/lakekeeper/base/.env
     healthcheck:
       interval: 1s
       retries: 3
@@ -892,7 +892,7 @@ services:
       lakekeeper-openfga:
         condition: service_healthy
     entrypoint: [/home/nonroot/iceberg-catalog, migrate]
-    env_file: "./data/lakekeeper/migrate/.env"
+    env_file: ./data/lakekeeper/migrate/.env
     image: quay.io/lakekeeper/catalog:${LAKEKEEPER_IMAGE_VERSION:-latest-main}
     pull_policy: if_not_present
     restart: no
@@ -902,7 +902,7 @@ services:
     depends_on:
       lakekeeper-openfga-migrate:
         condition: service_completed_successfully
-    env_file: "./data/lakekeeper/access-control-advanced/openfga/.env"
+    env_file: ./data/lakekeeper/access-control-advanced/openfga/.env
     healthcheck:
       interval: 5s
       retries: 3
@@ -924,7 +924,7 @@ services:
     depends_on:
       opa:
         condition: service_started
-    env_file: "./data/lakekeeper/access-control-advanced/trino/.env"
+    env_file: ./data/lakekeeper/access-control-advanced/trino/.env
     healthcheck:
       interval: 2s
       retries: 2
@@ -1134,7 +1134,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       timeout: 5s
     image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.22.0}"
     ports:
@@ -1150,7 +1150,7 @@ services:
     healthcheck:
       interval: 10s
       retries: 3
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       timeout: 5s
     image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.11.1}"
     ports:
@@ -1243,7 +1243,7 @@ services:
     depends_on:
       lakekeeper:
         condition: service_healthy
-    env_file: "./data/opa/.env"
+    env_file: ./data/opa/.env
     image: openpolicyagent/opa:${LAKEKEEPER_OPA_VERSION:-1.0.0}
     volumes:
       - ./data/opa/policies:/policies
