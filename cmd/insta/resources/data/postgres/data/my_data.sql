@@ -57,3 +57,4 @@ CREATE DATABASE superset_examples;
 CREATE DATABASE metabase;
 CREATE DATABASE redash;
 CREATE DATABASE blazer;
+CREATE DATABASE lakekeeper;

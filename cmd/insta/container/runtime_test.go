@@ -15,12 +15,16 @@ type MockRuntime struct {
 	execCalled        bool
 	lastServices      []string
 	lastCmd           string
+	portMappings      map[string]string
+	dependencies      []string
 }
 
 func NewMockRuntime(name string, available bool) *MockRuntime {
 	return &MockRuntime{
-		name:      name,
-		available: available,
+		name:         name,
+		available:    available,
+		portMappings: make(map[string]string),
+		dependencies: []string{},
 	}
 }
 
@@ -51,6 +55,21 @@ func (m *MockRuntime) ExecInContainer(containerName string, cmd string, interact
 	m.execCalled = true
 	m.lastCmd = cmd
 	return nil
+}
+
+func (m *MockRuntime) GetPortMappings(containerName string) (map[string]string, error) {
+	// Only return port mappings for specific containers
+	switch containerName {
+	case "postgres", "mysql":
+		return m.portMappings, nil
+	default:
+		// Return empty map for services without ports
+		return map[string]string{}, nil
+	}
+}
+
+func (m *MockRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
+	return m.dependencies, nil
 }
 
 func TestNewProvider(t *testing.T) {
@@ -135,6 +154,9 @@ func TestDockerCheckAvailable(t *testing.T) {
 func TestDockerComposeOperations(t *testing.T) {
 	// Use mock runtime for compose operations
 	mock := NewMockRuntime("docker", true)
+	
+	// Add port mappings for testing
+	mock.portMappings["5432/tcp"] = "5432"
 
 	// Test ComposeUp
 	err := mock.ComposeUp([]string{"docker-compose.yaml"}, []string{"service1"}, false)

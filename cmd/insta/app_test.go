@@ -10,7 +10,6 @@ import (
 // MockRuntime for testing App
 type MockRuntime struct {
 	name              string
-	available         bool
 	composeUpCalled   bool
 	composeDownCalled bool
 	execCalled        bool
@@ -18,6 +17,16 @@ type MockRuntime struct {
 	services          []string
 	lastContainer     string
 	lastCmd           string
+	portMappings      map[string]map[string]string // Map service name to its port mappings
+	dependencies      map[string][]string          // Map service name to its dependencies
+}
+
+func NewMockRuntime() *MockRuntime {
+	return &MockRuntime{
+		name:         "mock-runtime",
+		portMappings: make(map[string]map[string]string),
+		dependencies: make(map[string][]string),
+	}
 }
 
 func (m *MockRuntime) Name() string {
@@ -49,6 +58,21 @@ func (m *MockRuntime) ExecInContainer(containerName string, cmd string, interact
 	return nil
 }
 
+func (m *MockRuntime) GetPortMappings(containerName string) (map[string]string, error) {
+	if mappings, ok := m.portMappings[containerName]; ok {
+		return mappings, nil
+	}
+	// Return empty map for services without specific mappings or ports
+	return map[string]string{}, nil
+}
+
+func (m *MockRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
+	if deps, ok := m.dependencies[service]; ok {
+		return deps, nil
+	}
+	return []string{}, nil
+}
+
 func TestAppWithMockRuntime(t *testing.T) {
 	// Create a temporary directory
 	tempDir, err := os.MkdirTemp("", "app-test-*")
@@ -58,7 +82,12 @@ func TestAppWithMockRuntime(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Setup App with mock runtime
-	mockRuntime := &MockRuntime{name: "mock-runtime"}
+	mockRuntime := NewMockRuntime()
+
+	// Add some port mappings to the mock runtime
+	mockRuntime.portMappings["postgres"] = map[string]string{"5432/tcp": "5432"}
+	mockRuntime.portMappings["mysql"] = map[string]string{"3306/tcp": "3306"} // Example for mysql
+
 	app := &App{
 		dataDir:  filepath.Join(tempDir, "data"),
 		instaDir: tempDir,
@@ -67,6 +96,10 @@ func TestAppWithMockRuntime(t *testing.T) {
 
 	// Test starting services
 	t.Run("start services", func(t *testing.T) {
+		// Clear existing mock data for this subtest if needed
+		mockRuntime.composeUpCalled = false
+		mockRuntime.services = nil
+
 		err := app.startServices([]string{"postgres", "mysql"}, false)
 		if err != nil {
 			t.Errorf("startServices failed: %v", err)
