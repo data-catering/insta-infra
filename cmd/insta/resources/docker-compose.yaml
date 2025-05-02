@@ -1049,7 +1049,7 @@ services:
       - mongodb-server
     environment:
       - "CONN_STR=mongodb://${MONGODB_USER:-user}:${MONGODB_PASSWORD:-password}@mongodb-server"
-    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.8-ubi8}"
+    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.9-ubi8}"
     volumes:
       - "./data/mongodb:/opt/app"
   mongodb-server:
