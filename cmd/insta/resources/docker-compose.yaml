@@ -215,7 +215,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.13}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.14}"
     ports:
       - "3000:3000"
     volumes:
