@@ -1,3 +1,4 @@
+#!/bin/bash
 count=0
 total=0
 

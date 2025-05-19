@@ -2,6 +2,9 @@ services:
   activemq:
     volumes:
       - "./data/activemq/persist:/var/lib/artemis-instance"
+  argilla:
+    volumes:
+      - "./data/argilla/persist:/var/lib/argilla"
   cassandra-server:
     volumes:
       - "./data/cassandra/persist:/var/lib/cassandra"
@@ -11,9 +14,23 @@ services:
   cockroachdb:
     volumes:
       - "./data/cockroachdb/persist:/cockroach/cockroach-data"
+  cvat:
+    volumes:
+      - "./data/cvat/data:/home/django/data"
+      - "./data/cvat/keys:/home/django/keys"
+      - "./data/cvat/logs:/home/django/logs"
+      - "./data/cvat/models:/home/django/models"
+      - "./data/cvat/share:/mnt/share:ro"
+
   dagster:
     volumes:
       - "./data/dagster/persist:/opt/dagster/dagster_home/"
+  doccano:
+    volumes:
+      - "./data/doccano/persist/appdata:/data"
+      - "./data/doccano/persist/staticfiles:/backend/staticfiles"
+      - "./data/doccano/persist/media:/backend/media"
+      - "./data/doccano/persist/filepond-temp-uploads:/backend/filepond-temp-uploads"
   druid:
     volumes:
       - "./data/druid/persist/router_var:/opt/druid/var"
@@ -57,6 +74,9 @@ services:
     volumes:
       - "./data/kafka/persist/data:/var/lib/kafka/data"
       - "./data/kafka/persist/etc:/etc/kafka"
+  label-studio:
+    volumes:
+      - "./data/label-studio/persist:/label-studio/data"
   lakekeeper-jupyter:
     volumes:
       - "./data/lakekeeper-jupyter/persist:/home/jovyan/work"
@@ -152,3 +172,11 @@ services:
   weaviate:
     volumes:
       - "./data/weaviate/persist:/var/lib/weaviate"
+  zookeeper:
+    volumes:
+      - "./data/zookeeper:/data"
+      - "./data/zookeeper/datalog:/datalog"
+# Note: cvat-proxy can also have persistent logs if uncommented in the main docker-compose.yaml
+# cvat-proxy:
+#   volumes:
+#     - "./data/cvat/proxy/logs:/var/log/nginx"

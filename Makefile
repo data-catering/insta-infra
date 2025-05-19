@@ -46,7 +46,20 @@ vet:
 	go vet ./...
 
 fmt:
+	@echo "Running go fmt..."
 	go fmt ./...
+	@echo "Checking for npm..."
+	@if ! command -v npm > /dev/null; then \
+		echo "npm is not installed. Skipping YAML formatting."; \
+	else \
+		echo "Installing ESLint and YAML plugin (if not already installed or for updates)..."; \
+		npm install eslint @eslint/js eslint-plugin-yml; \
+		echo "Formatting cmd/insta/resources/docker-compose.yaml..."; \
+		npx eslint cmd/insta/resources/docker-compose.yaml --fix || true; \
+		echo "Formatting cmd/insta/resources/docker-compose-persist.yaml..."; \
+		npx eslint cmd/insta/resources/docker-compose-persist.yaml --fix || true; \
+		echo "YAML formatting complete."; \
+	fi
 
 packages:
 	@chmod +x scripts/packaging.sh

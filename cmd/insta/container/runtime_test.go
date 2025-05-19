@@ -1,30 +1,34 @@
 package container
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"testing"
 )
 
-// MockRuntime implements Runtime interface for testing
+// MockRuntime implements Runtime interface for testing.
+// This MockRuntime is specific to tests in this file (runtime_test.go).
 type MockRuntime struct {
-	available         bool
 	name              string
+	available         bool
 	composeUpCalled   bool
 	composeDownCalled bool
 	execCalled        bool
 	lastServices      []string
 	lastCmd           string
-	portMappings      map[string]string
-	dependencies      []string
+	portMappings      map[string]string // Simplified: direct map for tests in this package
+	dependencies      []string          // Simplified for tests in this package
+	containerNames    map[string]string // For GetContainerName mock
 }
 
 func NewMockRuntime(name string, available bool) *MockRuntime {
 	return &MockRuntime{
-		name:         name,
-		available:    available,
-		portMappings: make(map[string]string),
-		dependencies: []string{},
+		name:           name,
+		available:      available,
+		portMappings:   make(map[string]string),
+		dependencies:   []string{},
+		containerNames: make(map[string]string),
 	}
 }
 
@@ -58,19 +62,28 @@ func (m *MockRuntime) ExecInContainer(containerName string, cmd string, interact
 }
 
 func (m *MockRuntime) GetPortMappings(containerName string) (map[string]string, error) {
-	// Only return port mappings for specific containers
-	switch containerName {
-	case "postgres", "mysql":
+	if m.portMappings != nil {
+		// For this mock, we return all portMappings if set, regardless of containerName.
+		// For more specific tests, one could check containerName or make portMappings a map[string]map[string]string.
 		return m.portMappings, nil
-	default:
-		// Return empty map for services without ports
-		return map[string]string{}, nil
 	}
+	return map[string]string{}, nil
 }
 
 func (m *MockRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
+	// This mock returns all dependencies regardless of the service name, as per its simplified structure.
 	return m.dependencies, nil
 }
+
+func (m *MockRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
+	if cn, ok := m.containerNames[serviceName]; ok && cn != "" {
+		return cn, nil
+	}
+	return fmt.Sprintf("mock_%s_1", serviceName), nil // Default for this mock
+}
+
+// Removed MockRuntime struct definition and its methods (Name, CheckAvailable, ComposeUp, ComposeDown, ExecInContainer, GetPortMappings, GetDependencies)
+// Tests will now use the MockRuntime defined above in this file.
 
 func TestNewProvider(t *testing.T) {
 	provider := NewProvider()
@@ -154,7 +167,7 @@ func TestDockerCheckAvailable(t *testing.T) {
 func TestDockerComposeOperations(t *testing.T) {
 	// Use mock runtime for compose operations
 	mock := NewMockRuntime("docker", true)
-	
+
 	// Add port mappings for testing
 	mock.portMappings["5432/tcp"] = "5432"
 

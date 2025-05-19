@@ -29,6 +29,13 @@ var Services = map[string]Service{
 		Name:          "amundsen",
 		ConnectionCmd: "bash",
 	},
+	"argilla": {
+		Name:             "argilla",
+		ConnectionCmd:    "bash",
+		DefaultUser:      "argilla",
+		DefaultPassword:  "12345678",
+		RequiresPassword: true,
+	},
 	"blazer": {
 		Name:          "blazer",
 		ConnectionCmd: "bash",
@@ -45,6 +52,13 @@ var Services = map[string]Service{
 		Name:          "cockroachdb",
 		ConnectionCmd: "./cockroach sql --insecure",
 	},
+	"cvat": {
+		Name:             "cvat",
+		ConnectionCmd:    "bash",
+		DefaultUser:      "admin",
+		DefaultPassword:  "admin",
+		RequiresPassword: true,
+	},
 	"datahub": {
 		Name:             "datahub",
 		ConnectionCmd:    "bash",
@@ -53,6 +67,13 @@ var Services = map[string]Service{
 	"debezium": {
 		Name:          "debezium",
 		ConnectionCmd: "bash",
+	},
+	"doccano": {
+		Name:             "doccano",
+		ConnectionCmd:    "bash",
+		DefaultUser:      "admin",
+		DefaultPassword:  "admin",
+		RequiresPassword: true,
 	},
 	"doris": {
 		Name:          "doris",
@@ -144,6 +165,10 @@ var Services = map[string]Service{
 	},
 	"kong": {
 		Name:          "kong",
+		ConnectionCmd: "bash",
+	},
+	"label-studio": {
+		Name:          "label-studio",
 		ConnectionCmd: "bash",
 	},
 	"lakekeeper": {

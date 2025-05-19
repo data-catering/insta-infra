@@ -82,13 +82,28 @@ For Podman:
 		return nil, fmt.Errorf("failed to create insta directory: %w", err)
 	}
 
-	// Data directory is always relative to insta directory
-	dataDir := filepath.Join(instaDir, "data")
+	versionFilePath := filepath.Join(instaDir, ".version_synced")
+	var syncedVersionBytes []byte
+	syncedVersionBytes, readErr := os.ReadFile(versionFilePath)
 
-	// Check if docker-compose.yaml exists
-	composePath := filepath.Join(instaDir, "docker-compose.yaml")
-	if _, err := os.Stat(composePath); os.IsNotExist(err) {
-		// Extract docker-compose.yaml only if it doesn't exist
+	needsSync := false
+	if readErr != nil { // Error reading (e.g., doesn't exist, permission issue)
+		needsSync = true
+		if !os.IsNotExist(readErr) {
+			// Log if it's an unexpected error other than file not existing
+			fmt.Fprintf(os.Stderr, "%sWarning: failed to read version sync marker '%s': %v%s\n", colorYellow, versionFilePath, readErr, colorReset)
+		}
+	} else {
+		if strings.TrimSpace(string(syncedVersionBytes)) != version {
+			needsSync = true
+		}
+	}
+
+	if needsSync {
+		fmt.Printf("%sPerforming one-time file synchronization for version %s...%s\n", colorYellow, version, colorReset)
+
+		// Extract docker-compose.yaml
+		composePath := filepath.Join(instaDir, "docker-compose.yaml")
 		composeContent, err := embedFS.ReadFile("resources/docker-compose.yaml")
 		if err != nil {
 			return nil, fmt.Errorf("failed to read embedded docker-compose.yaml: %w", err)
@@ -96,12 +111,9 @@ For Podman:
 		if err := os.WriteFile(composePath, composeContent, 0644); err != nil {
 			return nil, fmt.Errorf("failed to write docker-compose.yaml: %w", err)
 		}
-	}
 
-	// Check if docker-compose-persist.yaml exists
-	persistPath := filepath.Join(instaDir, "docker-compose-persist.yaml")
-	if _, err := os.Stat(persistPath); os.IsNotExist(err) {
-		// Extract docker-compose-persist.yaml only if it doesn't exist
+		// Extract docker-compose-persist.yaml
+		persistPath := filepath.Join(instaDir, "docker-compose-persist.yaml")
 		persistContent, err := embedFS.ReadFile("resources/docker-compose-persist.yaml")
 		if err != nil {
 			return nil, fmt.Errorf("failed to read embedded docker-compose-persist.yaml: %w", err)
@@ -109,15 +121,22 @@ For Podman:
 		if err := os.WriteFile(persistPath, persistContent, 0644); err != nil {
 			return nil, fmt.Errorf("failed to write docker-compose-persist.yaml: %w", err)
 		}
+
+		// Extract data files (this will also create the dataDir if needed)
+		if err := extractDataFiles(instaDir, embedFS); err != nil {
+			return nil, fmt.Errorf("failed to extract data files during sync: %w", err)
+		}
+
+		// Update .version_synced file
+		if err := os.WriteFile(versionFilePath, []byte(version), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "%sWarning: failed to write synced version marker '%s': %v%s\n", colorYellow, versionFilePath, err, colorReset)
+			// Continue without returning error, as files are synced for this session. Next run will attempt to resync.
+		}
+		fmt.Printf("%sFile synchronization complete.%s\n", colorGreen, colorReset)
 	}
 
-	// Check if data directory exists and extract files if needed
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		// Extract data directory files only if the directory doesn't exist
-		if err := extractDataFiles(instaDir, embedFS); err != nil {
-			return nil, fmt.Errorf("failed to extract data files: %w", err)
-		}
-	}
+	// Data directory is always relative to insta directory
+	dataDir := filepath.Join(instaDir, "data")
 
 	return &App{
 		dataDir:  dataDir,
@@ -280,6 +299,19 @@ func (a *App) startServices(services []string, persist bool) error {
 		servicesToDisplay = append(servicesToDisplay, service)
 	}
 	sort.Strings(servicesToDisplay)
+	fmt.Printf("%sDebug: Final list of services to display: %v%s\n", colorBlue, servicesToDisplay, colorReset)
+
+	// Map to store service name to actual container name
+	serviceToContainerName := make(map[string]string)
+	for _, serviceName := range servicesToDisplay {
+		cn, err := a.runtime.GetContainerName(serviceName, composeFiles)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%sWarning: failed to get container name for %s: %v. Using service name as fallback.%s\n", colorYellow, serviceName, err, colorReset)
+			serviceToContainerName[serviceName] = serviceName // Fallback to service name
+		} else {
+			serviceToContainerName[serviceName] = cn
+		}
+	}
 
 	// Display connection information for all services in a single table
 	fmt.Printf("\n%sConnection Information Table%s\n", colorBlue, colorReset)
@@ -293,7 +325,8 @@ func (a *App) startServices(services []string, persist bool) error {
 	// Print each service row
 	for _, serviceName := range servicesToDisplay {
 		// Get port information from the container runtime
-		portMappings, err := a.runtime.GetPortMappings(serviceName)
+		actualContainerName := serviceToContainerName[serviceName]
+		portMappings, err := a.runtime.GetPortMappings(actualContainerName)
 		// Skip services without any port mappings
 		if err != nil || len(portMappings) == 0 {
 			continue
@@ -329,7 +362,7 @@ func (a *App) startServices(services []string, persist bool) error {
 			fmt.Printf("%s│ %-23s │ %-28s │ %-20s │ %-28s │ %-10s │ %-10s │%s\n",
 				colorYellow,
 				serviceName,
-				fmt.Sprintf("%s:%s", serviceName, containerPort),
+				fmt.Sprintf("%s:%s", actualContainerName, containerPort),
 				fmt.Sprintf("localhost:%s", hostPort),
 				fmt.Sprintf("host.docker.internal:%s", hostPort),
 				username,
@@ -340,7 +373,7 @@ func (a *App) startServices(services []string, persist bool) error {
 			fmt.Printf("%s│ %-23s │ %-28s │ %-20s │ %-28s │ %-10s │ %-10s │%s\n",
 				colorYellow,
 				serviceName,
-				fmt.Sprintf("%s:%s", serviceName, containerPort),
+				fmt.Sprintf("%s:%s", actualContainerName, containerPort),
 				fmt.Sprintf("localhost:%s", hostPort),
 				fmt.Sprintf("host.docker.internal:%s", hostPort),
 				"N/A",
@@ -433,7 +466,6 @@ Usage: %s [options...] [services...]
     -d, down [services...]    Shutdown services (if empty, shutdown all services)
     -h, help                  Show this help message
     -r, runtime [name]        Specify container runtime (docker or podman)
-    -u, update                Check for and install updates
     -v, version               Show version information
 
 Examples:
@@ -453,7 +485,6 @@ func main() {
 	downCmd := flag.NewFlagSet("down", flag.ExitOnError)
 
 	// Add update and runtime flags
-	update := flag.Bool("update", false, "Check for and install updates")
 	runtime := flag.String("runtime", "", "Explicitly set container runtime (docker/podman)")
 
 	if len(os.Args) < 2 {
@@ -544,20 +575,5 @@ func main() {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
 		}
-	}
-
-	// Handle update command
-	if *update {
-		app, err := NewApp(*runtime)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-
-		if err := app.update(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-		return
 	}
 }
