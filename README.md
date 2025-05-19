@@ -164,96 +164,37 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 
 ## Services
 
-| Service Type                | Service                   | Supported  |
-|-----------------------------|---------------------------|------------|
-| Api Gateway                 | kong                      | ✅         |
-| Cache                       | redis                     | ✅         |
-| Change Data Capture         | debezium                  | ✅         |
-| Code Analysis               | sonarqube                 | ✅         |
-| Database                    | cassandra                 | ✅         |
-| Database                    | cockroachdb               | ✅         |
-| Database                    | elasticsearch             | ✅         |
-| Database                    | influxdb                  | ✅         |
-| Database                    | mariadb                   | ✅         |
-| Database                    | milvus                    | ✅         |
-| Database                    | mongodb                   | ✅         |
-| Database                    | mssql                     | ✅         |
-| Database                    | mysql                     | ✅         |
-| Database                    | neo4j                     | ✅         |
-| Database                    | opensearch                | ✅         |
-| Database                    | postgres                  | ✅         |
-| Database                    | qdrant                    | ✅         |
-| Database                    | spanner                   | ✅         |
-| Database                    | sqlite                    | ✅         |
-| Database                    | timescaledb               | ✅         |
-| Database                    | weaviate                  | ✅         |
-| Data Catalog                | amundsen                  | ✅         |
-| Data Catalog                | datahub                   | ✅         |
-| Data Catalog                | lakekeeper                | ✅         |
-| Data Catalog                | marquez                   | ✅         |
-| Data Catalog                | openmetadata              | ✅         |
-| Data Catalog                | polaris                   | ✅         |
-| Data Catalog                | unitycatalog              | ✅         |
-| Data Collector              | fluentd                   | ✅         |
-| Data Collector              | logstash                  | ✅         |
-| Data Visualisation          | blazer                    | ✅         |
-| Data Visualisation          | evidence                  | ✅         |
-| Data Visualisation          | grafana                   | ✅         |
-| Data Visualisation          | metabase                  | ✅         |
-| Data Visualisation          | redash                    | ✅         |
-| Data Visualisation          | superset                  | ✅         |
-| Distributed Coordination    | zookeeper                 | ✅         |
-| Distributed Data Processing | flink                     | ✅         |
-| Distributed Data Processing | ray                       | ✅         |
-| Feature Store               | feast                     | ✅         |
-| Identity Management         | keycloak                  | ✅         |
-| Job Orchestrator            | airflow                   | ✅         |
-| Job Orchestrator            | dagster                   | ✅         |
-| Job Orchestrator            | mage-ai                   | ✅         |
-| Job Orchestrator            | prefect                   | ✅         |
-| Messaging                   | activemq                  | ✅         |
-| Messaging                   | kafka                     | ✅         |
-| Messaging                   | nats                      | ✅         |
-| Messaging                   | pulsar                    | ✅         |
-| Messaging                   | rabbitmq                  | ✅         |
-| Messaging                   | solace                    | ✅         |
-| ML Platform                 | mlflow                    | ✅         |
-| Monitoring                  | loki                      | ✅         |
-| Monitoring                  | prometheus                | ✅         |
-| Notebook                    | jupyter                   | ✅         |
-| Object Storage              | minio                     | ✅         |
-| Query Engine                | duckdb                    | ✅         |
-| Query Engine                | flight-sql                | ✅         |
-| Query Engine                | presto                    | ✅         |
-| Query Engine                | trino                     | ✅         |
-| Real-time OLAP              | clickhouse                | ✅         |
-| Real-time OLAP              | doris                     | ✅         |
-| Real-time OLAP              | druid                     | ✅         |
-| Real-time OLAP              | pinot                     | ✅         |
-| Schema Registry             | confluent-schema-registry | ✅         |
-| Secret Management           | vault                     | ✅         |
-| Test Data Management        | data-caterer              | ✅         |
-| Tracing                     | jaeger                    | ✅         |
-| Web Server                  | httpbin                   | ✅         |
-| Web Server                  | httpd                     | ✅         |
-| Workflow                    | maestro                   | ✅         |
-| Workflow                    | temporal                  | ✅         | 
+| Service Type                | Services                                                                                                                               |
+|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| Api Gateway                 | kong                                                                                                                                   |
+| Cache                       | redis                                                                                                                                  |
+| Change Data Capture         | debezium                                                                                                                               |
+| Code Analysis               | sonarqube                                                                                                                              |
+| Data Annotation             | argilla, cvat, doccano, label-studio                                                                                                   |
+| Data Catalog                | amundsen, datahub, lakekeeper, marquez, openmetadata, polaris, unitycatalog                                                            |
+| Data Collector              | fluentd, logstash                                                                                                                      |
+| Data Visualisation          | blazer, evidence, grafana, metabase, redash, superset                                                                                  |
+| Database                    | cassandra, cockroachdb, elasticsearch, influxdb, mariadb, milvus, mongodb, mssql, mysql, neo4j, opensearch, postgres, qdrant, spanner, sqlite, timescaledb, weaviate |
+| Distributed Coordination    | zookeeper                                                                                                                              |
+| Distributed Data Processing | flink, ray                                                                                                                             |
+| Feature Store               | feast                                                                                                                                  |
+| Identity Management         | keycloak                                                                                                                               |
+| Job Orchestrator            | airflow, dagster, mage-ai, prefect                                                                                                     |
+| ML Platform                 | mlflow                                                                                                                                 |
+| Messaging                   | activemq, kafka, nats, pulsar, rabbitmq, solace                                                                                        |
+| Monitoring                  | loki, prometheus                                                                                                                       |
+| Notebook                    | jupyter                                                                                                                                |
+| Object Storage              | minio                                                                                                                                  |
+| Query Engine                | duckdb, flight-sql, presto, trino                                                                                                      |
+| Real-time OLAP              | clickhouse, doris, druid, pinot                                                                                                        |
+| Schema Registry             | confluent-schema-registry                                                                                                              |
+| Secret Management           | vault                                                                                                                                  |
+| Test Data Management        | data-caterer                                                                                                                           |
+| Tracing                     | jaeger                                                                                                                                 |
+| Web Server                  | httpbin, httpd                                                                                                                         |
+| Workflow                    | maestro, temporal                                                                                                                      |
 
 ## Updating
-
-### Using the CLI
-
-The easiest way to update is using the built-in update command:
-
-```bash
-insta -u
-```
-
-This will automatically:
-1. Check for the latest version
-2. Download the appropriate binary for your platform
-3. Install the update
-4. Create a backup of the old version
 
 ### Using Package Managers
 

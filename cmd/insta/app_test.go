@@ -1,14 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// MockRuntime for testing App
-type MockRuntime struct {
+// AppTestMockRuntime for testing App
+type AppTestMockRuntime struct {
 	name              string
 	composeUpCalled   bool
 	composeDownCalled bool
@@ -17,60 +18,68 @@ type MockRuntime struct {
 	services          []string
 	lastContainer     string
 	lastCmd           string
-	portMappings      map[string]map[string]string // Map service name to its port mappings
-	dependencies      map[string][]string          // Map service name to its dependencies
+	portMappings      map[string]map[string]string
+	dependencies      map[string][]string
+	containerNames    map[string]string
 }
 
-func NewMockRuntime() *MockRuntime {
-	return &MockRuntime{
-		name:         "mock-runtime",
-		portMappings: make(map[string]map[string]string),
-		dependencies: make(map[string][]string),
+func NewAppTestMockRuntime() *AppTestMockRuntime {
+	return &AppTestMockRuntime{
+		name:           "mock-runtime",
+		portMappings:   make(map[string]map[string]string),
+		dependencies:   make(map[string][]string),
+		containerNames: make(map[string]string),
 	}
 }
 
-func (m *MockRuntime) Name() string {
+func (m *AppTestMockRuntime) Name() string {
 	return m.name
 }
 
-func (m *MockRuntime) CheckAvailable() error {
+func (m *AppTestMockRuntime) CheckAvailable() error {
 	return nil
 }
 
-func (m *MockRuntime) ComposeUp(composeFiles []string, services []string, quiet bool) error {
+func (m *AppTestMockRuntime) ComposeUp(composeFiles []string, services []string, quiet bool) error {
 	m.composeUpCalled = true
 	m.composeFiles = composeFiles
 	m.services = services
 	return nil
 }
 
-func (m *MockRuntime) ComposeDown(composeFiles []string, services []string) error {
+func (m *AppTestMockRuntime) ComposeDown(composeFiles []string, services []string) error {
 	m.composeDownCalled = true
 	m.composeFiles = composeFiles
 	m.services = services
 	return nil
 }
 
-func (m *MockRuntime) ExecInContainer(containerName string, cmd string, interactive bool) error {
+func (m *AppTestMockRuntime) ExecInContainer(containerName string, cmd string, interactive bool) error {
 	m.execCalled = true
 	m.lastContainer = containerName
 	m.lastCmd = cmd
 	return nil
 }
 
-func (m *MockRuntime) GetPortMappings(containerName string) (map[string]string, error) {
+func (m *AppTestMockRuntime) GetPortMappings(containerName string) (map[string]string, error) {
 	if mappings, ok := m.portMappings[containerName]; ok {
 		return mappings, nil
 	}
-	// Return empty map for services without specific mappings or ports
 	return map[string]string{}, nil
 }
 
-func (m *MockRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
+func (m *AppTestMockRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
 	if deps, ok := m.dependencies[service]; ok {
 		return deps, nil
 	}
 	return []string{}, nil
+}
+
+func (m *AppTestMockRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
+	if cn, ok := m.containerNames[serviceName]; ok && cn != "" {
+		return cn, nil
+	}
+	return fmt.Sprintf("insta_%s_1_app_mock", serviceName), nil
 }
 
 func TestAppWithMockRuntime(t *testing.T) {
@@ -82,11 +91,11 @@ func TestAppWithMockRuntime(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Setup App with mock runtime
-	mockRuntime := NewMockRuntime()
+	mockRuntime := NewAppTestMockRuntime()
 
 	// Add some port mappings to the mock runtime
 	mockRuntime.portMappings["postgres"] = map[string]string{"5432/tcp": "5432"}
-	mockRuntime.portMappings["mysql"] = map[string]string{"3306/tcp": "3306"} // Example for mysql
+	mockRuntime.portMappings["mysql"] = map[string]string{"3306/tcp": "3306"}
 
 	app := &App{
 		dataDir:  filepath.Join(tempDir, "data"),

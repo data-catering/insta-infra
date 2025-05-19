@@ -25,6 +25,8 @@ type Runtime interface {
 	GetPortMappings(containerName string) (map[string]string, error)
 	// GetDependencies returns dependencies for a service
 	GetDependencies(service string, composeFiles []string) ([]string, error)
+	// GetContainerName returns the container name for a service
+	GetContainerName(serviceName string, composeFiles []string) (string, error)
 }
 
 // Provider manages container runtime detection and selection
@@ -97,6 +99,7 @@ type ComposeService struct {
 	DependsOn map[string]struct {
 		Condition string `json:"condition"`
 	} `json:"depends_on"`
+	ContainerName string `json:"container_name,omitempty"`
 }
 
 type ComposeConfig struct {
@@ -149,7 +152,10 @@ func executeCommand(cmd *exec.Cmd, errorPrefix string) error {
 }
 
 // DockerRuntime implements Runtime interface for Docker
-type DockerRuntime struct{}
+type DockerRuntime struct {
+	parsedComposeConfig   *ComposeConfig
+	cachedComposeFilesKey string
+}
 
 func NewDockerRuntime() *DockerRuntime {
 	return &DockerRuntime{}
@@ -202,7 +208,7 @@ func (d *DockerRuntime) ComposeUp(composeFiles []string, services []string, quie
 	cmd.Stderr = os.Stderr
 	// Set working directory to the directory containing the first compose file
 	cmd.Dir = filepath.Dir(composeFiles[0])
-	
+
 	if err := cmd.Run(); err != nil {
 		// If the error indicates Docker daemon is not running, return a specific error
 		if strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
@@ -233,7 +239,7 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	stopCmd.Stdout = os.Stdout
 	stopCmd.Stderr = os.Stderr
 	stopCmd.Dir = filepath.Dir(composeFiles[0])
-	
+
 	if err := executeCommand(stopCmd, "docker compose stop failed"); err != nil {
 		return err
 	}
@@ -250,7 +256,7 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	rmCmd.Stdout = os.Stdout
 	rmCmd.Stderr = os.Stderr
 	rmCmd.Dir = filepath.Dir(composeFiles[0])
-	
+
 	return executeCommand(rmCmd, "docker compose rm failed")
 }
 
@@ -270,7 +276,7 @@ func (d *DockerRuntime) ExecInContainer(containerName string, cmd string, intera
 	execCmd.Stdin = os.Stdin
 	execCmd.Stdout = os.Stdout
 	execCmd.Stderr = os.Stderr
-	
+
 	return executeCommand(execCmd, fmt.Sprintf("failed to execute command in container %s", containerName))
 }
 
@@ -284,7 +290,12 @@ func (d *DockerRuntime) GetPortMappings(containerName string) (map[string]string
 	return parsePortMappings(string(output)), nil
 }
 
-func (d *DockerRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
+func (d *DockerRuntime) getOrParseComposeConfig(composeFiles []string) (*ComposeConfig, error) {
+	currentFilesKey := strings.Join(composeFiles, "|")
+	if d.cachedComposeFilesKey == currentFilesKey && d.parsedComposeConfig != nil {
+		return d.parsedComposeConfig, nil
+	}
+
 	args := []string{"--log-level", "error", "compose"}
 	for _, file := range composeFiles {
 		args = append(args, "-f", file)
@@ -292,9 +303,15 @@ func (d *DockerRuntime) GetDependencies(service string, composeFiles []string) (
 	args = append(args, "config", "--format", "json")
 
 	cmd := exec.Command("docker", args...)
-	cmd.Dir = filepath.Dir(composeFiles[0])
+	if len(composeFiles) > 0 {
+		cmd.Dir = filepath.Dir(composeFiles[0])
+	}
+
 	output, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("failed to get docker compose configuration: %s\n%s", err, string(exitErr.Stderr))
+		}
 		return nil, fmt.Errorf("failed to get docker compose configuration: %w", err)
 	}
 
@@ -303,11 +320,38 @@ func (d *DockerRuntime) GetDependencies(service string, composeFiles []string) (
 		return nil, fmt.Errorf("failed to parse docker compose configuration: %w", err)
 	}
 
-	return extractDependencies(config, service), nil
+	d.parsedComposeConfig = &config
+	d.cachedComposeFilesKey = currentFilesKey
+	return d.parsedComposeConfig, nil
+}
+
+func (d *DockerRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
+	config, err := d.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compose config for dependencies: %w", err)
+	}
+	return extractDependencies(*config, service), nil
+}
+
+func (d *DockerRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
+	config, err := d.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return "", fmt.Errorf("failed to get compose config for container name: %w", err)
+	}
+
+	if serviceConfig, ok := config.Services[serviceName]; ok {
+		if serviceConfig.ContainerName != "" {
+			return serviceConfig.ContainerName, nil
+		}
+	}
+	return fmt.Sprintf("insta_%s_1", serviceName), nil
 }
 
 // PodmanRuntime implements Runtime interface for Podman
-type PodmanRuntime struct{}
+type PodmanRuntime struct {
+	parsedComposeConfig   *ComposeConfig
+	cachedComposeFilesKey string
+}
 
 func NewPodmanRuntime() *PodmanRuntime {
 	return &PodmanRuntime{}
@@ -378,7 +422,7 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	validateCmd.Stdout = os.Stdout
 	validateCmd.Stderr = os.Stderr
 	validateCmd.Dir = filepath.Dir(composeFiles[0])
-	
+
 	if err := executeCommand(validateCmd, "compose files validation failed"); err != nil {
 		return err
 	}
@@ -401,7 +445,7 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	upCmd := exec.Command("podman", upArgs...)
 	upCmd.Stderr = os.Stderr
 	upCmd.Dir = filepath.Dir(composeFiles[0])
-	
+
 	return executeCommand(upCmd, "podman compose up failed")
 }
 
@@ -422,7 +466,7 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 	stopCmd.Stdout = os.Stdout
 	stopCmd.Stderr = os.Stderr
 	stopCmd.Dir = filepath.Dir(composeFiles[0])
-	
+
 	if err := executeCommand(stopCmd, "podman compose stop failed"); err != nil {
 		return err
 	}
@@ -439,7 +483,7 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 	rmCmd.Stdout = os.Stdout
 	rmCmd.Stderr = os.Stderr
 	rmCmd.Dir = filepath.Dir(composeFiles[0])
-	
+
 	return executeCommand(rmCmd, "podman compose rm failed")
 }
 
@@ -459,7 +503,7 @@ func (p *PodmanRuntime) ExecInContainer(containerName string, cmd string, intera
 	execCmd.Stdin = os.Stdin
 	execCmd.Stdout = os.Stdout
 	execCmd.Stderr = os.Stderr
-	
+
 	return executeCommand(execCmd, fmt.Sprintf("failed to execute command in container %s", containerName))
 }
 
@@ -473,7 +517,14 @@ func (p *PodmanRuntime) GetPortMappings(containerName string) (map[string]string
 	return parsePortMappings(string(output)), nil
 }
 
-func (p *PodmanRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
+func (p *PodmanRuntime) getOrParseComposeConfig(composeFiles []string) (*ComposeConfig, error) {
+	currentFilesKey := strings.Join(composeFiles, "|")
+	if p.cachedComposeFilesKey == currentFilesKey && p.parsedComposeConfig != nil {
+		fmt.Printf("DEBUG: Using cached compose config for key: %s\n", currentFilesKey)
+		return p.parsedComposeConfig, nil
+	}
+
+	fmt.Printf("DEBUG: Parsing compose config for key: %s\n", currentFilesKey)
 	args := []string{"compose"}
 	for _, file := range composeFiles {
 		args = append(args, "-f", file)
@@ -481,9 +532,15 @@ func (p *PodmanRuntime) GetDependencies(service string, composeFiles []string) (
 	args = append(args, "config", "--format", "json")
 
 	cmd := exec.Command("podman", args...)
-	cmd.Dir = filepath.Dir(composeFiles[0])
+	if len(composeFiles) > 0 {
+		cmd.Dir = filepath.Dir(composeFiles[0])
+	}
+
 	output, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("failed to get podman compose configuration: %s\n%s", err, string(exitErr.Stderr))
+		}
 		return nil, fmt.Errorf("failed to get podman compose configuration: %w", err)
 	}
 
@@ -492,5 +549,29 @@ func (p *PodmanRuntime) GetDependencies(service string, composeFiles []string) (
 		return nil, fmt.Errorf("failed to parse podman compose configuration: %w", err)
 	}
 
-	return extractDependencies(config, service), nil
+	p.parsedComposeConfig = &config
+	p.cachedComposeFilesKey = currentFilesKey
+	return p.parsedComposeConfig, nil
+}
+
+func (p *PodmanRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
+	config, err := p.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compose config for dependencies: %w", err)
+	}
+	return extractDependencies(*config, service), nil
+}
+
+func (p *PodmanRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
+	config, err := p.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return "", fmt.Errorf("failed to get compose config for container name: %w", err)
+	}
+
+	if serviceConfig, ok := config.Services[serviceName]; ok {
+		if serviceConfig.ContainerName != "" {
+			return serviceConfig.ContainerName, nil
+		}
+	}
+	return fmt.Sprintf("insta_%s_1", serviceName), nil
 }

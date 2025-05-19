@@ -1,0 +1,6 @@
+{"text": "Argilla is an amazing tool for data annotation!", "label": ["positive"]}
+{"text": "I found the user interface to be quite confusing and slow.", "label": ["negative"]}
+{"text": "The setup process was straightforward and well-documented.", "label": ["positive"]}
+{"text": "This feature does not work as expected.", "label": ["negative"]}
+{"text": "The documentation provides clear examples for most use cases.", "label": ["neutral"]}
+{"text": "Customer support was very responsive and helpful.", "label": ["positive"]} 

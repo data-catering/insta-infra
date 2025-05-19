@@ -1,0 +1,4 @@
+argilla
+httpx
+transformers[torch]
+Pillow 

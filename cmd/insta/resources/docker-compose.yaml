@@ -95,6 +95,40 @@ services:
     image: "amundsendev/amundsen-search:${AMUNDSEN_SEARCH_VERSION:-4.2.0}"
     ports:
       - "5001:5000"
+  argilla:
+    command: [/data/argilla_scripts/run_all_argilla_loaders.sh]
+    container_name: argilla-data
+    depends_on:
+      - argilla-server
+    environment:
+      - ARGILLA_API_URL=http://argilla:6900
+      - ARGILLA_API_KEY=${ARGILLA_API_KEY:-argilla.apikey}
+      - ARGILLA_WORKSPACE=${ARGILLA_WORKSPACE:-default}
+      - PYTHONUNBUFFERED=1
+    image: "argilla/argilla-server:${ARGILLA_VERSION:-v2.8.0}"
+    restart: no
+    volumes:
+      - "./data/argilla:/data/argilla_scripts"
+  argilla-server:
+    container_name: argilla
+    depends_on:
+      elasticsearch:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      - ARGILLA_ELASTICSEARCH=http://argilla_user:${ELASTICSEARCH_ARGILLA_PASSWORD:-PleaseChangeMeArgilla}@elasticsearch:9200
+      - ARGILLA_REDIS_URL=redis://redis:6379/0
+      - ARGILLA_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${ARGILLA_DB_NAME:-argilla}
+      - USERNAME=${ARGILLA_USER:-argilla}
+      - PASSWORD=${ARGILLA_PASSWORD:-12345678}
+      - WORKSPACE=default
+      - API_KEY=argilla.apikey
+    image: "argilla/argilla-server:${ARGILLA_VERSION:-v2.8.0}"
+    ports:
+      - "${ARGILLA_PORT:-6900}:6900"
   blazer:
     command: sh -c "rails db:migrate && puma -C /app/config/puma.rb"
     container_name: blazer
@@ -203,6 +237,93 @@ services:
     image: confluentinc/cp-schema-registry:${CONFLUENT_SCHEMA_REGISTRY_VERSION:-7.4.0}
     ports:
       - "8081:8081"
+  cvat:
+    container_name: cvat-traefik
+    depends_on:
+      cvat-data:
+        condition: service_completed_successfully
+      cvat-ui:
+        condition: service_healthy
+    env_file: ./data/cvat/.traefik_env
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test: [CMD, traefik, healthcheck]
+      timeout: 3s
+    image: traefik:${TRAEFIK_VERSION:-v3.4.0}
+    ports:
+      - 8080:8080
+      - 8090:8090
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+  cvat-data:
+    container_name: cvat-data
+    depends_on:
+      cvat-server:
+        condition: service_healthy
+    entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
+    env_file: ./data/cvat/.env
+    environment:
+      - "CVAT_USER=${CVAT_USER:-admin}"
+      - "CVAT_PASSWORD=${CVAT_PASSWORD:-admin}"
+      - "CVAT_EMAIL=${CVAT_EMAIL:-admin@example.com}"
+    image: "cvat/server:${CVAT_VERSION:-v2.37.0}"
+    volumes:
+      - "./data/cvat/init.sh:/tmp/scripts/init.sh"
+  cvat-opa:
+    command: [run, --server, --log-level=error, --set=services.cvat.url=http://cvat-server:8080, --set=bundles.cvat.service=cvat, --set=bundles.cvat.resource=/api/auth/rules, --set=bundles.cvat.polling.min_delay_seconds=5, --set=bundles.cvat.polling.max_delay_seconds=15]
+    container_name: opa
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test: [CMD, opa, eval, "true"]
+      timeout: 3s
+    image: "openpolicyagent/opa:${OPA_VERSION:-0.63.0}"
+  cvat-server:
+    command: init run server
+    container_name: cvat-server
+    depends_on:
+      cvat-opa:
+        condition: service_healthy
+      postgres:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    env_file: ./data/cvat/.env
+    healthcheck:
+      interval: 5s
+      retries: 5
+      start_period: 10s # Give time for DB migrations and startup
+      test: [CMD-SHELL, python manage.py health_check]
+      timeout: 3s
+    image: "cvat/server:${CVAT_VERSION:-v2.37.0}"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.cvat.entrypoints: web
+      traefik.http.routers.cvat.rule:
+        Host(`${CVAT_HOST:-localhost}`) &&
+        (PathPrefix(`/api/`) || PathPrefix(`/static/`) || PathPrefix(`/admin`)
+        || PathPrefix(`/django-rq`))
+      traefik.http.services.cvat.loadbalancer.server.port: "8080"
+    volumes:
+      - "./data/cvat/data:/home/django/data"
+      - "./data/cvat/keys:/home/django/keys"
+      - "./data/cvat/logs:/home/django/logs"
+      - "./data/cvat/models:/home/django/models"
+      - "./data/cvat/share:/mnt/share:ro" # Read-only mount for shared datasets
+  cvat-ui:
+    container_name: cvat-ui
+    healthcheck:
+      interval: 5s
+      retries: 3
+      test: [CMD, nginx, -t]
+      timeout: 5s
+    image: "cvat/ui:${CVAT_VERSION:-v2.37.0}"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.cvat-ui.entrypoints: web
+      traefik.http.routers.cvat-ui.rule: Host(`${CVAT_HOST:-localhost}`)
+      traefik.http.services.cvat-ui.loadbalancer.server.port: "80"
   dagster:
     container_name: dagster
     depends_on:
@@ -344,6 +465,38 @@ services:
     image: "debezium/connect:${DEBEZIUM_CONNECT_VERSION:-2.6.2.Final}"
     ports:
       - "8083:8083"
+  doccano:
+    command: sh -c "pip install --no-cache-dir doccano-client==1.2.8 requests requests-toolbelt==0.9.1 urllib3==1.26.5 && python /scripts/load_doccano_data.py"
+    container_name: doccano-data
+    depends_on:
+      doccano-server:
+        condition: service_healthy
+    environment:
+      DOCCANO_ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin}"
+      DOCCANO_ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+      DOCCANO_URL: "http://doccano-server:8000"
+    image: python:3.9-slim
+    restart: no
+    volumes:
+      - "./data/doccano/load_doccano_data.py:/scripts/load_doccano_data.py:ro"
+      - "./data/doccano/sample_data.jsonl:/data/sample_data.jsonl:ro"
+  doccano-server:
+    container_name: doccano
+    environment:
+      ADMIN_EMAIL: "${ADMIN_EMAIL:-admin@example.com}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin}"
+      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+    healthcheck:
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      test: [CMD, python, /opt/healthcheck/doccano_healthcheck.py]
+      timeout: 5s
+    image: "doccano/doccano:${DOCCANO_VERSION:-1.8.4}"
+    ports:
+      - "${DOCCANO_PORT:-8000}:8000"
+    volumes:
+      - "./data/doccano/doccano_healthcheck.py:/opt/healthcheck/doccano_healthcheck.py:ro"
   doris:
     container_name: doris
     depends_on:
@@ -736,6 +889,11 @@ services:
         condition: service_completed_successfully
     env_file: ./data/kong/.env
     image: "kong:${KONG_VERSION:-3.9.0}"
+  label-studio:
+    container_name: label-studio
+    image: heartexlabs/label-studio:${LABEL_STUDIO_VERSION:-1.18.0}
+    ports:
+      - "8080:8080"
   lakekeeper:
     command: [serve]
     container_name: lakekeeper
@@ -797,6 +955,16 @@ services:
     image: quay.io/lakekeeper/catalog:${LAKEKEEPER_IMAGE_VERSION:-latest-main}
     pull_policy: if_not_present
     restart: no
+  lakekeeper-opa:
+    command: [run, --server, --log-format, text, --log-level, debug, --addr, "0.0.0.0:8181", /policies]
+    container_name: lakekeeper-opa
+    depends_on:
+      lakekeeper:
+        condition: service_healthy
+    env_file: ./data/opa/.env
+    image: openpolicyagent/opa:${OPA_VERSION:-1.0.0}
+    volumes:
+      - ./data/opa/policies:/policies
   lakekeeper-openfga:
     command: run
     container_name: lakekeeper-openfga
@@ -823,7 +991,7 @@ services:
   lakekeeper-trino:
     container_name: lakekeeper-trino
     depends_on:
-      opa:
+      lakekeeper-opa:
         condition: service_started
     env_file: ./data/lakekeeper/access-control-advanced/trino/.env
     healthcheck:
@@ -1124,16 +1292,6 @@ services:
     ports:
       - "7474:7474"
       - "7687:7687"
-  opa:
-    command: [run, --server, --log-format, text, --log-level, debug, --addr, "0.0.0.0:8181", /policies]
-    container_name: opa
-    depends_on:
-      lakekeeper:
-        condition: service_healthy
-    env_file: ./data/opa/.env
-    image: openpolicyagent/opa:${LAKEKEEPER_OPA_VERSION:-1.0.0}
-    volumes:
-      - ./data/opa/policies:/policies
   openmetadata:
     command:
       - /opt/airflow/ingestion_dependency.sh

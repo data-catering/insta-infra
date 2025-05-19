@@ -1,0 +1,20 @@
+{
+  "cluster": [
+    "manage_index_templates",
+    "monitor" 
+  ],
+  "indices": [
+    {
+      "names": [
+        "rg.*", 
+        ".vec.*", 
+        ".idx.*",
+        "argilla*"
+      ],
+      "privileges": [
+        "all"
+      ],
+      "allow_restricted_indices": false
+    }
+  ]
+} 
