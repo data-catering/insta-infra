@@ -1159,7 +1159,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:9091/healthz"]
       timeout: 10s
-    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.5.11}"
+    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.5.12}"
     ports:
       - "${MILVUS_PORT:-19530}:19530"
       - "9091:9091"
@@ -1496,7 +1496,7 @@ services:
       retries: 3
       test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:9090/-/healthy"]
       timeout: 5s
-    image: "prom/prometheus:${PROMETHEUS_VERSION:-v3.3.1}"
+    image: "prom/prometheus:${PROMETHEUS_VERSION:-v3.4.0}"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
