@@ -475,7 +475,7 @@ services:
       DOCCANO_ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin}"
       DOCCANO_ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
       DOCCANO_URL: "http://doccano-server:8000"
-    image: python:3.9-slim
+    image: python:3.13-slim
     restart: no
     volumes:
       - "./data/doccano/load_doccano_data.py:/scripts/load_doccano_data.py:ro"
