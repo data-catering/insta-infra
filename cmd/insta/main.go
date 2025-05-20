@@ -299,7 +299,6 @@ func (a *App) startServices(services []string, persist bool) error {
 		servicesToDisplay = append(servicesToDisplay, service)
 	}
 	sort.Strings(servicesToDisplay)
-	fmt.Printf("%sDebug: Final list of services to display: %v%s\n", colorBlue, servicesToDisplay, colorReset)
 
 	// Map to store service name to actual container name
 	serviceToContainerName := make(map[string]string)
@@ -348,7 +347,7 @@ func (a *App) startServices(services []string, persist bool) error {
 
 		servicesDisplayed = true
 
-		if service, exists := Services[serviceName]; exists {
+		if service, exists := Services[actualContainerName]; exists {
 			// Get username and password, defaulting to empty string if not set
 			username := ""
 			if service.DefaultUser != "" {
