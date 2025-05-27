@@ -1,4 +1,4 @@
-.PHONY: build test clean lint vet fmt help release install packages publish build-ui dev-ui deps build-all clean-ui
+.PHONY: build test clean lint vet fmt help release install packages publish build-ui dev-ui deps build-all clean-ui build-frontend
 
 BINARY_NAME=insta
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -13,6 +13,7 @@ help:
 	@echo "Usage:"
 	@echo "  make build       Build CLI binary"
 	@echo "  make build-ui    Build Web UI binary (production)"
+	@echo "  make build-frontend Build frontend assets only (for embed)"
 	@echo "  make build-all   Build both CLI and Web UI"
 	@echo "  make dev-ui      Start Web UI in development mode"
 	@echo "  make deps        Install all dependencies (Go, Node.js, Wails)"
@@ -86,8 +87,17 @@ lint:
 	@which golint > /dev/null || go install golang.org/x/lint/golint@latest
 	golint ./...
 
-vet:
+vet: build-frontend
 	go vet ./...
+
+build-frontend:
+	@echo "Building frontend for embed..."
+	@if [ -d "cmd/instaui/frontend/node_modules" ]; then \
+		cd cmd/instaui/frontend && npm run build; \
+	else \
+		echo "Frontend dependencies not installed. Run 'make deps' first."; \
+		exit 1; \
+	fi
 
 fmt:
 	@echo "Running go fmt..."

@@ -38,6 +38,11 @@ jobs:
           cd cmd/instaui/frontend
           npm ci
 
+      - name: Build frontend for embed
+        run: |
+          cd cmd/instaui/frontend
+          npm run build
+
       - name: Run go vet
         run: go vet ./...
 
