@@ -1,0 +1,80 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Implementation Plan Generation Guide
+
+## Introduction / Problem
+
+This rule provides a template and guidelines for generating implementation plans. The purpose of an implementation plan is to clearly outline the steps an AI (Cursor) will take to achieve a user's stated goal, including how to verify each step. This ensures clarity, allows for progress tracking, and helps verify that each part of the goal is met successfully, with plans that Cursor can help execute.
+
+## Plan Structure
+
+Generated implementation plans should be short, succinct, and actionable. They must include the following elements:
+
+1.  **Goal Statement:** Briefly reiterate the user's primary goal.
+2.  **Overall Success Criteria:** A concise statement describing what signifies the complete and successful achievement of the goal.
+3.  **Pre-requisites / Assumptions / Dependencies (Optional):**
+    *   **Pre-requisites:** What needs to be true or in place before the plan can start.
+    *   **Assumptions:** Key assumptions made during planning.
+    *   **Dependencies:** Critical dependencies between tasks, if not clear from the order.
+4.  **Task List:** A list of high-level tasks required to achieve the goal.
+    *   Each task should start with a clear action verb.
+    *   Each task should have a checkbox.
+5.  **Sub-tasks:** Break down complex tasks into smaller, manageable sub-tasks.
+    *   Each sub-task should start with a clear action verb.
+    *   Each sub-task should have a checkbox.
+6.  **Testing:** For each major task (or critical sub-task), include a brief "Testing" step.
+    *   This should describe *what* will be checked and the *expected outcome*.
+    *   **Crucially, where feasible, testing steps should be formulated as commands that Cursor can execute (e.g., `npm test`, `curl -X GET http://localhost:3000/api/users`) or precise, automatable verification procedures (e.g., "Check if file 'output.txt' exists and contains the string 'Success'.").**
+
+## Format
+
+Use markdown for the plan. Checkboxes should be represented as:
+
+*   `[ ] Task description` (for an incomplete task)
+*   `[x] Task description` (for a completed task)
+
+## Example Plan Template
+
+```markdown
+**Goal:** [Reiterate User's Goal Here]
+
+**Overall Success Criteria:** [e.g., The user can successfully log in using the new SSO provider and access their dashboard.]
+
+**Pre-requisites / Assumptions / Dependencies (Optional):**
+*   **Pre-requisites:** [e.g., User has provided credentials for X service. `jq` is installed.]
+*   **Assumptions:** [e.g., The existing database schema supports the new fields.]
+*   **Dependencies:** [e.g., Task 3 cannot start until Task 1's API is deployed and accessible.]
+
+**Implementation Plan:**
+
+*   [ ] **Task 1:** [e.g., **Implement** user authentication module]
+    *   [ ] Sub-task 1.1: [e.g., **Create** database migration for user table changes]
+    *   [ ] Sub-task 1.2: [e.g., **Develop** API endpoints for login and registration (`/api/auth/login`, `/api/auth/register`)]
+    *   **Testing Task 1:** **Run command:** `curl -X POST -H "Content-Type: application/json" -d '{"username":"testuser","password":"testpass"}' http://localhost:PORT/api/auth/register && curl -X POST -H "Content-Type: application/json" -d '{"username":"testuser","password":"testpass"}' http://localhost:PORT/api/auth/login | jq '.token'`
+        **Expected Outcome:** Commands execute successfully, and a JWT token is printed from the login response.
+
+*   [ ] **Task 2:** [e.g., **Integrate** new module with the frontend login form]
+    *   **Testing Task 2:** **Action:** Manually attempt login via UI. **Verify:** Network tab shows request to `/api/auth/login` and successful response. UI redirects to dashboard.
+        **Expected Outcome:** User interface reflects authentication state and allows access to protected routes.
+
+*   [ ] **Task 3 (Optional):** [e.g., **Configure** rate limiting for authentication endpoints]
+    *   **Testing Task 3:** **Run command:** `for i in $(seq 1 10); do curl -o /dev/null -s -w "%{http_code}
+" -X POST http://localhost:PORT/api/auth/login -d '{}'; done`
+        **Expected Outcome:** Observe HTTP 429 (Too Many Requests) status codes after exceeding the rate limit (e.g., after 5 attempts within a minute).
+
+```
+
+## Guidelines for AI (Cursor)
+
+*   **Brevity:** Keep the plan concise. Focus on essential steps.
+*   **Clarity:** Use clear and unambiguous language. Start tasks with strong action verbs (e.g., Create, Implement, Update, Verify, Configure, Deploy).
+*   **Actionability:** Each task/sub-task should represent a concrete action.
+*   **Testing Focus:** Ensure testing steps are included to confirm the success of each significant task.
+    *   **Testing steps must be designed for execution by Cursor whenever possible.** This means preferring specific commands, API calls, or scripts.
+    *   Clearly state the **expected outcome** of each testing command/action for verification.
+    *   If a test cannot be a direct command (e.g., UI verification), describe the manual check as precisely as possible.
+*   **Prioritization:** Order tasks logically. Make dependencies explicit if necessary.
+*   **Iteration:** Be prepared to update or refine the plan based on new information or user feedback during the implementation process. The checkboxes will help track progress. Communicate any deviations or necessary updates to the plan.

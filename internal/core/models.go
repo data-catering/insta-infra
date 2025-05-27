@@ -1,8 +1,9 @@
-package main
+package core
 
 // Service represents a supported service and its connection details
 type Service struct {
 	Name             string
+	Type             string
 	ConnectionCmd    string
 	DefaultUser      string
 	DefaultPassword  string
@@ -13,6 +14,7 @@ type Service struct {
 var Services = map[string]Service{
 	"activemq": {
 		Name:             "activemq",
+		Type:             "Messaging",
 		ConnectionCmd:    "/var/lib/artemis-instance/bin/artemis shell --user ${ARTEMIS_USER:-artemis} --password ${ARTEMIS_PASSWORD:-artemis}",
 		DefaultUser:      "artemis",
 		DefaultPassword:  "artemis",
@@ -20,6 +22,7 @@ var Services = map[string]Service{
 	},
 	"airflow": {
 		Name:             "airflow",
+		Type:             "Job Orchestrator",
 		ConnectionCmd:    "airflow",
 		DefaultUser:      "airflow",
 		DefaultPassword:  "airflow",
@@ -27,10 +30,12 @@ var Services = map[string]Service{
 	},
 	"amundsen": {
 		Name:          "amundsen",
+		Type:          "Data Catalog",
 		ConnectionCmd: "bash",
 	},
 	"argilla": {
 		Name:             "argilla",
+		Type:             "Data Annotation",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "argilla",
 		DefaultPassword:  "12345678",
@@ -38,22 +43,27 @@ var Services = map[string]Service{
 	},
 	"blazer": {
 		Name:          "blazer",
+		Type:          "Data Visualisation",
 		ConnectionCmd: "bash",
 	},
 	"cassandra": {
 		Name:          "cassandra",
+		Type:          "Database",
 		ConnectionCmd: "cqlsh",
 	},
 	"clickhouse": {
 		Name:          "clickhouse",
+		Type:          "Real-time OLAP",
 		ConnectionCmd: "clickhouse-client",
 	},
 	"cockroachdb": {
 		Name:          "cockroachdb",
+		Type:          "Database",
 		ConnectionCmd: "./cockroach sql --insecure",
 	},
 	"cvat": {
 		Name:             "cvat",
+		Type:             "Data Annotation",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		DefaultPassword:  "admin",
@@ -61,15 +71,18 @@ var Services = map[string]Service{
 	},
 	"datahub": {
 		Name:             "datahub",
+		Type:             "Data Catalog",
 		ConnectionCmd:    "bash",
 		RequiresPassword: false,
 	},
 	"debezium": {
 		Name:          "debezium",
+		Type:          "Change Data Capture",
 		ConnectionCmd: "bash",
 	},
 	"doccano": {
 		Name:             "doccano",
+		Type:             "Data Annotation",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		DefaultPassword:  "admin",
@@ -77,18 +90,22 @@ var Services = map[string]Service{
 	},
 	"doris": {
 		Name:          "doris",
+		Type:          "Real-time OLAP",
 		ConnectionCmd: "mysql -uroot -P9030 -h127.0.0.1",
 	},
 	"druid": {
 		Name:          "druid",
+		Type:          "Real-time OLAP",
 		ConnectionCmd: "bash",
 	},
 	"duckdb": {
 		Name:          "duckdb",
+		Type:          "Query Engine",
 		ConnectionCmd: "./duckdb",
 	},
 	"elasticsearch": {
 		Name:             "elasticsearch",
+		Type:             "Database",
 		ConnectionCmd:    "elasticsearch-sql-cli http://elastic:${ELASTICSEARCH_PASSWORD:-elasticsearch}@localhost:9200",
 		DefaultUser:      "elastic",
 		DefaultPassword:  "elasticsearch",
@@ -96,14 +113,17 @@ var Services = map[string]Service{
 	},
 	"evidence": {
 		Name:          "evidence",
+		Type:          "Data Visualisation",
 		ConnectionCmd: "bash",
 	},
 	"feast": {
 		Name:          "feast",
+		Type:          "Feature Store",
 		ConnectionCmd: "bash",
 	},
 	"flight-sql": {
 		Name:             "flight-sql",
+		Type:             "Query Engine",
 		ConnectionCmd:    "flight_sql_client --command Execute --host localhost --port 31337 --use-tls --tls-skip-verify --username ${FLIGHT_SQL_USER:-flight_username} --password ${FLIGHT_SQL_PASSWORD:-flight_password} --query 'SELECT version()'",
 		DefaultUser:      "flight_username",
 		DefaultPassword:  "flight_password",
@@ -111,14 +131,17 @@ var Services = map[string]Service{
 	},
 	"flink": {
 		Name:          "flink",
+		Type:          "Distributed Data Processing",
 		ConnectionCmd: "bash",
 	},
 	"flink-jobmanager": {
 		Name:          "flink-jobmanager",
+		Type:          "Distributed Data Processing",
 		ConnectionCmd: "bash",
 	},
 	"grafana": {
 		Name:             "grafana",
+		Type:             "Data Visualisation",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		DefaultPassword:  "admin",
@@ -126,6 +149,7 @@ var Services = map[string]Service{
 	},
 	"influxdb": {
 		Name:             "influxdb",
+		Type:             "Database",
 		ConnectionCmd:    "influx",
 		DefaultUser:      "admin",
 		DefaultPassword:  "admin",
@@ -133,24 +157,29 @@ var Services = map[string]Service{
 	},
 	"istio": {
 		Name:          "istio",
+		Type:          "Other",
 		ConnectionCmd: "istioctl proxy-status",
 	},
 	"jaeger": {
 		Name:          "jaeger",
+		Type:          "Tracing",
 		ConnectionCmd: "bash",
 	},
 	"jenkins": {
 		Name:             "jenkins",
+		Type:             "Other",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		RequiresPassword: true,
 	},
 	"kafka": {
 		Name:          "kafka",
+		Type:          "Messaging",
 		ConnectionCmd: "kafka-topics --bootstrap-server localhost:9092 --list",
 	},
 	"keycloak": {
 		Name:             "keycloak",
+		Type:             "Identity Management",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		DefaultPassword:  "admin",
@@ -158,6 +187,7 @@ var Services = map[string]Service{
 	},
 	"kibana": {
 		Name:             "kibana",
+		Type:             "Data Visualisation",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "kibana_system",
 		DefaultPassword:  "password",
@@ -165,24 +195,29 @@ var Services = map[string]Service{
 	},
 	"kong": {
 		Name:          "kong",
+		Type:          "Api Gateway",
 		ConnectionCmd: "bash",
 	},
 	"label-studio": {
 		Name:          "label-studio",
+		Type:          "Data Annotation",
 		ConnectionCmd: "bash",
 	},
 	"lakekeeper": {
 		Name:            "lakekeeper",
+		Type:            "Data Catalog",
 		ConnectionCmd:   "bash",
 		DefaultUser:     "peter",
 		DefaultPassword: "iceberg",
 	},
 	"lakekeeper-jupyter": {
 		Name:          "lakekeeper-jupyter",
+		Type:          "Data Catalog",
 		ConnectionCmd: "bash",
 	},
 	"logstash": {
 		Name:             "logstash",
+		Type:             "Data Collector",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "logstash_internal",
 		DefaultPassword:  "password",
@@ -190,18 +225,22 @@ var Services = map[string]Service{
 	},
 	"loki": {
 		Name:          "loki",
+		Type:          "Monitoring",
 		ConnectionCmd: "bash",
 	},
 	"maestro": {
 		Name:          "maestro",
+		Type:          "Workflow",
 		ConnectionCmd: "bash",
 	},
 	"mage-ai": {
 		Name:          "mage-ai",
+		Type:          "Job Orchestrator",
 		ConnectionCmd: "bash",
 	},
 	"mariadb": {
 		Name:             "mariadb",
+		Type:             "Database",
 		ConnectionCmd:    "mariadb --user=${MARIADB_USER:-user} --password=${MARIADB_PASSWORD:-password}",
 		DefaultUser:      "user",
 		DefaultPassword:  "password",
@@ -209,22 +248,27 @@ var Services = map[string]Service{
 	},
 	"marquez": {
 		Name:          "marquez",
+		Type:          "Data Catalog",
 		ConnectionCmd: "bash",
 	},
 	"memcached": {
 		Name:          "memcached",
+		Type:          "Cache",
 		ConnectionCmd: "bash",
 	},
 	"metabase": {
 		Name:          "metabase",
+		Type:          "Data Visualisation",
 		ConnectionCmd: "bash",
 	},
 	"milvus": {
 		Name:          "milvus",
+		Type:          "Database",
 		ConnectionCmd: "bash",
 	},
 	"minio": {
 		Name:             "minio",
+		Type:             "Object Storage",
 		ConnectionCmd:    "mc alias set local http://localhost:9000 ${MINIO_USER:-minioadmin} ${MINIO_PASSWORD:-minioadmin}",
 		DefaultUser:      "minioadmin",
 		DefaultPassword:  "minioadmin",
@@ -232,14 +276,17 @@ var Services = map[string]Service{
 	},
 	"mlflow": {
 		Name:          "mlflow",
+		Type:          "ML Platform",
 		ConnectionCmd: "bash",
 	},
 	"mlflow-serve": {
 		Name:          "mlflow-serve",
+		Type:          "ML Platform",
 		ConnectionCmd: "bash",
 	},
 	"mongodb": {
 		Name:             "mongodb",
+		Type:             "Database",
 		ConnectionCmd:    "mongosh mongodb://${MONGODB_USER:-root}:${MONGODB_PASSWORD:-root}@mongodb",
 		DefaultUser:      "root",
 		DefaultPassword:  "root",
@@ -247,6 +294,7 @@ var Services = map[string]Service{
 	},
 	"mssql": {
 		Name:             "mssql",
+		Type:             "Database",
 		ConnectionCmd:    "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"${MSSQL_PASSWORD:-yourStrong(!)Password}\"",
 		DefaultUser:      "sa",
 		DefaultPassword:  "yourStrong(!)Password",
@@ -254,6 +302,7 @@ var Services = map[string]Service{
 	},
 	"mysql": {
 		Name:             "mysql",
+		Type:             "Database",
 		ConnectionCmd:    "mysql -u ${MYSQL_USER:-root} -p${MYSQL_PASSWORD:-root}",
 		DefaultUser:      "root",
 		DefaultPassword:  "root",
@@ -261,24 +310,25 @@ var Services = map[string]Service{
 	},
 	"nats": {
 		Name:          "nats",
+		Type:          "Messaging",
 		ConnectionCmd: "nats pub test.subject 'Hello NATS!'",
 	},
 	"neo4j": {
 		Name:             "neo4j",
+		Type:             "Database",
 		ConnectionCmd:    "cypher-shell -u neo4j -p test",
 		DefaultUser:      "neo4j",
 		DefaultPassword:  "test",
 		RequiresPassword: true,
 	},
 	"openmetadata": {
-		Name:             "openmetadata",
-		ConnectionCmd:    "bash",
-		DefaultUser:      "admin",
-		DefaultPassword:  "admin",
-		RequiresPassword: true,
+		Name:          "openmetadata",
+		Type:          "Data Catalog",
+		ConnectionCmd: "bash",
 	},
 	"opensearch": {
 		Name:             "opensearch",
+		Type:             "Database",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		DefaultPassword:  "!BigData#1",
@@ -286,14 +336,17 @@ var Services = map[string]Service{
 	},
 	"pinot": {
 		Name:          "pinot",
+		Type:          "Real-time OLAP",
 		ConnectionCmd: "bash",
 	},
 	"polaris": {
 		Name:          "polaris",
+		Type:          "Data Catalog",
 		ConnectionCmd: "bash",
 	},
 	"postgres": {
 		Name:             "postgres",
+		Type:             "Database",
 		ConnectionCmd:    "PGPASSWORD=${POSTGRES_PASSWORD:-postgres} psql -U${POSTGRES_USER:-postgres}",
 		DefaultUser:      "postgres",
 		DefaultPassword:  "postgres",
@@ -301,26 +354,32 @@ var Services = map[string]Service{
 	},
 	"prefect-data": {
 		Name:          "prefect-data",
+		Type:          "Job Orchestrator",
 		ConnectionCmd: "bash",
 	},
 	"presto": {
 		Name:          "presto",
+		Type:          "Query Engine",
 		ConnectionCmd: "presto-cli",
 	},
 	"prometheus": {
 		Name:          "prometheus",
+		Type:          "Monitoring",
 		ConnectionCmd: "promtool query instant http://localhost:9090 up",
 	},
 	"pulsar": {
 		Name:          "pulsar",
+		Type:          "Messaging",
 		ConnectionCmd: "pulsar-client produce test-topic -m 'Hello Pulsar!'",
 	},
 	"qdrant": {
 		Name:          "qdrant",
+		Type:          "Database",
 		ConnectionCmd: "bash",
 	},
 	"rabbitmq": {
 		Name:             "rabbitmq",
+		Type:             "Messaging",
 		ConnectionCmd:    "rabbitmqctl --host localhost --username ${RABBITMQ_USER:-guest} --password ${RABBITMQ_PASSWORD:-guest} list_queues",
 		DefaultUser:      "guest",
 		DefaultPassword:  "guest",
@@ -328,18 +387,22 @@ var Services = map[string]Service{
 	},
 	"ray": {
 		Name:          "ray",
+		Type:          "Distributed Data Processing",
 		ConnectionCmd: "bash",
 	},
 	"redash": {
 		Name:          "redash",
+		Type:          "Data Visualisation",
 		ConnectionCmd: "bash",
 	},
 	"redis": {
 		Name:          "redis",
+		Type:          "Cache",
 		ConnectionCmd: "redis-cli",
 	},
 	"solace": {
 		Name:             "solace",
+		Type:             "Messaging",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		DefaultPassword:  "admin",
@@ -347,6 +410,7 @@ var Services = map[string]Service{
 	},
 	"sonarqube": {
 		Name:             "sonarqube",
+		Type:             "Code Analysis",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		DefaultPassword:  "admin",
@@ -354,10 +418,12 @@ var Services = map[string]Service{
 	},
 	"spanner": {
 		Name:          "spanner",
+		Type:          "Database",
 		ConnectionCmd: "bash",
 	},
 	"superset": {
 		Name:             "superset",
+		Type:             "Data Visualisation",
 		ConnectionCmd:    "bash",
 		DefaultUser:      "admin",
 		DefaultPassword:  "admin",
@@ -365,10 +431,12 @@ var Services = map[string]Service{
 	},
 	"temporal": {
 		Name:          "temporal",
+		Type:          "Workflow",
 		ConnectionCmd: "temporal workflow list",
 	},
 	"timescaledb": {
 		Name:             "timescaledb",
+		Type:             "Database",
 		ConnectionCmd:    "PGPASSWORD=${TIMESCALEDB_PASSWORD:-postgres} psql -U${TIMESCALEDB_USER:-postgres}",
 		DefaultUser:      "postgres",
 		DefaultPassword:  "postgres",
@@ -376,28 +444,34 @@ var Services = map[string]Service{
 	},
 	"traefik": {
 		Name:          "traefik",
+		Type:          "Other",
 		ConnectionCmd: "bash",
 	},
 	"trino": {
 		Name:          "trino",
+		Type:          "Query Engine",
 		ConnectionCmd: "trino",
 	},
 	"unitycatalog": {
 		Name:          "unitycatalog",
+		Type:          "Data Catalog",
 		ConnectionCmd: "bash",
 	},
 	"vault": {
 		Name:             "vault",
+		Type:             "Secret Management",
 		ConnectionCmd:    "vault status",
 		DefaultUser:      "root",
 		RequiresPassword: true,
 	},
 	"weaviate": {
 		Name:          "weaviate",
+		Type:          "Database",
 		ConnectionCmd: "bash",
 	},
 	"zookeeper": {
 		Name:          "zookeeper",
+		Type:          "Distributed Coordination",
 		ConnectionCmd: "zkCli.sh",
 	},
 }

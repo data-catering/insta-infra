@@ -2,11 +2,13 @@ package main
 
 import (
 	"testing"
+
+	"github.com/data-catering/insta-infra/v2/internal/core"
 )
 
 func TestServiceDefinitions(t *testing.T) {
 	// Check if services map is populated
-	if len(Services) == 0 {
+	if len(core.Services) == 0 {
 		t.Fatal("Services map is empty")
 	}
 
@@ -44,7 +46,7 @@ func TestServiceDefinitions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.serviceName, func(t *testing.T) {
-			service, exists := Services[tc.serviceName]
+			service, exists := core.Services[tc.serviceName]
 			if !exists {
 				t.Fatalf("Service %s not found in Services map", tc.serviceName)
 			}
@@ -75,7 +77,7 @@ func TestServiceDefinitions(t *testing.T) {
 
 func TestServiceNameMatchesKey(t *testing.T) {
 	// Verify that each service's Name field matches its key in the map
-	for key, service := range Services {
+	for key, service := range core.Services {
 		if key != service.Name {
 			t.Errorf("Service key %s does not match Service.Name %s", key, service.Name)
 		}

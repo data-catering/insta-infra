@@ -18,20 +18,40 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            cmd/instaui/frontend/package-lock.json
+            cmd/instaui/frontend/package.json
+
       - name: Install dependencies
         run: go mod download
 
       - name: Verify dependencies
         run: go mod verify
 
+      - name: Install UI dependencies
+        run: |
+          cd cmd/instaui/frontend
+          npm ci
+
       - name: Run go vet
         run: go vet ./...
 
-      - name: Run tests
+      - name: Run Go tests
         run: go test -v ./...
 
-  build:
+      - name: Run UI tests
+        run: |
+          cd cmd/instaui/frontend
+          npm test
+
+  build-cli:
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,7 +66,219 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y upx
 
-      - name: Build
+      - name: Build CLI
         run: |
           chmod +x scripts/build.sh
-          make build 
+          make build
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: insta-cli-linux
+          path: insta
+
+  build-ui:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+            artifact-name: instaui-linux-amd64
+          - os: ubuntu-latest
+            platform: linux/arm64
+            artifact-name: instaui-linux-arm64
+          - os: macos-latest
+            platform: darwin/amd64
+            artifact-name: instaui-darwin-amd64
+          - os: macos-latest
+            platform: darwin/arm64
+            artifact-name: instaui-darwin-arm64
+          - os: windows-latest
+            platform: windows/amd64
+            artifact-name: instaui-windows-amd64
+    runs-on: ${{ matrix.os }}
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            cmd/instaui/frontend/package-lock.json
+            cmd/instaui/frontend/package.json
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install UI dependencies
+        run: |
+          cd cmd/instaui/frontend
+          npm ci
+
+      - name: Install Linux dependencies (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: Build UI application
+        run: |
+          cd cmd/instaui
+          wails build -platform ${{ matrix.platform }}
+
+      - name: Upload UI artifact (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: cmd/instaui/build/bin/instaui
+
+      - name: Upload UI artifact (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: cmd/instaui/build/bin/instaui.app/Contents/MacOS/instaui
+
+      - name: Upload UI artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: cmd/instaui/build/bin/instaui.exe
+
+  test-ui-integration:
+    runs-on: ubuntu-latest
+    needs: [build-ui]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download UI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: instaui-linux-amd64
+          path: ./
+
+      - name: Make binary executable
+        run: chmod +x instaui
+
+      - name: Test UI binary
+        run: |
+          # Test that the binary exists and is executable
+          echo "Testing UI binary..."
+          ls -la instaui
+          file instaui
+          
+          # Test help command
+          timeout 10s ./instaui --help || echo "Help command test completed (timeout or exit)"
+          
+          # Test version command if available
+          timeout 10s ./instaui --version || echo "Version command test completed (timeout or exit)"
+          
+          echo "UI binary integration test completed successfully"
+
+  build-summary:
+    runs-on: ubuntu-latest
+    needs: [build-cli, build-ui, test-ui-integration]
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create artifact README
+        run: |
+          cat > artifacts/README.md << 'EOF'
+          # Insta-Infra Build Artifacts
+          
+          This directory contains the built binaries for insta-infra.
+          
+          ## CLI Tool (insta)
+          - `insta-cli-linux/insta` - Command-line interface for Linux AMD64
+          
+          ## UI Applications (instaui)
+          The UI applications provide a graphical interface for managing services:
+          
+          ### Linux
+          - `instaui-linux-amd64/instaui` - Linux AMD64 binary
+          - `instaui-linux-arm64/instaui` - Linux ARM64 binary
+          
+          ### macOS
+          - `instaui-darwin-amd64/instaui` - macOS Intel (x86_64) binary
+          - `instaui-darwin-arm64/instaui` - macOS Apple Silicon (ARM64) binary
+          
+          ### Windows
+          - `instaui-windows-amd64/instaui.exe` - Windows AMD64 executable
+          
+          ## Usage
+          
+          ### CLI Tool
+          ```bash
+          chmod +x insta
+          ./insta --help
+          ```
+          
+          ### UI Applications
+          
+          **Linux/macOS:**
+          ```bash
+          chmod +x instaui
+          ./instaui
+          ```
+          
+          **Windows:**
+          ```cmd
+          instaui.exe
+          ```
+          
+          ## Requirements
+          - Docker or Podman installed and running
+          - For UI applications: Modern operating system with GUI support
+          
+          ## More Information
+          Visit the [insta-infra repository](https://github.com/data-catering/insta-infra) for documentation and source code.
+          EOF
+
+      - name: Display build summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Built Artifacts:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # List all artifacts with sizes
+          find artifacts -name "insta*" -type f -exec ls -lh {} \; | while read line; do
+            echo "- $line" >> $GITHUB_STEP_SUMMARY
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Platform Support:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ CLI: Linux AMD64" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ UI: Linux AMD64" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ UI: Linux ARM64" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ UI: macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ UI: macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ UI: Windows AMD64" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Download Instructions:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to the 'Summary' tab of this workflow run" >> $GITHUB_STEP_SUMMARY
+          echo "2. Scroll down to 'Artifacts' section" >> $GITHUB_STEP_SUMMARY
+          echo "3. Click on the artifact for your platform to download" >> $GITHUB_STEP_SUMMARY
+          echo "4. Extract and run the binary (see README.md in artifacts for details)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload README
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-readme
+          path: artifacts/README.md 

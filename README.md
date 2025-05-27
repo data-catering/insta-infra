@@ -118,6 +118,116 @@ insta -h
 insta -v
 ```
 
+## Web UI
+
+insta-infra also provides a modern graphical interface built with Wails for users who prefer visual service management.
+
+![Web UI Screenshot](docs/img/web-ui-demo.png)
+
+### Features
+
+- **Visual Service Management**: See all available services in an intuitive grid layout
+- **One-Click Actions**: Start, stop, and manage services with simple button clicks
+- **Real-Time Status**: Live updates of service status with color-coded indicators
+- **Connection Details**: Easy access to connection strings, credentials, and web UIs
+- **Data Persistence**: Toggle data persistence with checkboxes
+- **Browser Integration**: Direct "Open" buttons for web-based services
+- **Dependency Visualization**: Clear display of service dependencies
+
+### Building the Web UI
+
+#### Prerequisites
+
+In addition to the standard requirements, the Web UI requires:
+- **Node.js** (16+) and **npm**
+- **Wails CLI**: `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+
+#### Development Mode
+
+To run the Web UI in development mode with hot reload:
+
+```bash
+# Clone and navigate to the project
+git clone https://github.com/data-catering/insta-infra.git
+cd insta-infra
+
+# Start the development server
+cd cmd/instaui
+wails dev
+```
+
+This will:
+1. Start the Go backend
+2. Launch the React frontend with hot reload
+3. Open the application window automatically
+
+#### Production Build
+
+To build a production version of the Web UI:
+
+```bash
+# Build the Web UI binary
+make build-ui
+
+# Or build manually
+cd cmd/instaui
+wails build
+```
+
+The built application will be available in the `cmd/instaui/build/bin/` directory.
+
+### Using the Web UI
+
+1. **Launch the application**:
+   ```bash
+   # If you built with make
+   ./insta-infra-ui
+   
+   # If you built manually
+   ./cmd/instaui/build/bin/instaui
+   ```
+
+2. **Service Management**:
+   - Browse available services in the main grid
+   - Click **Start** to launch a service (check "Persist data" for persistence)
+   - Click **Stop** to shut down running services
+   - Use **Stop All** to shut down all running services at once
+
+3. **Connecting to Services**:
+   - **Open**: For web-based services (Grafana, Kibana, etc.), click to open in browser
+   - **Connect**: View connection details, URLs, credentials, and CLI commands
+   - **Copy**: All connection details have copy-to-clipboard functionality
+
+4. **Status Monitoring**:
+   - Green indicators show running services
+   - Gray indicators show stopped services
+   - Red indicators show error states
+   - Real-time updates every 30 seconds
+
+### Cross-Platform Support
+
+The Web UI supports the same platforms as the CLI:
+- **macOS**: ARM64 and Intel
+- **Linux**: ARM64 and Intel  
+- **Windows**: ARM64 and Intel
+
+### Troubleshooting
+
+**Application won't start**:
+- Ensure Docker/Podman is running
+- Check that required ports aren't already in use
+- Try running with `wails dev` for detailed error messages
+
+**Services won't start**:
+- Verify container runtime is accessible
+- Check system resources (memory, disk space)
+- Review Docker/Podman logs for specific errors
+
+**UI not updating**:
+- Click the refresh button manually
+- Check network connectivity if using remote Docker
+- Restart the application if status seems stuck
+
 ## Data Persistence
 
 By default, all data is stored in memory and will be lost when the containers are stopped. To enable persistence, use the `-p` flag:
@@ -135,32 +245,73 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 ```
 .
 ├── cmd/
-│   └── insta/          # Main CLI application
-│       ├── container/  # Container runtime implementations
-│       ├── resources/  # Embedded resources
-│       │   ├── data/   # Service configuration files
-│       │   └── *.yaml  # Docker compose files
-│       ├── models.go   # Service definitions
-│       └── main.go     # CLI entry point
+│   ├── insta/          # Main CLI application
+│   │   ├── container/  # Container runtime implementations
+│   │   ├── resources/  # Embedded resources
+│   │   │   ├── data/   # Service configuration files
+│   │   │   └── *.yaml  # Docker compose files
+│   │   ├── models.go   # Service definitions
+│   │   └── main.go     # CLI entry point
+│   └── instaui/        # Web UI application (Wails)
+│       ├── frontend/   # React frontend
+│       │   ├── src/    # React components and styles
+│       │   └── dist/   # Built frontend assets
+│       ├── app.go      # Wails backend methods
+│       └── main.go     # Web UI entry point
+├── internal/
+│   └── core/           # Shared business logic
+│       ├── models.go   # Service definitions (shared)
+│       └── service.go  # Service management logic
 ├── tests/              # Integration tests
+├── docs/               # Documentation and images
 ├── Makefile            # Build and development tasks
 └── README.md           # Documentation
 ```
 
 ### Development Workflow
 
+#### CLI Development
+
 1. Clone the repository
-2. Make changes
+2. Make changes to CLI code in `cmd/insta/`
 3. Run tests: `make test`
 4. Build: `make build`
 5. Run: `./insta`
 
+#### Web UI Development
+
+1. Clone the repository
+2. Install dependencies: `cd cmd/instaui && npm install`
+3. Start development mode: `wails dev`
+4. Make changes to:
+   - **Go backend**: `cmd/instaui/app.go`
+   - **React frontend**: `cmd/instaui/frontend/src/`
+   - **Shared logic**: `internal/core/`
+5. Build for production: `make build-ui`
+
+#### Full Development Environment
+
+```bash
+# Install all dependencies
+make deps
+
+# Run all tests
+make test
+
+# Build both CLI and Web UI
+make build-all
+
+# Clean build artifacts
+make clean
+```
+
 ### Adding a New Service
 
 1. Add service configuration to [`docker-compose.yaml`](cmd/insta/resources/docker-compose.yaml)
-2. Add service definition to [`models.go`](cmd/insta/models.go)
+2. Add service definition to [`internal/core/models.go`](internal/core/models.go)
 3. Add any necessary initialization scripts to [`cmd/insta/resources/data/<service_name>/`](cmd/insta/resources/data/)
 4. Update tests
+5. Test in both CLI and Web UI
 
 ## Services
 

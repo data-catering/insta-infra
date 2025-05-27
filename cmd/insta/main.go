@@ -10,7 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/data-catering/insta-infra/v2/cmd/insta/container"
+	"github.com/data-catering/insta-infra/v2/internal/core"
+	"github.com/data-catering/insta-infra/v2/internal/core/container"
 )
 
 // Version information - these will be set during build via ldflags
@@ -215,7 +216,7 @@ func (a *App) checkRuntime() error {
 
 func (a *App) listServices() error {
 	var serviceNames []string
-	for name := range Services {
+	for name := range core.Services {
 		serviceNames = append(serviceNames, name)
 	}
 
@@ -270,7 +271,7 @@ func (a *App) startServices(services []string, persist bool) error {
 		expandedServices[service] = true
 
 		// Get dependencies for this service
-		deps, err := a.runtime.GetDependencies(service, composeFiles)
+		deps, err := a.runtime.GetDependencies(service, composeFiles) // Keep this for direct deps if needed elsewhere or for logging
 		if err != nil {
 			return fmt.Errorf("failed to get dependencies for %s: %w", service, err)
 		}
@@ -286,10 +287,19 @@ func (a *App) startServices(services []string, persist bool) error {
 		return nil
 	}
 
-	// Process each requested service
-	for _, service := range services {
-		if err := collectDependencies(service); err != nil {
-			fmt.Printf("%sWarning: Failed to collect all dependencies: %v%s\n", colorYellow, err, colorReset)
+	// Process each requested service and collect all their recursive dependencies
+	for _, serviceName := range services {
+		if !expandedServices[serviceName] { // Add the initially requested service itself
+			expandedServices[serviceName] = true
+		}
+		recursiveDeps, err := a.runtime.GetAllDependenciesRecursive(serviceName, composeFiles)
+		if err != nil {
+			fmt.Printf("%sWarning: Failed to get all dependencies for %s: %v%s\n", colorYellow, serviceName, err, colorReset)
+			// Decide if we should continue or error out. For now, continue with what we have.
+		} else {
+			for _, dep := range recursiveDeps {
+				expandedServices[dep] = true
+			}
 		}
 	}
 
@@ -347,7 +357,7 @@ func (a *App) startServices(services []string, persist bool) error {
 
 		servicesDisplayed = true
 
-		if service, exists := Services[actualContainerName]; exists {
+		if service, exists := core.Services[actualContainerName]; exists {
 			// Get username and password, defaulting to empty string if not set
 			username := ""
 			if service.DefaultUser != "" {
@@ -421,7 +431,7 @@ func (a *App) connectToService(serviceName string) error {
 		return fmt.Errorf("%sError: No service name passed as argument%s", colorRed, colorReset)
 	}
 
-	service, exists := Services[serviceName]
+	service, exists := core.Services[serviceName]
 	if !exists {
 		return fmt.Errorf("%sError: Unknown service %s%s", colorRed, serviceName, colorReset)
 	}

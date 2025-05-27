@@ -1,4 +1,4 @@
-.PHONY: build test clean lint vet fmt help release install packages publish
+.PHONY: build test clean lint vet fmt help release install packages publish build-ui dev-ui deps build-all clean-ui
 
 BINARY_NAME=insta
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -11,9 +11,18 @@ help:
 	@echo "insta-infra - A tool for running data infrastructure services"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make build       Build binary"
-	@echo "  make test        Run tests"
-	@echo "  make clean       Clean build artifacts"
+	@echo "  make build       Build CLI binary"
+	@echo "  make build-ui    Build Web UI binary (production)"
+	@echo "  make build-all   Build both CLI and Web UI"
+	@echo "  make dev-ui      Start Web UI in development mode"
+	@echo "  make deps        Install all dependencies (Go, Node.js, Wails)"
+	@echo "  make test        Run all tests (Go + Frontend)"
+	@echo "  make test-go     Run Go tests only"
+	@echo "  make test-go-coverage Run Go tests with coverage"
+	@echo "  make test-ui     Run frontend tests only"
+	@echo "  make test-ui-coverage Run frontend tests with coverage"
+	@echo "  make clean       Clean all build artifacts"
+	@echo "  make clean-ui    Clean Web UI build artifacts only"
 	@echo "  make lint        Run linter"
 	@echo "  make vet         Run go vet"
 	@echo "  make fmt         Run go fmt"
@@ -27,10 +36,45 @@ build:
 	@chmod +x scripts/build.sh
 	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=false ./scripts/build.sh
 
-test:
+build-ui:
+	@echo "Building Wails UI application (production)..."
+	cd cmd/instaui && wails build
+	@echo "Wails UI application built. Binary available in cmd/instaui/build/bin/"
+
+dev-ui:
+	@echo "Starting Wails UI application (development mode)..."
+	cd cmd/instaui && wails dev
+
+test: test-go test-ui
+
+test-go:
+	@echo "Running Go tests..."
 	go test -v ./...
 
-clean:
+test-go-coverage:
+	@echo "Running Go tests with coverage..."
+	go test -v -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+
+test-ui:
+	@echo "Running frontend tests..."
+	@if [ -d "cmd/instaui/frontend/node_modules" ]; then \
+		cd cmd/instaui/frontend && npm test; \
+	else \
+		echo "Frontend dependencies not installed. Run 'make deps' first."; \
+		exit 1; \
+	fi
+
+test-ui-coverage:
+	@echo "Running frontend tests with coverage..."
+	@if [ -d "cmd/instaui/frontend/node_modules" ]; then \
+		cd cmd/instaui/frontend && npm run test:coverage; \
+	else \
+		echo "Frontend dependencies not installed. Run 'make deps' first."; \
+		exit 1; \
+	fi
+
+clean: clean-ui
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_NAME)-*.tar.gz
 	rm -f $(BINARY_NAME)-*.zip
@@ -78,4 +122,23 @@ publish: clean
 	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true PUBLISH=true ./scripts/packaging.sh
 
 install: build
-	mv $(BINARY_NAME) $(GOPATH)/bin/ 
+	mv $(BINARY_NAME) $(GOPATH)/bin/
+
+deps:
+	@echo "Installing Go dependencies..."
+	@go mod download
+	@echo "Installing Wails CLI..."
+	@go install github.com/wailsapp/wails/v2/cmd/wails@latest
+	@echo "Installing Web UI dependencies..."
+	@cd cmd/instaui && npm install
+	@echo "All dependencies installed successfully!"
+
+build-all: build build-ui
+	@echo "Both CLI and Web UI built successfully!"
+
+clean-ui:
+	@echo "Cleaning Web UI build artifacts..."
+	@rm -rf cmd/instaui/build
+	@rm -rf cmd/instaui/frontend/dist
+
+clean-all: clean clean-ui 

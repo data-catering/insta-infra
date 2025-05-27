@@ -1,0 +1,104 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# insta-infra Code Implementation Best Practices (When Executing a Plan)
+
+## 1. Introduction and Purpose
+
+This rule guides your actions when you are implementing code changes based on an approved implementation plan (e.g., `docs/implementation/wails-ui-plan.md`). The goal is to ensure that all code you write or modify for `insta-infra` is simple, readable, clean, testable, and aligns with both the plan and existing project standards. This applies to both Go backend development and Wails/React frontend development.
+
+## 2. Plan Adherence and Communication
+
+*   **State Current Task:** Before starting work on a task from the plan, explicitly state: "Now working on: [Task Description from Plan]".
+*   **Follow the Plan:**
+    *   Strictly adhere to the tasks, sub-tasks, and implementation details specified in the active implementation plan.
+    *   Do not deviate significantly without confirming with the user.
+*   **Verify Each Step:**
+    *   After implementing a task (or a significant sub-task), **immediately execute the corresponding testing step** as defined in the plan.
+    *   Report the outcome: "Testing for '[Task Description]': [Command Executed (e.g., `go test ./cmd/insta/...`, `make test`, `npm test --prefix ui` if UI tests exist, or manual UI check)] -> [Pass/Fail] - [Brief observation or output snippet]".
+    *   If a test fails, attempt to debug and fix the implementation. If the fix requires a deviation from the plan or takes significant effort, inform the user.
+*   **Communication is Key:**
+    *   If you encounter ambiguities in the plan, blockers, or realize a task needs to be changed, communicate this to the user *before* proceeding with a modified approach.
+    *   Request clarification if any part of the plan or existing codebase is unclear.
+    *   Upon completion of all tasks, state: "Implementation plan fully executed."
+
+## 3. Core Coding Principles
+
+*   **Simplicity (KISS - Keep It Simple, Stupid):**
+    *   Opt for the most straightforward solution that meets the requirements.
+    *   Avoid unnecessary complexity, abstractions, or over-engineering.
+*   **Readability:**
+    *   Use clear, descriptive, and consistent names for variables, functions, classes, methods, and Go struct fields.
+    *   Format code neatly and consistently. For Go, adhere to `gofmt`/`goimports`. For React/TypeScript, use Prettier (if configured, or maintain consistent formatting).
+    *   Write code that is as self-documenting as possible.
+*   **Clean Code:**
+    *   **DRY (Don't Repeat Yourself):** Consolidate and reuse code where appropriate. Avoid duplicated logic.
+    *   **SRP (Single Responsibility Principle):** Functions/methods/classes/Go packages should ideally do one thing well. Keep them focused and concise.
+    *   Minimize side effects in functions where possible.
+    *   Properly manage resources (e.g., close file handles, release locks, manage database connections).
+*   **Testability:**
+    *   Write code in a way that is easy to unit test. For Go, this means well-defined packages and functions. For React, this means creating testable components and using libraries like React Testing Library (if adopted).
+    *   **Action:** If the project has an existing test suite (e.g., Go tests in `tests/` or under specific packages like `cmd/insta/container`, React tests potentially in `ui/src/__tests__/`), and the task involves adding or significantly modifying a feature, make a reasonable effort to add or update relevant unit tests for the code you've changed/added. Announce if you are adding/modifying tests. For UI components, this might involve snapshot tests or interaction tests.
+
+## 4. Adherence to Project Context and Conventions (`insta-infra`)
+
+*   **Analyze Existing Code:** Before writing new Go code, examine `cmd/insta/` and its subdirectories (like `container/`, `resources/`) to understand existing patterns, style, and architectural choices. Refer to `cmd/insta/models.go` for service definitions. Before writing new React components, look at other components in the `ui/src/components/` directory (once it exists).
+*   **Follow Conventions:**
+    *   Adhere to Go best practices (e.g., effective Go, error handling) and `insta-infra`'s existing CLI structure, service management logic (e.g., in `cmd/insta/models.go`), and resource embedding patterns.
+    *   For the Wails/React UI, follow React best practices (e.g., hooks, component composition) and ensure proper binding with the Go backend via Wails.
+*   **Comments:**
+    *   Add comments to explain *why* certain complex or non-obvious code exists, not just *what* it does.
+    *   Use Go doc comments for exported Go functions, types, and variables.
+    *   Avoid commenting obvious code.
+    *   Ensure comments are kept up-to-date if the code changes.
+
+## 5. Code Modification Strategy
+
+*   When modifying existing code, strive to understand the context and potential impact of your changes on other parts of the system (e.g., other services, CLI commands).
+*   Aim for minimal, targeted changes that achieve the task's goal, unless a broader refactoring is explicitly part of the plan.
+*   If you believe a significant refactor (not specified in the plan) is beneficial or necessary, propose this to the user with your reasoning before proceeding.
+
+## 6. Error Handling and Resilience
+
+*   **Go Backend:**
+    *   Handle errors explicitly by checking error return values. Use `errors.Is` and `errors.As` where appropriate.
+    *   Avoid panics for recoverable errors; use them only for truly exceptional, unrecoverable situations.
+    *   Provide context to errors when returning them up the call stack (e.g., `fmt.Errorf("operation X failed: %w", err)`).
+*   **React Frontend:**
+    *   Use error boundaries for component-level error handling to prevent the entire UI from crashing.
+    *   Provide clear user feedback for failed operations (e.g., API calls to the Go backend failing).
+    *   Validate props and state where necessary.
+*   Consider edge cases and potential failure modes for the code you are implementing.
+*   Ensure the application can handle errors gracefully without crashing, if possible.
+
+## 7. Security Considerations (If Applicable to the Task)
+
+*   Be mindful of common security best practices relevant to the code you are writing (e.g., input validation for CLI arguments or UI inputs, output encoding if displaying user-provided content).
+*   If handling sensitive data (though less common for `insta-infra`'s core logic), ensure it's treated appropriately.
+*   When interacting with external systems (Docker/Podman), ensure commands are constructed safely.
+
+## 8. UI Specific Best Practices (Wails/React)
+
+*   **Component Design:**
+    *   Create reusable, well-defined React components with clear props and responsibilities. Store these in `ui/src/components/` and consider subdirectories for features or shared elements (e.g., `ui/src/components/shared/`, `ui/src/components/services/`).
+    *   Prefer functional components with hooks.
+*   **State Management:**
+    *   Use `useState` and `useReducer` for local component state.
+    *   For more complex global state (e.g., list of services, running statuses), consider React Context API. Evaluate the need before introducing more complex state management libraries.
+*   **Props:**
+    *   Define clear `interface` or `type` for component props using TypeScript.
+    *   Use descriptive prop names.
+*   **Wails Bindings:**
+    *   Clearly define Go methods in `insta-infra`'s Wails application struct (likely in `ui/app.go` or similar once the Wails project is initialized) that will be bound and callable from the JavaScript/React frontend.
+    *   Keep data transfer between Go and JS minimal and efficient. Handle data transformation on the appropriate side (Go or JS).
+*   **Styling:**
+    *   Prefer using Tailwind CSS (once set up) for styling to maintain consistency and a utility-first approach. See example in `cursor-rule-creation.mdc` for `Button` component structure.
+    *   Organize global styles and Tailwind configuration appropriately in the `ui` directory.
+*   **Accessibility (a11y):**
+    *   Strive to make UI components accessible (e.g., proper ARIA attributes, keyboard navigation, color contrast).
+*   **User Feedback:**
+    *   Provide visual feedback for user actions (e.g., loading states, success/error messages, toast notifications).
+
+By following these guidelines, you will help ensure that the code implemented as part of any plan for `insta-infra` is robust, maintainable, and of high quality, for both its Go core and its Wails/React UI.
