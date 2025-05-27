@@ -53,7 +53,6 @@ cmd/instaui/frontend/.vite/
 
 # Wails build artifacts
 app.syso
-wails.json
 
 # Legacy UI paths (if they exist)
 cmd/instaui/ui/dist/
