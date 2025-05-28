@@ -114,8 +114,8 @@ func TestApp_checkInitialization_NoContainerRuntime(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error, got nil")
 	}
-	if err.Error() != "container runtime not available" {
-		t.Errorf("Expected error 'container runtime not available', got %s", err.Error())
+	if err.Error() != "neither container runtime nor bundled CLI available" {
+		t.Errorf("Expected error 'neither container runtime nor bundled CLI available', got %s", err.Error())
 	}
 }
 

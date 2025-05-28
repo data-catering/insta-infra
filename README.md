@@ -228,6 +228,42 @@ The Web UI supports the same platforms as the CLI:
 - Check network connectivity if using remote Docker
 - Restart the application if status seems stuck
 
+## Configuration
+
+### Custom Container Runtime Paths
+
+If Docker or Podman is installed in a non-standard location, you can specify custom paths using environment variables:
+
+```bash
+# Custom Docker path
+export INSTA_DOCKER_PATH="/path/to/docker"
+insta postgres
+
+# Custom Podman path  
+export INSTA_PODMAN_PATH="/path/to/podman"
+insta -r podman postgres
+```
+
+This is particularly useful for:
+- **macOS GUI applications**: When Docker/Podman isn't in the standard PATH
+- **Custom installations**: When using alternative installation methods
+- **Enterprise environments**: When binaries are in non-standard locations
+- **Development setups**: When testing with different container runtime versions
+
+### Supported Installation Paths
+
+insta-infra automatically searches for Docker and Podman in these common locations:
+
+#### Docker
+- **macOS**: `/usr/local/bin/docker`, `/opt/homebrew/bin/docker`, `/Applications/Docker.app/Contents/Resources/bin/docker`
+- **Linux**: `/usr/bin/docker`, `/usr/local/bin/docker`, `/opt/docker/bin/docker`, `/snap/bin/docker`, `/var/lib/flatpak/exports/bin/docker`
+- **Windows**: `C:\Program Files\Docker\Docker\resources\bin\docker.exe`, `C:\ProgramData\chocolatey\bin\docker.exe`, `C:\tools\docker\docker.exe`
+
+#### Podman
+- **macOS**: `/usr/local/bin/podman`, `/opt/homebrew/bin/podman`
+- **Linux**: `/usr/bin/podman`, `/usr/local/bin/podman`, `/opt/podman/bin/podman`, `/snap/bin/podman`, `/var/lib/flatpak/exports/bin/podman`
+- **Windows**: `C:\Program Files\RedHat\Podman\podman.exe`, `C:\ProgramData\chocolatey\bin\podman.exe`, `C:\tools\podman\podman.exe`
+
 ## Data Persistence
 
 By default, all data is stored in memory and will be lost when the containers are stopped. To enable persistence, use the `-p` flag:

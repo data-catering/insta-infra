@@ -19,18 +19,23 @@ func (d *DockerRuntime) Name() string {
 }
 
 func (d *DockerRuntime) CheckAvailable() error {
-	if _, err := exec.LookPath("docker"); err != nil {
-		return fmt.Errorf("docker not found")
+	// Try to find Docker binary in PATH or common installation locations
+	dockerPath := findBinaryInCommonPaths("docker", getCommonDockerPaths())
+	if dockerPath == "" {
+		return fmt.Errorf("docker not found in PATH or common locations")
 	}
 
+	// Store the docker path for future use
+	d.dockerPath = dockerPath
+
 	// Check if Docker daemon is running
-	cmd := exec.Command("docker", "info")
+	cmd := exec.Command(d.dockerPath, "info")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("docker daemon not running")
 	}
 
 	// Check Docker Compose plugin
-	cmd = exec.Command("docker", "compose", "version")
+	cmd = exec.Command(d.dockerPath, "compose", "version")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("docker compose plugin not available")
 	}
@@ -38,9 +43,18 @@ func (d *DockerRuntime) CheckAvailable() error {
 	return nil
 }
 
+// getDockerCommand returns the path to the docker binary
+func (d *DockerRuntime) getDockerCommand() string {
+	if d.dockerPath != "" {
+		return d.dockerPath
+	}
+	// Fallback to "docker" if path not set (shouldn't happen after CheckAvailable)
+	return "docker"
+}
+
 func (d *DockerRuntime) ComposeUp(composeFiles []string, services []string, quiet bool) error {
 	// Ensure the insta network exists
-	networkCmd := exec.Command("docker", "network", "create", "--driver", "bridge", "insta-network")
+	networkCmd := exec.Command(d.getDockerCommand(), "network", "create", "--driver", "bridge", "insta-network")
 	_ = networkCmd.Run() // Ignore error if network already exists
 
 	// Set default environment variables
@@ -56,7 +70,7 @@ func (d *DockerRuntime) ComposeUp(composeFiles []string, services []string, quie
 	}
 	args = append(args, services...)
 
-	cmd := exec.Command("docker", args...)
+	cmd := exec.Command(d.getDockerCommand(), args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	// Set working directory to the directory containing the first compose file
@@ -88,7 +102,7 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	stopArgs = append(stopArgs, "stop")
 	stopArgs = append(stopArgs, services...)
 
-	stopCmd := exec.Command("docker", stopArgs...)
+	stopCmd := exec.Command(d.getDockerCommand(), stopArgs...)
 	stopCmd.Stdout = os.Stdout
 	stopCmd.Stderr = os.Stderr
 	stopCmd.Dir = filepath.Dir(composeFiles[0])
@@ -105,7 +119,7 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	rmArgs = append(rmArgs, "rm", "-f")
 	rmArgs = append(rmArgs, services...)
 
-	rmCmd := exec.Command("docker", rmArgs...)
+	rmCmd := exec.Command(d.getDockerCommand(), rmArgs...)
 	rmCmd.Stdout = os.Stdout
 	rmCmd.Stderr = os.Stderr
 	rmCmd.Dir = filepath.Dir(composeFiles[0])
@@ -125,7 +139,7 @@ func (d *DockerRuntime) ExecInContainer(containerName string, cmd string, intera
 		args = append(args, "bash")
 	}
 
-	execCmd := exec.Command("docker", args...)
+	execCmd := exec.Command(d.getDockerCommand(), args...)
 	execCmd.Stdin = os.Stdin
 	execCmd.Stdout = os.Stdout
 	execCmd.Stderr = os.Stderr
@@ -134,7 +148,7 @@ func (d *DockerRuntime) ExecInContainer(containerName string, cmd string, intera
 }
 
 func (d *DockerRuntime) GetPortMappings(containerName string) (map[string]string, error) {
-	cmd := exec.Command("docker", "port", containerName)
+	cmd := exec.Command(d.getDockerCommand(), "port", containerName)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port mappings for container %s: %w", containerName, err)
@@ -155,7 +169,7 @@ func (d *DockerRuntime) getOrParseComposeConfig(composeFiles []string) (*Compose
 	}
 	args = append(args, "config", "--format", "json")
 
-	cmd := exec.Command("docker", args...)
+	cmd := exec.Command(d.getDockerCommand(), args...)
 	if len(composeFiles) > 0 {
 		cmd.Dir = filepath.Dir(composeFiles[0])
 	}
@@ -267,7 +281,7 @@ func (d *DockerRuntime) GetContainerName(serviceName string, composeFiles []stri
 
 func (d *DockerRuntime) GetContainerLogs(containerName string, tailLines int) ([]string, error) {
 	args := []string{"logs", "--tail", fmt.Sprintf("%d", tailLines), containerName}
-	cmd := exec.Command("docker", args...)
+	cmd := exec.Command(d.getDockerCommand(), args...)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -285,7 +299,7 @@ func (d *DockerRuntime) GetContainerLogs(containerName string, tailLines int) ([
 
 func (d *DockerRuntime) StreamContainerLogs(containerName string, logChan chan<- string, stopChan <-chan struct{}) error {
 	args := []string{"logs", "--follow", "--tail", "50", containerName}
-	cmd := exec.Command("docker", args...)
+	cmd := exec.Command(d.getDockerCommand(), args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -379,7 +393,7 @@ func (d *DockerRuntime) StreamContainerLogs(containerName string, logChan chan<-
 
 // containerExists checks if a container with the given name exists and is running
 func (d *DockerRuntime) containerExists(containerName string) bool {
-	cmd := exec.Command("docker", "ps", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
+	cmd := exec.Command(d.getDockerCommand(), "ps", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
 	output, err := cmd.Output()
 	if err != nil {
 		return false
@@ -396,7 +410,7 @@ func (d *DockerRuntime) containerExists(containerName string) bool {
 
 // containerExistsAnywhere checks if a container with the given name exists (running or stopped)
 func (d *DockerRuntime) containerExistsAnywhere(containerName string) bool {
-	cmd := exec.Command("docker", "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
+	cmd := exec.Command(d.getDockerCommand(), "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
 	output, err := cmd.Output()
 	if err != nil {
 		return false
@@ -414,7 +428,7 @@ func (d *DockerRuntime) containerExistsAnywhere(containerName string) bool {
 // GetContainerStatus returns the status of a container (running, exited, created, etc.)
 func (d *DockerRuntime) GetContainerStatus(containerName string) (string, error) {
 	// Check all containers (including stopped ones)
-	cmd := exec.Command("docker", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
+	cmd := exec.Command(d.getDockerCommand(), "ps", "-a", "--format", "{{.Names}}\t{{.Status}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
 	output, err := cmd.Output()
 	if err != nil {
 		return "not_found", fmt.Errorf("failed to check container status: %w", err)
@@ -462,7 +476,7 @@ func (d *DockerRuntime) GetContainerStatus(containerName string) (string, error)
 
 // CheckImageExists checks if a Docker image exists locally
 func (d *DockerRuntime) CheckImageExists(imageName string) (bool, error) {
-	cmd := exec.Command("docker", "image", "inspect", imageName)
+	cmd := exec.Command(d.getDockerCommand(), "image", "inspect", imageName)
 	return cmd.Run() == nil, nil
 }
 
@@ -487,7 +501,7 @@ func (d *DockerRuntime) GetImageInfo(serviceName string, composeFiles []string) 
 
 // PullImageWithProgress pulls a Docker image and reports progress
 func (d *DockerRuntime) PullImageWithProgress(imageName string, progressChan chan<- ImagePullProgress, stopChan <-chan struct{}) error {
-	cmd := exec.Command("docker", "pull", imageName)
+	cmd := exec.Command(d.getDockerCommand(), "pull", imageName)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

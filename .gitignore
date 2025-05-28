@@ -39,6 +39,9 @@ coverage/
 # Data persistence
 cmd/insta/resources/data/*/persist/
 
+# Wails UI embedded resources (duplicated from cmd/insta/resources)
+cmd/instaui/resources/
+
 # Frontend build artifacts
 cmd/instaui/frontend/dist/
 cmd/instaui/frontend/build/

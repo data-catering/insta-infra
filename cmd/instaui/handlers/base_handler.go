@@ -134,17 +134,80 @@ func (h *BaseHandler) fetchRunningContainers() (map[string]bool, error) {
 		return runningContainers, nil
 	}
 
-	// For real runtimes, use direct command execution
-	var cmd []string
+	// For real runtimes, use the same binary resolution logic as the runtime
+	var output []byte
+	var err error
+	
 	if runtimeName == "docker" {
-		cmd = []string{"docker", "ps", "--format", "{{.Names}}"}
+		// Use the same enhanced detection logic as DockerRuntime
+		dockerPath := os.Getenv("INSTA_DOCKER_PATH")
+		if dockerPath == "" {
+			// Try common paths for Docker
+			commonPaths := []string{
+				"/opt/homebrew/bin/docker",     // Homebrew on Apple Silicon
+				"/usr/local/bin/docker",        // Homebrew on Intel Mac
+				"/usr/bin/docker",              // System package
+				"/snap/bin/docker",             // Snap package
+				"/var/lib/flatpak/exports/bin/docker", // Flatpak
+			}
+			
+			// First try PATH
+			if path, pathErr := exec.LookPath("docker"); pathErr == nil {
+				dockerPath = path
+			} else {
+				// Try common paths
+				for _, path := range commonPaths {
+					if _, statErr := os.Stat(path); statErr == nil {
+						dockerPath = path
+						break
+					}
+				}
+			}
+		}
+		
+		if dockerPath == "" {
+			return nil, fmt.Errorf("docker binary not found in PATH or common locations")
+		}
+		
+		cmd := exec.Command(dockerPath, "ps", "--format", "{{.Names}}")
+		output, err = cmd.Output()
 	} else if runtimeName == "podman" {
-		cmd = []string{"podman", "ps", "--format", "{{.Names}}"}
+		// Use the same enhanced detection logic as PodmanRuntime
+		podmanPath := os.Getenv("INSTA_PODMAN_PATH")
+		if podmanPath == "" {
+			// Try common paths for Podman
+			commonPaths := []string{
+				"/opt/homebrew/bin/podman",     // Homebrew on Apple Silicon
+				"/usr/local/bin/podman",        // Homebrew on Intel Mac
+				"/usr/bin/podman",              // System package
+				"/snap/bin/podman",             // Snap package
+				"/var/lib/flatpak/exports/bin/podman", // Flatpak
+			}
+			
+			// First try PATH
+			if path, pathErr := exec.LookPath("podman"); pathErr == nil {
+				podmanPath = path
+			} else {
+				// Try common paths
+				for _, path := range commonPaths {
+					if _, statErr := os.Stat(path); statErr == nil {
+						podmanPath = path
+						break
+					}
+				}
+			}
+		}
+		
+		if podmanPath == "" {
+			return nil, fmt.Errorf("podman binary not found in PATH or common locations")
+		}
+		
+		cmd := exec.Command(podmanPath, "ps", "--format", "{{.Names}}")
+		output, err = cmd.Output()
 	} else {
 		return nil, fmt.Errorf("unsupported runtime: %s", runtimeName)
 	}
 
-	output, err := exec.Command(cmd[0], cmd[1:]...).Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get running containers: %w", err)
 	}
@@ -171,12 +234,12 @@ func (h *BaseHandler) getActualRunningContainerName(serviceName string, composeF
 		if err != nil {
 			return "", err
 		}
-		
+
 		// Check if this container is actually running
 		if runningContainers[containerName] {
 			return containerName, nil
 		}
-		
+
 		return "", fmt.Errorf("no running container found for service %s", serviceName)
 	}
 

@@ -30,8 +30,20 @@ export function GetAllServicesWithStatusAndDependencies() {
   return window['go']['main']['App']['GetAllServicesWithStatusAndDependencies']();
 }
 
+export function GetAppLogs() {
+  return window['go']['main']['App']['GetAppLogs']();
+}
+
 export function GetCurrentRuntime() {
   return window['go']['main']['App']['GetCurrentRuntime']();
+}
+
+export function GetCustomDockerPath() {
+  return window['go']['main']['App']['GetCustomDockerPath']();
+}
+
+export function GetCustomPodmanPath() {
+  return window['go']['main']['App']['GetCustomPodmanPath']();
 }
 
 export function GetDependencyGraph() {
@@ -96,6 +108,14 @@ export function RefreshStatusFromContainers() {
 
 export function ReinitializeRuntime() {
   return window['go']['main']['App']['ReinitializeRuntime']();
+}
+
+export function SetCustomDockerPath(arg1) {
+  return window['go']['main']['App']['SetCustomDockerPath'](arg1);
+}
+
+export function SetCustomPodmanPath(arg1) {
+  return window['go']['main']['App']['SetCustomPodmanPath'](arg1);
 }
 
 export function StartAllDependencies(arg1, arg2) {

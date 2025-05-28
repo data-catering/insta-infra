@@ -19,19 +19,24 @@ func (p *PodmanRuntime) Name() string {
 }
 
 func (p *PodmanRuntime) CheckAvailable() error {
-	if _, err := exec.LookPath("podman"); err != nil {
-		return fmt.Errorf("podman not found")
+	// Try to find Podman binary in PATH or common installation locations
+	podmanPath := findBinaryInCommonPaths("podman", getCommonPodmanPaths())
+	if podmanPath == "" {
+		return fmt.Errorf("podman not found in PATH or common locations")
 	}
 
+	// Store the podman path for future use
+	p.podmanPath = podmanPath
+
 	// Check podman version
-	cmd := exec.Command("podman", "version", "--format", "{{.Version}}")
+	cmd := exec.Command(p.podmanPath, "version", "--format", "{{.Version}}")
 	_, err := cmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to get podman version: %w", err)
 	}
 
 	// Check if podman machine is running (for macOS)
-	cmd = exec.Command("podman", "machine", "list", "--format", "{{.Name}}")
+	cmd = exec.Command(p.podmanPath, "machine", "list", "--format", "{{.Name}}")
 	if output, err := cmd.Output(); err != nil || len(strings.TrimSpace(string(output))) == 0 {
 		return fmt.Errorf("podman machine not running")
 	}
@@ -40,7 +45,7 @@ func (p *PodmanRuntime) CheckAvailable() error {
 	setPodmanEnvVars()
 
 	// Check compose plugin
-	cmd = exec.Command("podman", "compose", "version")
+	cmd = exec.Command(p.podmanPath, "compose", "version")
 	if err := cmd.Run(); err != nil {
 		// Try podman-compose as fallback
 		if _, fallbackErr := exec.LookPath("podman-compose"); fallbackErr != nil {
@@ -49,7 +54,7 @@ func (p *PodmanRuntime) CheckAvailable() error {
 	}
 
 	// Check if running rootless
-	cmd = exec.Command("podman", "info", "--format", "{{.Host.Security.Rootless}}")
+	cmd = exec.Command(p.podmanPath, "info", "--format", "{{.Host.Security.Rootless}}")
 	output, err := cmd.Output()
 	if err == nil && string(output) == "true" {
 		fmt.Printf("Warning: Running in rootless mode. Some features may require additional configuration.\n")
@@ -70,7 +75,7 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	}
 	validateArgs = append(validateArgs, "config", "--quiet")
 
-	validateCmd := exec.Command("podman", validateArgs...)
+	validateCmd := exec.Command(p.getPodmanCommand(), validateArgs...)
 	validateCmd.Stdout = os.Stdout
 	validateCmd.Stderr = os.Stderr
 	validateCmd.Dir = filepath.Dir(composeFiles[0])
@@ -80,7 +85,7 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	}
 
 	// Ensure the insta network exists
-	networkCmd := exec.Command("podman", "network", "create", "--driver", "bridge", "insta-network")
+	networkCmd := exec.Command(p.getPodmanCommand(), "network", "create", "--driver", "bridge", "insta-network")
 	_ = networkCmd.Run() // Ignore error if network already exists
 
 	// Start services
@@ -94,7 +99,7 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	}
 	upArgs = append(upArgs, services...)
 
-	upCmd := exec.Command("podman", upArgs...)
+	upCmd := exec.Command(p.getPodmanCommand(), upArgs...)
 	upCmd.Stderr = os.Stderr
 	upCmd.Dir = filepath.Dir(composeFiles[0])
 
@@ -114,7 +119,7 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 	stopArgs = append(stopArgs, "stop")
 	stopArgs = append(stopArgs, services...)
 
-	stopCmd := exec.Command("podman", stopArgs...)
+	stopCmd := exec.Command(p.getPodmanCommand(), stopArgs...)
 	stopCmd.Stdout = os.Stdout
 	stopCmd.Stderr = os.Stderr
 	stopCmd.Dir = filepath.Dir(composeFiles[0])
@@ -131,7 +136,7 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 	rmArgs = append(rmArgs, "rm", "-f")
 	rmArgs = append(rmArgs, services...)
 
-	rmCmd := exec.Command("podman", rmArgs...)
+	rmCmd := exec.Command(p.getPodmanCommand(), rmArgs...)
 	rmCmd.Stdout = os.Stdout
 	rmCmd.Stderr = os.Stderr
 	rmCmd.Dir = filepath.Dir(composeFiles[0])
@@ -151,7 +156,7 @@ func (p *PodmanRuntime) ExecInContainer(containerName string, cmd string, intera
 		args = append(args, "bash")
 	}
 
-	execCmd := exec.Command("podman", args...)
+	execCmd := exec.Command(p.getPodmanCommand(), args...)
 	execCmd.Stdin = os.Stdin
 	execCmd.Stdout = os.Stdout
 	execCmd.Stderr = os.Stderr
@@ -160,7 +165,7 @@ func (p *PodmanRuntime) ExecInContainer(containerName string, cmd string, intera
 }
 
 func (p *PodmanRuntime) GetPortMappings(containerName string) (map[string]string, error) {
-	cmd := exec.Command("podman", "port", containerName)
+	cmd := exec.Command(p.getPodmanCommand(), "port", containerName)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port mappings for container %s: %w", containerName, err)
@@ -181,7 +186,7 @@ func (p *PodmanRuntime) getOrParseComposeConfig(composeFiles []string) (*Compose
 	}
 	args = append(args, "config", "--format", "json")
 
-	cmd := exec.Command("podman", args...)
+	cmd := exec.Command(p.getPodmanCommand(), args...)
 	if len(composeFiles) > 0 {
 		cmd.Dir = filepath.Dir(composeFiles[0])
 	}
@@ -281,7 +286,7 @@ func (p *PodmanRuntime) GetContainerName(serviceName string, composeFiles []stri
 
 func (p *PodmanRuntime) GetContainerLogs(containerName string, tailLines int) ([]string, error) {
 	args := []string{"logs", "--tail", fmt.Sprintf("%d", tailLines), containerName}
-	cmd := exec.Command("podman", args...)
+	cmd := exec.Command(p.getPodmanCommand(), args...)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -299,7 +304,7 @@ func (p *PodmanRuntime) GetContainerLogs(containerName string, tailLines int) ([
 
 func (p *PodmanRuntime) StreamContainerLogs(containerName string, logChan chan<- string, stopChan <-chan struct{}) error {
 	args := []string{"logs", "--follow", "--tail", "50", containerName}
-	cmd := exec.Command("podman", args...)
+	cmd := exec.Command(p.getPodmanCommand(), args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -393,7 +398,7 @@ func (p *PodmanRuntime) StreamContainerLogs(containerName string, logChan chan<-
 
 // containerExistsAnywhere checks if a container with the given name exists (running or stopped)
 func (p *PodmanRuntime) containerExistsAnywhere(containerName string) bool {
-	cmd := exec.Command("podman", "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
+	cmd := exec.Command(p.getPodmanCommand(), "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
 	output, err := cmd.Output()
 	if err != nil {
 		return false
@@ -409,7 +414,7 @@ func (p *PodmanRuntime) containerExistsAnywhere(containerName string) bool {
 }
 
 func (p *PodmanRuntime) CheckImageExists(imageName string) (bool, error) {
-	cmd := exec.Command("podman", "image", "inspect", imageName)
+	cmd := exec.Command(p.getPodmanCommand(), "image", "inspect", imageName)
 	return cmd.Run() == nil, nil
 }
 
@@ -432,7 +437,7 @@ func (p *PodmanRuntime) GetImageInfo(serviceName string, composeFiles []string) 
 }
 
 func (p *PodmanRuntime) PullImageWithProgress(imageName string, progressChan chan<- ImagePullProgress, stopChan <-chan struct{}) error {
-	cmd := exec.Command("podman", "pull", imageName)
+	cmd := exec.Command(p.getPodmanCommand(), "pull", imageName)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -586,7 +591,7 @@ func (p *PodmanRuntime) parsePodmanPullOutput(line string) ImagePullProgress {
 
 func (p *PodmanRuntime) GetContainerStatus(containerName string) (string, error) {
 	// Check all containers (including stopped ones)
-	cmd := exec.Command("podman", "ps", "-a", "--format", "{{.Names}}\t{{.Status}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
+	cmd := exec.Command(p.getPodmanCommand(), "ps", "-a", "--format", "{{.Names}}\t{{.Status}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
 	output, err := cmd.Output()
 	if err != nil {
 		return "not_found", fmt.Errorf("failed to check container status: %w", err)
@@ -630,4 +635,13 @@ func (p *PodmanRuntime) GetContainerStatus(containerName string) (string, error)
 	}
 
 	return "not_found", nil
+}
+
+// getPodmanCommand returns the path to the podman binary
+func (p *PodmanRuntime) getPodmanCommand() string {
+	if p.podmanPath != "" {
+		return p.podmanPath
+	}
+	// Fallback to "podman" if path not set (shouldn't happen after CheckAvailable)
+	return "podman"
 }

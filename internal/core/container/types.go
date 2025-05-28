@@ -37,10 +37,12 @@ type Provider struct {
 type DockerRuntime struct {
 	parsedComposeConfig   *ComposeConfig
 	cachedComposeFilesKey string
+	dockerPath            string // Path to docker binary
 }
 
 // PodmanRuntime implements Runtime interface for Podman
 type PodmanRuntime struct {
 	parsedComposeConfig   *ComposeConfig
 	cachedComposeFilesKey string
+	podmanPath            string // Path to podman binary
 }

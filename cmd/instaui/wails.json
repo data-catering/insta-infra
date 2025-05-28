@@ -1,6 +1,6 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "instaui",
+  "name": "Insta-Infra UI",
   "outputfilename": "instaui",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
@@ -9,5 +9,14 @@
   "author": {
     "name": "Flook Peter",
     "email": "peter.flook@data.catering"
-  }
+  },
+  "info": {
+    "productName": "Insta-Infra UI",
+    "productVersion": "2.1.0",
+    "copyright": "© 2024 Data Catering. All rights reserved.",
+    "comments": "A modern UI for managing data infrastructure services"
+  },
+  "nsisType": "multiple",
+  "obfuscated": false,
+  "garbleargs": "-literals -tiny -seed=random"
 }

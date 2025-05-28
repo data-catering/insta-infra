@@ -17,7 +17,13 @@ export function GetAllServiceDetails():Promise<Array<models.ServiceDetailInfo>>;
 
 export function GetAllServicesWithStatusAndDependencies():Promise<Array<models.ServiceDetailInfo>>;
 
+export function GetAppLogs():Promise<Array<string>>;
+
 export function GetCurrentRuntime():Promise<string>;
+
+export function GetCustomDockerPath():Promise<string>;
+
+export function GetCustomPodmanPath():Promise<string>;
 
 export function GetDependencyGraph():Promise<models.DependencyGraph>;
 
@@ -50,6 +56,10 @@ export function OpenServiceInBrowser(arg1:string):Promise<void>;
 export function RefreshStatusFromContainers():Promise<Record<string, models.ServiceStatus>>;
 
 export function ReinitializeRuntime():Promise<void>;
+
+export function SetCustomDockerPath(arg1:string):Promise<void>;
+
+export function SetCustomPodmanPath(arg1:string):Promise<void>;
 
 export function StartAllDependencies(arg1:string,arg2:boolean):Promise<void>;
 

@@ -82,16 +82,16 @@ func checkDockerStatus() RuntimeStatus {
 		InstallationGuide: getDockerInstallationGuide(),
 	}
 
-	// Check if Docker binary exists
-	_, err := exec.LookPath("docker")
-	if err != nil {
+	// Check if Docker binary exists using enhanced detection
+	dockerPath := findBinaryInCommonPaths("docker", getCommonDockerPaths())
+	if dockerPath == "" {
 		status.Error = "Docker not installed"
 		return status
 	}
 	status.IsInstalled = true
 
 	// Check if Docker daemon is running
-	cmd := exec.Command("docker", "info")
+	cmd := exec.Command(dockerPath, "info")
 	if err := cmd.Run(); err != nil {
 		status.Error = "Docker daemon not running"
 		status.CanAutoStart = canStartDockerService()
@@ -101,14 +101,14 @@ func checkDockerStatus() RuntimeStatus {
 	status.IsRunning = true
 
 	// Get Docker version
-	if versionCmd := exec.Command("docker", "version", "--format", "{{.Server.Version}}"); versionCmd != nil {
+	if versionCmd := exec.Command(dockerPath, "version", "--format", "{{.Server.Version}}"); versionCmd != nil {
 		if output, err := versionCmd.Output(); err == nil {
 			status.Version = strings.TrimSpace(string(output))
 		}
 	}
 
 	// Check Docker Compose
-	cmd = exec.Command("docker", "compose", "version")
+	cmd = exec.Command(dockerPath, "compose", "version")
 	if err := cmd.Run(); err != nil {
 		status.Error = "Docker Compose plugin not available"
 		return status
@@ -127,16 +127,16 @@ func checkPodmanStatus() RuntimeStatus {
 		RequiresMachine:   runtime.GOOS == "darwin", // macOS requires podman machine
 	}
 
-	// Check if Podman binary exists
-	_, err := exec.LookPath("podman")
-	if err != nil {
+	// Check if Podman binary exists using enhanced detection
+	podmanPath := findBinaryInCommonPaths("podman", getCommonPodmanPaths())
+	if podmanPath == "" {
 		status.Error = "Podman not installed"
 		return status
 	}
 	status.IsInstalled = true
 
 	// Get Podman version
-	if versionCmd := exec.Command("podman", "version", "--format", "{{.Version}}"); versionCmd != nil {
+	if versionCmd := exec.Command(podmanPath, "version", "--format", "{{.Version}}"); versionCmd != nil {
 		if output, err := versionCmd.Output(); err == nil {
 			status.Version = strings.TrimSpace(string(output))
 		}
@@ -144,7 +144,7 @@ func checkPodmanStatus() RuntimeStatus {
 
 	// Check if Podman machine is running (macOS)
 	if status.RequiresMachine {
-		machineCmd := exec.Command("podman", "machine", "list", "--format", "{{.Name}} {{.Running}}")
+		machineCmd := exec.Command(podmanPath, "machine", "list", "--format", "{{.Name}} {{.Running}}")
 		output, err := machineCmd.Output()
 		if err != nil {
 			status.Error = "Failed to check Podman machine status"
@@ -179,7 +179,7 @@ func checkPodmanStatus() RuntimeStatus {
 	}
 
 	// Check if Podman daemon is accessible
-	cmd := exec.Command("podman", "info")
+	cmd := exec.Command(podmanPath, "info")
 	if err := cmd.Run(); err != nil {
 		status.Error = "Podman not accessible"
 		if !status.RequiresMachine {
@@ -191,7 +191,7 @@ func checkPodmanStatus() RuntimeStatus {
 	status.IsRunning = true
 
 	// Check Podman Compose
-	cmd = exec.Command("podman", "compose", "version")
+	cmd = exec.Command(podmanPath, "compose", "version")
 	if err := cmd.Run(); err != nil {
 		// Try podman-compose as fallback
 		if _, fallbackErr := exec.LookPath("podman-compose"); fallbackErr != nil {

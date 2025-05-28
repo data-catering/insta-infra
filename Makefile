@@ -13,6 +13,7 @@ help:
 	@echo "Usage:"
 	@echo "  make build       Build CLI binary"
 	@echo "  make build-ui    Build Web UI binary (production)"
+	@echo "  make build-ui-bundled Build Web UI with bundled CLI (recommended for distribution)"
 	@echo "  make build-frontend Build frontend assets only (for embed)"
 	@echo "  make build-all   Build both CLI and Web UI"
 	@echo "  make dev-ui      Start Web UI in development mode"
@@ -41,6 +42,13 @@ build-ui:
 	@echo "Building Wails UI application (production)..."
 	cd cmd/instaui && wails build
 	@echo "Wails UI application built. Binary available in cmd/instaui/build/bin/"
+
+build-ui-bundled: build
+	@echo "Building Wails UI application with bundled CLI (production)..."
+	cd cmd/instaui && wails build -clean
+	@echo "Bundling CLI binary into app..."
+	./scripts/bundle-cli.sh
+	@echo "Wails UI application with bundled CLI built. Binary available in cmd/instaui/build/bin/"
 
 dev-ui:
 	@echo "Starting Wails UI application (development mode)..."

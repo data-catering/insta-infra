@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPodmanRuntime_Name(t *testing.T) {
@@ -723,4 +726,64 @@ func TestPodmanRuntime_PodmanSpecific(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestPodmanRuntimeCheckAvailableWithCustomPath(t *testing.T) {
+	// Test that Podman detection works with custom path via environment variable
+
+	// Save original environment
+	originalPath := os.Getenv("INSTA_PODMAN_PATH")
+	defer func() {
+		if originalPath == "" {
+			os.Unsetenv("INSTA_PODMAN_PATH")
+		} else {
+			os.Setenv("INSTA_PODMAN_PATH", originalPath)
+		}
+	}()
+
+	// Create a temporary podman binary
+	tempDir := t.TempDir()
+	podmanPath := filepath.Join(tempDir, "podman")
+
+	// Create a mock podman script that responds to basic commands
+	podmanScript := `#!/bin/bash
+case "$1" in
+    "version")
+        echo "4.0.0"
+        exit 0
+        ;;
+    "machine")
+        if [ "$2" = "list" ]; then
+            echo "test-machine"
+            exit 0
+        fi
+        ;;
+    "compose")
+        if [ "$2" = "version" ]; then
+            echo "Podman Compose version"
+            exit 0
+        fi
+        ;;
+    "info")
+        echo '{"host":{"security":{"rootless":false}}}'
+        exit 0
+        ;;
+esac
+exit 1
+`
+
+	err := os.WriteFile(podmanPath, []byte(podmanScript), 0755)
+	require.NoError(t, err)
+
+	// Set custom Podman path
+	os.Setenv("INSTA_PODMAN_PATH", podmanPath)
+
+	// Test that findBinaryInCommonPaths finds the custom path
+	foundPath := findBinaryInCommonPaths("podman", getCommonPodmanPaths())
+	assert.Equal(t, podmanPath, foundPath)
+
+	// Test that the found podman binary works
+	cmd := exec.Command(foundPath, "version", "--format", "{{.Version}}")
+	err = cmd.Run()
+	assert.NoError(t, err)
 }

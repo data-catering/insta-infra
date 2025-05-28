@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -21,6 +22,66 @@ type StartupResult struct {
 	Message              string `json:"message"`
 	Error                string `json:"error"`
 	RequiresManualAction bool   `json:"requiresManualAction"`
+}
+
+// getDockerPath returns the resolved Docker binary path
+func getDockerPath() string {
+	// Check for custom path first
+	if customPath := os.Getenv("INSTA_DOCKER_PATH"); customPath != "" {
+		return customPath
+	}
+
+	// Try PATH first
+	if path, err := exec.LookPath("docker"); err == nil {
+		return path
+	}
+
+	// Try common paths
+	commonPaths := []string{
+		"/opt/homebrew/bin/docker",            // Homebrew on Apple Silicon
+		"/usr/local/bin/docker",               // Homebrew on Intel Mac
+		"/usr/bin/docker",                     // System package
+		"/snap/bin/docker",                    // Snap package
+		"/var/lib/flatpak/exports/bin/docker", // Flatpak
+	}
+
+	for _, path := range commonPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return "docker" // Fallback
+}
+
+// getPodmanPath returns the resolved Podman binary path
+func getPodmanPath() string {
+	// Check for custom path first
+	if customPath := os.Getenv("INSTA_PODMAN_PATH"); customPath != "" {
+		return customPath
+	}
+
+	// Try PATH first
+	if path, err := exec.LookPath("podman"); err == nil {
+		return path
+	}
+
+	// Try common paths
+	commonPaths := []string{
+		"/opt/homebrew/bin/podman",            // Homebrew on Apple Silicon
+		"/usr/local/bin/podman",               // Homebrew on Intel Mac
+		"/usr/bin/podman",                     // System package
+		"/snap/bin/podman",                    // Snap package
+		"/var/lib/flatpak/exports/bin/podman", // Flatpak
+	}
+
+	for _, path := range commonPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return "podman" // Fallback
 }
 
 // AttemptStartRuntime tries to start the specified container runtime
@@ -92,7 +153,8 @@ func (rm *RuntimeManager) startDockerMacOS() *StartupResult {
 	time.Sleep(3 * time.Second)
 
 	// Check if Docker is responding (it may take time to fully start)
-	checkCmd := exec.Command("docker", "info")
+	dockerPath := getDockerPath()
+	checkCmd := exec.Command(dockerPath, "info")
 	if err := checkCmd.Run(); err == nil {
 		return &StartupResult{
 			Success: true,
@@ -121,7 +183,8 @@ func (rm *RuntimeManager) startDockerLinux() *StartupResult {
 
 	// Wait a moment and verify
 	time.Sleep(2 * time.Second)
-	checkCmd := exec.Command("docker", "info")
+	dockerPath := getDockerPath()
+	checkCmd := exec.Command(dockerPath, "info")
 	if err := checkCmd.Run(); err != nil {
 		return &StartupResult{
 			Success:              false,
@@ -161,10 +224,11 @@ func (rm *RuntimeManager) startDockerWindows() *StartupResult {
 
 func (rm *RuntimeManager) startPodmanMacOS() *StartupResult {
 	// On macOS, Podman requires a machine to be started
-	cmd := exec.Command("podman", "machine", "start")
+	podmanPath := getPodmanPath()
+	cmd := exec.Command(podmanPath, "machine", "start")
 	if err := cmd.Run(); err != nil {
 		// Try to initialize machine first if it doesn't exist
-		initCmd := exec.Command("podman", "machine", "init")
+		initCmd := exec.Command(podmanPath, "machine", "init")
 		if initErr := initCmd.Run(); initErr != nil {
 			return &StartupResult{
 				Success:              false,
@@ -187,7 +251,7 @@ func (rm *RuntimeManager) startPodmanMacOS() *StartupResult {
 
 	// Wait a moment and verify
 	time.Sleep(3 * time.Second)
-	checkCmd := exec.Command("podman", "info")
+	checkCmd := exec.Command(podmanPath, "info")
 	if err := checkCmd.Run(); err != nil {
 		return &StartupResult{
 			Success:              false,
@@ -217,7 +281,8 @@ func (rm *RuntimeManager) startPodmanLinux() *StartupResult {
 
 	// Wait a moment and verify
 	time.Sleep(2 * time.Second)
-	checkCmd := exec.Command("podman", "info")
+	podmanPath := getPodmanPath()
+	checkCmd := exec.Command(podmanPath, "info")
 	if err := checkCmd.Run(); err != nil {
 		return &StartupResult{
 			Success:              false,

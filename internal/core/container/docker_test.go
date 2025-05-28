@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDockerRuntime_Name(t *testing.T) {
@@ -678,4 +681,183 @@ func TestDockerRuntime_StreamingOperations(t *testing.T) {
 		}
 		t.Logf("Received %d progress updates", progressCount)
 	})
+}
+
+func TestDockerRuntimeCheckAvailableWithCommonPaths(t *testing.T) {
+	// Test that Docker detection works even when not in PATH
+	// This simulates the macOS GUI app scenario
+
+	// Save original PATH
+	originalPath := os.Getenv("PATH")
+	defer os.Setenv("PATH", originalPath)
+
+	// Set PATH to exclude Docker
+	os.Setenv("PATH", "/usr/bin:/bin")
+
+	// Create a temporary docker binary in a common location
+	tempDir := t.TempDir()
+	dockerPath := filepath.Join(tempDir, "docker")
+
+	// Create a mock docker script that responds to basic commands
+	dockerScript := `#!/bin/bash
+case "$1" in
+    "info")
+        echo "Docker info output"
+        exit 0
+        ;;
+    "compose")
+        if [ "$2" = "version" ]; then
+            echo "Docker Compose version"
+            exit 0
+        fi
+        ;;
+esac
+exit 1
+`
+
+	err := os.WriteFile(dockerPath, []byte(dockerScript), 0755)
+	require.NoError(t, err)
+
+	// Test the path detection logic directly
+	commonPaths := []string{
+		"/usr/local/bin/docker",
+		"/opt/homebrew/bin/docker",
+		"/Applications/Docker.app/Contents/Resources/bin/docker",
+		dockerPath, // Our test path
+	}
+
+	var foundPath string
+	for _, path := range commonPaths {
+		if _, err := os.Stat(path); err == nil {
+			foundPath = path
+			break
+		}
+	}
+
+	// Should find some docker binary (either real or our test one)
+	assert.NotEmpty(t, foundPath)
+
+	// Test that the found docker binary works
+	cmd := exec.Command(foundPath, "info")
+	err = cmd.Run()
+	assert.NoError(t, err)
+
+	cmd = exec.Command(foundPath, "compose", "version")
+	err = cmd.Run()
+	assert.NoError(t, err)
+}
+
+func TestDockerRuntimeCheckAvailableWithCustomPath(t *testing.T) {
+	// Test that Docker detection works with custom path via environment variable
+
+	// Save original environment
+	originalPath := os.Getenv("INSTA_DOCKER_PATH")
+	defer func() {
+		if originalPath == "" {
+			os.Unsetenv("INSTA_DOCKER_PATH")
+		} else {
+			os.Setenv("INSTA_DOCKER_PATH", originalPath)
+		}
+	}()
+
+	// Create a temporary docker binary
+	tempDir := t.TempDir()
+	dockerPath := filepath.Join(tempDir, "docker")
+
+	// Create a mock docker script that responds to basic commands
+	dockerScript := `#!/bin/bash
+case "$1" in
+    "info")
+        echo "Docker info output"
+        exit 0
+        ;;
+    "compose")
+        if [ "$2" = "version" ]; then
+            echo "Docker Compose version"
+            exit 0
+        fi
+        ;;
+esac
+exit 1
+`
+
+	err := os.WriteFile(dockerPath, []byte(dockerScript), 0755)
+	require.NoError(t, err)
+
+	// Set custom Docker path
+	os.Setenv("INSTA_DOCKER_PATH", dockerPath)
+
+	// Test that findBinaryInCommonPaths finds the custom path
+	foundPath := findBinaryInCommonPaths("docker", getCommonDockerPaths())
+	assert.Equal(t, dockerPath, foundPath)
+
+	// Test that the found docker binary works
+	cmd := exec.Command(foundPath, "info")
+	err = cmd.Run()
+	assert.NoError(t, err)
+
+	cmd = exec.Command(foundPath, "compose", "version")
+	err = cmd.Run()
+	assert.NoError(t, err)
+}
+
+func TestGetCommonDockerPaths(t *testing.T) {
+	// Test that common paths are returned for different operating systems
+	paths := getCommonDockerPaths()
+
+	// Should return some paths for any supported OS
+	assert.NotEmpty(t, paths)
+
+	// Paths should be absolute
+	for _, path := range paths {
+		assert.True(t, filepath.IsAbs(path), "Path should be absolute: %s", path)
+	}
+}
+
+func TestGetCommonPodmanPaths(t *testing.T) {
+	// Test that common paths are returned for different operating systems
+	paths := getCommonPodmanPaths()
+
+	// Should return some paths for any supported OS
+	assert.NotEmpty(t, paths)
+
+	// Paths should be absolute
+	for _, path := range paths {
+		assert.True(t, filepath.IsAbs(path), "Path should be absolute: %s", path)
+	}
+}
+
+func TestGetCustomBinaryPath(t *testing.T) {
+	// Save original environment
+	originalDockerPath := os.Getenv("INSTA_DOCKER_PATH")
+	originalPodmanPath := os.Getenv("INSTA_PODMAN_PATH")
+	defer func() {
+		if originalDockerPath == "" {
+			os.Unsetenv("INSTA_DOCKER_PATH")
+		} else {
+			os.Setenv("INSTA_DOCKER_PATH", originalDockerPath)
+		}
+		if originalPodmanPath == "" {
+			os.Unsetenv("INSTA_PODMAN_PATH")
+		} else {
+			os.Setenv("INSTA_PODMAN_PATH", originalPodmanPath)
+		}
+	}()
+
+	// Test Docker custom path
+	os.Setenv("INSTA_DOCKER_PATH", "/custom/docker")
+	assert.Equal(t, "/custom/docker", getCustomBinaryPath("docker"))
+
+	// Test Podman custom path
+	os.Setenv("INSTA_PODMAN_PATH", "/custom/podman")
+	assert.Equal(t, "/custom/podman", getCustomBinaryPath("podman"))
+
+	// Test unknown binary
+	assert.Equal(t, "", getCustomBinaryPath("unknown"))
+
+	// Test empty environment
+	os.Unsetenv("INSTA_DOCKER_PATH")
+	os.Unsetenv("INSTA_PODMAN_PATH")
+	assert.Equal(t, "", getCustomBinaryPath("docker"))
+	assert.Equal(t, "", getCustomBinaryPath("podman"))
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GetRuntimeStatus, AttemptStartRuntime, WaitForRuntimeReady, ReinitializeRuntime } from '../../wailsjs/go/main/App';
+import { GetRuntimeStatus, AttemptStartRuntime, WaitForRuntimeReady, ReinitializeRuntime, SetCustomDockerPath, SetCustomPodmanPath, GetCustomDockerPath, GetCustomPodmanPath, GetAppLogs } from '../../wailsjs/go/main/App';
 
 const RuntimeSetup = ({ onRuntimeReady }) => {
   const [runtimeStatus, setRuntimeStatus] = useState(null);
@@ -8,10 +8,36 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
   const [startupProgress, setStartupProgress] = useState('');
   const [error, setError] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [customDockerPath, setCustomDockerPath] = useState('');
+  const [customPodmanPath, setCustomPodmanPath] = useState('');
+  const [pathError, setPathError] = useState('');
+  const [showLogs, setShowLogs] = useState(false);
+  const [appLogs, setAppLogs] = useState([]);
 
   useEffect(() => {
     checkRuntimeStatus();
+    loadCustomPaths();
   }, []);
+
+  const loadCustomPaths = async () => {
+    try {
+      const dockerPath = await GetCustomDockerPath();
+      const podmanPath = await GetCustomPodmanPath();
+      setCustomDockerPath(dockerPath || '');
+      setCustomPodmanPath(podmanPath || '');
+    } catch (err) {
+      console.error('Failed to load custom paths:', err);
+    }
+  };
+
+  const loadAppLogs = async () => {
+    try {
+      const logs = await GetAppLogs();
+      setAppLogs(logs);
+    } catch (err) {
+      console.error('Failed to load app logs:', err);
+    }
+  };
 
   const checkRuntimeStatus = async () => {
     try {
@@ -110,6 +136,52 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
     
     if (url) {
       window.open(url, '_blank');
+    }
+  };
+
+  const handleSetCustomDockerPath = async () => {
+    try {
+      setPathError('');
+      await SetCustomDockerPath(customDockerPath);
+      // Refresh runtime status after setting custom path
+      await checkRuntimeStatus();
+    } catch (err) {
+      setPathError(`Failed to set Docker path: ${err.message || err}`);
+    }
+  };
+
+  const handleSetCustomPodmanPath = async () => {
+    try {
+      setPathError('');
+      await SetCustomPodmanPath(customPodmanPath);
+      // Refresh runtime status after setting custom path
+      await checkRuntimeStatus();
+    } catch (err) {
+      setPathError(`Failed to set Podman path: ${err.message || err}`);
+    }
+  };
+
+  const handleClearCustomDockerPath = async () => {
+    try {
+      setPathError('');
+      setCustomDockerPath('');
+      await SetCustomDockerPath('');
+      // Refresh runtime status after clearing custom path
+      await checkRuntimeStatus();
+    } catch (err) {
+      setPathError(`Failed to clear Docker path: ${err.message || err}`);
+    }
+  };
+
+  const handleClearCustomPodmanPath = async () => {
+    try {
+      setPathError('');
+      setCustomPodmanPath('');
+      await SetCustomPodmanPath('');
+      // Refresh runtime status after clearing custom path
+      await checkRuntimeStatus();
+    } catch (err) {
+      setPathError(`Failed to clear Podman path: ${err.message || err}`);
     }
   };
 
@@ -482,7 +554,164 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
                     ))}
                   </div>
                   
+                  {/* Custom Path Configuration */}
                   <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(55, 65, 81, 0.5)', borderRadius: '8px' }}>
+                    <h5 style={{ margin: '0 0 16px 0', fontSize: '0.875rem', fontWeight: '600', color: 'var(--color-text)' }}>
+                      Custom Binary Paths
+                    </h5>
+                    <p style={{ margin: '0 0 16px 0', fontSize: '0.75rem', color: '#94a3b8' }}>
+                      If Docker or Podman is installed in a non-standard location, specify the full path to the binary here.
+                    </p>
+                    
+                    {pathError && (
+                      <div style={{ 
+                        marginBottom: '16px', 
+                        padding: '8px 12px', 
+                        background: 'rgba(239, 68, 68, 0.1)', 
+                        border: '1px solid rgba(239, 68, 68, 0.3)', 
+                        borderRadius: '4px',
+                        color: '#fca5a5',
+                        fontSize: '0.75rem'
+                      }}>
+                        {pathError}
+                      </div>
+                    )}
+
+                    {/* Docker Path Configuration */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', fontWeight: '500', color: 'var(--color-text)' }}>
+                        Docker Binary Path
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          value={customDockerPath}
+                          onChange={(e) => setCustomDockerPath(e.target.value)}
+                          placeholder="/opt/homebrew/bin/docker"
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            fontSize: '0.75rem',
+                            background: 'rgba(30, 41, 59, 0.8)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: '4px',
+                            color: 'var(--color-text)'
+                          }}
+                        />
+                        <button
+                          onClick={handleSetCustomDockerPath}
+                          disabled={!customDockerPath.trim()}
+                          className="button button-primary"
+                          style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                        >
+                          Set
+                        </button>
+                        {customDockerPath && (
+                          <button
+                            onClick={handleClearCustomDockerPath}
+                            className="button button-secondary"
+                            style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Podman Path Configuration */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', fontWeight: '500', color: 'var(--color-text)' }}>
+                        Podman Binary Path
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          value={customPodmanPath}
+                          onChange={(e) => setCustomPodmanPath(e.target.value)}
+                          placeholder="/opt/homebrew/bin/podman"
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            fontSize: '0.75rem',
+                            background: 'rgba(30, 41, 59, 0.8)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: '4px',
+                            color: 'var(--color-text)'
+                          }}
+                        />
+                        <button
+                          onClick={handleSetCustomPodmanPath}
+                          disabled={!customPodmanPath.trim()}
+                          className="button button-primary"
+                          style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                        >
+                          Set
+                        </button>
+                        {customPodmanPath && (
+                          <button
+                            onClick={handleClearCustomPodmanPath}
+                            className="button button-secondary"
+                            style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Application Logs */}
+                  <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(55, 65, 81, 0.5)', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <h5 style={{ margin: '0', fontSize: '0.875rem', fontWeight: '600', color: 'var(--color-text)' }}>
+                        Application Logs
+                      </h5>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={loadAppLogs}
+                          className="button button-secondary"
+                          style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                        >
+                          Refresh
+                        </button>
+                        <button
+                          onClick={() => setShowLogs(!showLogs)}
+                          className="button button-secondary"
+                          style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                        >
+                          {showLogs ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {showLogs && (
+                      <div style={{
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '4px',
+                        padding: '12px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        fontFamily: 'monospace',
+                        fontSize: '0.75rem',
+                        color: '#e2e8f0'
+                      }}>
+                        {appLogs.length === 0 ? (
+                          <p style={{ margin: '0', color: '#94a3b8', fontStyle: 'italic' }}>
+                            No logs available. Click "Refresh" to load logs.
+                          </p>
+                        ) : (
+                          appLogs.map((log, index) => (
+                            <div key={index} style={{ marginBottom: '2px', wordBreak: 'break-word' }}>
+                              {log}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(55, 65, 81, 0.5)', borderRadius: '8px' }}>
                     <h5 style={{ margin: '0 0 8px 0', fontSize: '0.875rem', fontWeight: '600', color: 'var(--color-text)' }}>
                       Need Help?
                     </h5>
