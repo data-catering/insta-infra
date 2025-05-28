@@ -66,6 +66,13 @@ test-go:
 	@echo "Preparing UI resources for tests..."
 	@chmod +x scripts/prepare-ui-resources.sh
 	@./scripts/prepare-ui-resources.sh
+	@echo "Building frontend for tests..."
+	@if [ -d "cmd/instaui/frontend/node_modules" ]; then \
+		cd cmd/instaui/frontend && npm run build; \
+	else \
+		echo "Frontend dependencies not installed. Installing..."; \
+		cd cmd/instaui/frontend && npm install && npm run build; \
+	fi
 	@echo "Running Go tests..."
 	go test -v ./...
 
