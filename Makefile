@@ -39,11 +39,17 @@ build:
 	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=false ./scripts/build.sh
 
 build-ui:
+	@echo "Preparing UI resources..."
+	@chmod +x scripts/prepare-ui-resources.sh
+	@./scripts/prepare-ui-resources.sh
 	@echo "Building Wails UI application (production)..."
 	cd cmd/instaui && wails build
 	@echo "Wails UI application built. Binary available in cmd/instaui/build/bin/"
 
 build-ui-bundled: build
+	@echo "Preparing UI resources..."
+	@chmod +x scripts/prepare-ui-resources.sh
+	@./scripts/prepare-ui-resources.sh
 	@echo "Building Wails UI application with bundled CLI (production)..."
 	cd cmd/instaui && wails build -clean
 	@echo "Bundling CLI binary into app..."
@@ -96,6 +102,9 @@ lint:
 	golint ./...
 
 vet: build-frontend
+	@echo "Preparing UI resources for vet..."
+	@chmod +x scripts/prepare-ui-resources.sh
+	@./scripts/prepare-ui-resources.sh
 	go vet ./...
 
 build-frontend:
