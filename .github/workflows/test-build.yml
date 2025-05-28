@@ -96,13 +96,8 @@ jobs:
           cache: 'npm'
           cache-dependency-path: cmd/instaui/frontend/package-lock.json
 
-      - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Install UI dependencies
-        run: |
-          cd cmd/instaui/frontend
-          npm ci
+      - name: Install dependencies
+        run: make deps
 
       - name: Install Linux dependencies (Ubuntu only)
         if: matrix.os == 'ubuntu-latest'
@@ -110,36 +105,47 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
-      - name: Prepare UI resources
+      - name: Install UPX (for CLI compression)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          chmod +x scripts/prepare-ui-resources.sh
-          ./scripts/prepare-ui-resources.sh
+          sudo apt-get update
+          sudo apt-get install -y upx
 
-      - name: Build UI application
+      - name: Install UPX (macOS)
+        if: matrix.os == 'macos-latest'
         run: |
-          cd cmd/instaui
-          wails build -platform ${{ matrix.platform }} -clean
+          brew install upx
+
+      - name: Install UPX (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install upx
+
+      - name: Build bundled UI application
+        run: make build-ui-bundled
+        env:
+          CGO_ENABLED: 1
 
       - name: Upload UI artifact (Linux)
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: cmd/instaui/build/bin/instaui
+          path: cmd/instaui/build/bin/
 
       - name: Upload UI artifact (macOS)
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: cmd/instaui/build/bin/Insta-Infra UI.app/Contents/MacOS/instaui
+          path: cmd/instaui/build/bin/Insta-Infra UI.app
 
       - name: Upload UI artifact (Windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: cmd/instaui/build/bin/instaui.exe
+          path: cmd/instaui/build/bin/
 
   test-ui-integration:
     runs-on: ubuntu-latest
@@ -153,26 +159,28 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: instaui-linux-amd64
-          path: ./
+          path: ./ui-artifacts
         continue-on-error: true
 
       - name: Test UI binary
         run: |
-          if [ -f "instaui" ]; then
-            echo "Testing UI binary..."
-            chmod +x instaui
-            ls -la instaui
-            file instaui
+          if [ -f "ui-artifacts/instaui" ]; then
+            echo "Testing bundled UI binary..."
+            chmod +x ui-artifacts/instaui
+            ls -la ui-artifacts/
+            file ui-artifacts/instaui
             
             # Test help command
-            timeout 10s ./instaui --help || echo "Help command test completed (timeout or exit)"
+            timeout 10s ./ui-artifacts/instaui --help || echo "Help command test completed (timeout or exit)"
             
             # Test version command if available
-            timeout 10s ./instaui --version || echo "Version command test completed (timeout or exit)"
+            timeout 10s ./ui-artifacts/instaui --version || echo "Version command test completed (timeout or exit)"
             
-            echo "UI binary integration test completed successfully"
+            echo "Bundled UI binary integration test completed successfully"
           else
             echo "UI binary not found - Linux AMD64 build may have failed"
+            echo "Available files:"
+            find ui-artifacts -type f 2>/dev/null || echo "No files found"
             echo "Skipping integration test"
           fi
 
@@ -196,19 +204,19 @@ jobs:
           ## CLI Tool (insta)
           - `insta-cli-linux/insta` - Command-line interface for Linux AMD64
           
-          ## UI Applications (instaui)
-          The UI applications provide a graphical interface for managing services:
+          ## UI Applications (instaui) - Bundled with CLI
+          The UI applications provide a graphical interface for managing services and include the CLI bundled within:
           
           ### Linux
-          - `instaui-linux-amd64/instaui` - Linux AMD64 binary
-          - `instaui-linux-arm64/instaui` - Linux ARM64 binary
+          - `instaui-linux-amd64/instaui` - Linux AMD64 binary (bundled with CLI)
+          - `instaui-linux-arm64/instaui` - Linux ARM64 binary (bundled with CLI)
           
           ### macOS
-          - `instaui-darwin-amd64/instaui` - macOS Intel (x86_64) binary
-          - `instaui-darwin-arm64/instaui` - macOS Apple Silicon (ARM64) binary
+          - `instaui-darwin-amd64/Insta-Infra UI.app` - macOS Intel (x86_64) application bundle
+          - `instaui-darwin-arm64/Insta-Infra UI.app` - macOS Apple Silicon (ARM64) application bundle
           
           ### Windows
-          - `instaui-windows-amd64/instaui.exe` - Windows AMD64 executable
+          - `instaui-windows-amd64/instaui.exe` - Windows AMD64 executable (bundled with CLI)
           
           ## Usage
           
@@ -220,16 +228,27 @@ jobs:
           
           ### UI Applications
           
-          **Linux/macOS:**
+          **Linux:**
           ```bash
           chmod +x instaui
           ./instaui
+          ```
+          
+          **macOS:**
+          Double-click the `Insta-Infra UI.app` bundle or run from terminal:
+          ```bash
+          open "Insta-Infra UI.app"
           ```
           
           **Windows:**
           ```cmd
           instaui.exe
           ```
+          
+          ## Features
+          - **Bundled CLI**: UI applications include the CLI binary, so no separate installation needed
+          - **Native Apps**: Platform-specific application bundles for better OS integration
+          - **Container Runtime Support**: Works with Docker or Podman
           
           ## Requirements
           - Docker or Podman installed and running
@@ -255,6 +274,15 @@ jobs:
             echo "- No artifacts found" >> $GITHUB_STEP_SUMMARY
           fi
           
+          # Also list .app bundles for macOS
+          if find artifacts -name "*.app" -type d 2>/dev/null | grep -q .; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### macOS Application Bundles:" >> $GITHUB_STEP_SUMMARY
+            find artifacts -name "*.app" -type d -exec du -sh {} \; | while read line; do
+              echo "- $line" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Platform Build Status:" >> $GITHUB_STEP_SUMMARY
           
@@ -266,33 +294,33 @@ jobs:
           fi
           
           if [ -f "artifacts/instaui-linux-amd64/instaui" ]; then
-            echo "- ✅ UI: Linux AMD64" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ UI (Bundled): Linux AMD64" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ❌ UI: Linux AMD64" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ UI (Bundled): Linux AMD64" >> $GITHUB_STEP_SUMMARY
           fi
           
           if [ -f "artifacts/instaui-linux-arm64/instaui" ]; then
-            echo "- ✅ UI: Linux ARM64" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ UI (Bundled): Linux ARM64" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ❌ UI: Linux ARM64" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ UI (Bundled): Linux ARM64" >> $GITHUB_STEP_SUMMARY
           fi
           
-          if [ -f "artifacts/instaui-darwin-amd64/instaui" ]; then
-            echo "- ✅ UI: macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
+          if [ -d "artifacts/instaui-darwin-amd64/Insta-Infra UI.app" ]; then
+            echo "- ✅ UI (Native App): macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ❌ UI: macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ UI (Native App): macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
           fi
           
-          if [ -f "artifacts/instaui-darwin-arm64/instaui" ]; then
-            echo "- ✅ UI: macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
+          if [ -d "artifacts/instaui-darwin-arm64/Insta-Infra UI.app" ]; then
+            echo "- ✅ UI (Native App): macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ❌ UI: macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ UI (Native App): macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
           fi
           
           if [ -f "artifacts/instaui-windows-amd64/instaui.exe" ]; then
-            echo "- ✅ UI: Windows AMD64" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ UI (Bundled): Windows AMD64" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- ❌ UI: Windows AMD64" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ UI (Bundled): Windows AMD64" >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -300,7 +328,9 @@ jobs:
           echo "1. Go to the 'Summary' tab of this workflow run" >> $GITHUB_STEP_SUMMARY
           echo "2. Scroll down to 'Artifacts' section" >> $GITHUB_STEP_SUMMARY
           echo "3. Click on the artifact for your platform to download (only successful builds will be available)" >> $GITHUB_STEP_SUMMARY
-          echo "4. Extract and run the binary (see README.md in artifacts for details)" >> $GITHUB_STEP_SUMMARY
+          echo "4. Extract and run the binary/app (see README.md in artifacts for details)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: UI applications include the CLI bundled within, providing a complete standalone solution." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload README
         uses: actions/upload-artifact@v4
