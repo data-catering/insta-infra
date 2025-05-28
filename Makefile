@@ -63,6 +63,9 @@ dev-ui:
 test: test-go test-ui
 
 test-go:
+	@echo "Preparing UI resources for tests..."
+	@chmod +x scripts/prepare-ui-resources.sh
+	@./scripts/prepare-ui-resources.sh
 	@echo "Running Go tests..."
 	go test -v ./...
 
@@ -157,7 +160,7 @@ deps:
 	@echo "Installing Wails CLI..."
 	@go install github.com/wailsapp/wails/v2/cmd/wails@latest
 	@echo "Installing Web UI dependencies..."
-	@cd cmd/instaui && npm install
+	@cd cmd/instaui/frontend && npm install
 	@echo "All dependencies installed successfully!"
 
 build-all: build build-ui
