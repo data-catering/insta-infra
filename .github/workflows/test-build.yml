@@ -23,36 +23,13 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: |
-            cmd/instaui/frontend/package-lock.json
-            cmd/instaui/frontend/package.json
+          cache-dependency-path: cmd/instaui/frontend/package-lock.json
 
       - name: Install dependencies
-        run: go mod download
+        run: make deps
 
-      - name: Verify dependencies
-        run: go mod verify
-
-      - name: Install UI dependencies
-        run: |
-          cd cmd/instaui/frontend
-          npm ci
-
-      - name: Build frontend for embed
-        run: |
-          cd cmd/instaui/frontend
-          npm run build
-
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Run Go tests
-        run: go test -v ./...
-
-      - name: Run UI tests
-        run: |
-          cd cmd/instaui/frontend
-          npm test
+      - name: Run tests
+        run: make test
 
   build-cli:
     runs-on: ubuntu-latest
@@ -72,9 +49,7 @@ jobs:
           sudo apt-get install -y upx
 
       - name: Build CLI
-        run: |
-          chmod +x scripts/build.sh
-          make build
+        run: make build
 
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
@@ -119,9 +94,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: |
-            cmd/instaui/frontend/package-lock.json
-            cmd/instaui/frontend/package.json
+          cache-dependency-path: cmd/instaui/frontend/package-lock.json
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
@@ -136,6 +109,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Prepare UI resources
+        run: |
+          chmod +x scripts/prepare-ui-resources.sh
+          ./scripts/prepare-ui-resources.sh
 
       - name: Build UI application
         run: |
