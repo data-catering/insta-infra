@@ -43,7 +43,7 @@ build-ui:
 	@chmod +x scripts/prepare-ui-resources.sh
 	@./scripts/prepare-ui-resources.sh
 	@echo "Building Wails UI application (production)..."
-	cd cmd/instaui && wails build
+	cd cmd/instaui && wails build -clean
 	@echo "Wails UI application built. Binary available in cmd/instaui/build/bin/"
 
 build-ui-bundled: build
@@ -51,7 +51,12 @@ build-ui-bundled: build
 	@chmod +x scripts/prepare-ui-resources.sh
 	@./scripts/prepare-ui-resources.sh
 	@echo "Building Wails UI application with bundled CLI (production)..."
-	cd cmd/instaui && wails build -clean
+	@if [ -n "$(WAILS_BUILD_TAGS)" ]; then \
+		echo "Building with tags: $(WAILS_BUILD_TAGS)"; \
+		cd cmd/instaui && wails build -clean $(WAILS_BUILD_TAGS); \
+	else \
+		cd cmd/instaui && wails build -clean; \
+	fi
 	@echo "Bundling CLI binary into app..."
 	./scripts/bundle-cli.sh
 	@echo "Wails UI application with bundled CLI built. Binary available in cmd/instaui/build/bin/"

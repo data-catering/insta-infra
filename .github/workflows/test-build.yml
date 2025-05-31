@@ -100,7 +100,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Install UPX (for CLI compression)
         if: matrix.os == 'ubuntu-latest'
@@ -120,7 +120,12 @@ jobs:
 
       - name: Build bundled UI application (Unix)
         if: matrix.os != 'windows-latest'
-        run: make build-ui-bundled
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            WAILS_BUILD_TAGS="-tags webkit2_41" make build-ui-bundled
+          else
+            make build-ui-bundled
+          fi
         env:
           CGO_ENABLED: 1
           
@@ -134,27 +139,12 @@ jobs:
           echo "Building Wails UI application with bundled CLI (production)..."
           cd cmd/instaui && wails build -clean
           echo "Bundling CLI binary into app..."
-          powershell -File scripts/bundle-cli.ps1
+          powershell -ExecutionPolicy Bypass -File "scripts\bundle-cli.ps1"
           echo "Wails UI application with bundled CLI built. Binary available in cmd/instaui/build/bin/"
         env:
           CGO_ENABLED: 1
 
-      - name: Upload UI artifact (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: cmd/instaui/build/bin/
-
-      - name: Upload UI artifact (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: cmd/instaui/build/bin/
-
-      - name: Upload UI artifact (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Upload UI artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
