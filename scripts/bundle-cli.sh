@@ -8,8 +8,13 @@ set -e
 echo "Bundling CLI binary into Wails app..."
 
 # Determine the platform
-PLATFORM=$(uname -s)
-ARCH=$(uname -m)
+PLATFORM=$(uname -s 2>/dev/null || echo "Unknown")
+ARCH=$(uname -m 2>/dev/null || echo "Unknown")
+
+# Handle Windows detection more robustly
+if [[ "$OS" == "Windows_NT" ]] || [[ "$PLATFORM" == MINGW* ]] || [[ "$PLATFORM" == CYGWIN* ]] || [[ "$PLATFORM" == MSYS* ]]; then
+    PLATFORM="Windows"
+fi
 
 # Convert architecture names
 case $ARCH in
@@ -72,9 +77,17 @@ EOF
     
     chmod +x "$RESOURCES_DIR/insta-wrapper.sh"
     
+    # Try to remove quarantine attributes (helps with Gatekeeper on local builds)
+    echo "Removing quarantine attributes from app bundle..."
+    xattr -cr "$APP_BUNDLE" 2>/dev/null || echo "Note: Could not remove quarantine attributes (normal in CI)"
+    
     echo "CLI binary bundled successfully!"
     echo "Binary location: $RESOURCES_DIR/insta-cli"
     echo "Wrapper script: $RESOURCES_DIR/insta-wrapper.sh"
+    echo ""
+    echo "Note: This app is not code-signed. Users may need to:"
+    echo "1. Right-click the app and select 'Open' (first time only)"
+    echo "2. Or run: xattr -cr 'Insta-Infra UI.app' && open 'Insta-Infra UI.app'"
     
 elif [ "$PLATFORM" = "Linux" ]; then
     # For Linux, we'll put the binary alongside the main executable
@@ -89,7 +102,7 @@ elif [ "$PLATFORM" = "Linux" ]; then
     
     echo "CLI binary bundled for Linux at $LINUX_BINARY_DIR/insta-cli"
     
-elif [ "$PLATFORM" = "MINGW"* ] || [ "$PLATFORM" = "CYGWIN"* ]; then
+elif [ "$PLATFORM" = "Windows" ]; then
     # For Windows
     CLI_BINARY="insta.exe"
     if [ ! -f "$CLI_BINARY" ]; then

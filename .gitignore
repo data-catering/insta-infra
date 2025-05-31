@@ -54,6 +54,12 @@ cmd/instaui/frontend/.cache/
 cmd/instaui/frontend/.parcel-cache/
 cmd/instaui/frontend/.vite/
 
+# Playwright test artifacts
+cmd/instaui/frontend/playwright-report/
+cmd/instaui/frontend/test-results-playwright/
+**/e2e/**/*-snapshots/
+**/*test-results*/
+
 # Wails build artifacts
 app.syso
 
@@ -106,6 +112,13 @@ coverage/
 .nyc_output/
 junit.xml
 *.lcov
+
+# E2E test artifacts
+**/test-results/
+**/playwright-report/
+**/*-snapshots/
+**/*.spec.js-snapshots/
+**/*.test.js-snapshots/
 
 # Backup files
 *.bak

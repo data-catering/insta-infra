@@ -65,10 +65,7 @@ jobs:
           - os: ubuntu-latest
             platform: linux/amd64
             artifact-name: instaui-linux-amd64
-          - os: ubuntu-latest
-            platform: linux/arm64
-            artifact-name: instaui-linux-arm64
-          - os: macos-latest
+          - os: macos-13
             platform: darwin/amd64
             artifact-name: instaui-darwin-amd64
           - os: macos-latest
@@ -103,7 +100,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
 
       - name: Install UPX (for CLI compression)
         if: matrix.os == 'ubuntu-latest'
@@ -121,8 +118,24 @@ jobs:
         run: |
           choco install upx
 
-      - name: Build bundled UI application
+      - name: Build bundled UI application (Unix)
+        if: matrix.os != 'windows-latest'
         run: make build-ui-bundled
+        env:
+          CGO_ENABLED: 1
+          
+      - name: Build bundled UI application (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo "Building CLI binary first..."
+          make build
+          echo "Preparing UI resources..."
+          bash scripts/prepare-ui-resources.sh
+          echo "Building Wails UI application with bundled CLI (production)..."
+          cd cmd/instaui && wails build -clean
+          echo "Bundling CLI binary into app..."
+          powershell -File scripts/bundle-cli.ps1
+          echo "Wails UI application with bundled CLI built. Binary available in cmd/instaui/build/bin/"
         env:
           CGO_ENABLED: 1
 
@@ -209,11 +222,17 @@ jobs:
           
           ### Linux
           - `instaui-linux-amd64/instaui` - Linux AMD64 binary (bundled with CLI)
-          - `instaui-linux-arm64/instaui` - Linux ARM64 binary (bundled with CLI)
+          
+          **Note**: Linux ARM64 builds are not currently available due to cross-compilation limitations with Wails.
           
           ### macOS
           - `instaui-darwin-amd64/Insta-Infra UI.app` - macOS Intel (x86_64) application bundle
           - `instaui-darwin-arm64/Insta-Infra UI.app` - macOS Apple Silicon (ARM64) application bundle
+          
+          **⚠️ macOS Security Notice**: These apps are not code-signed. If macOS blocks the app:
+          1. Right-click the app and select 'Open'
+          2. Click 'Open' in the security dialog
+          3. Or run: `xattr -cr "Insta-Infra UI.app"` then open the app
           
           ### Windows
           - `instaui-windows-amd64/instaui.exe` - Windows AMD64 executable (bundled with CLI)
@@ -299,11 +318,7 @@ jobs:
             echo "- ❌ UI (Bundled): Linux AMD64" >> $GITHUB_STEP_SUMMARY
           fi
           
-          if [ -f "artifacts/instaui-linux-arm64/instaui" ]; then
-            echo "- ✅ UI (Bundled): Linux ARM64" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ UI (Bundled): Linux ARM64" >> $GITHUB_STEP_SUMMARY
-          fi
+
           
           if [ -d "artifacts/instaui-darwin-amd64/Insta-Infra UI.app" ]; then
             echo "- ✅ UI (Native App): macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
@@ -336,4 +351,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-readme
-          path: artifacts/README.md 
+          path: artifacts/README.md
