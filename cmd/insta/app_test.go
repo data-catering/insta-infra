@@ -6,21 +6,29 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/data-catering/insta-infra/v2/internal/core/container"
 )
 
 // AppTestMockRuntime for testing App
 type AppTestMockRuntime struct {
-	name              string
-	composeUpCalled   bool
-	composeDownCalled bool
-	execCalled        bool
-	composeFiles      []string
-	services          []string
-	lastContainer     string
-	lastCmd           string
-	portMappings      map[string]map[string]string
-	dependencies      map[string][]string
-	containerNames    map[string]string
+	name                            string
+	composeUpCalled                 bool
+	composeDownCalled               bool
+	execCalled                      bool
+	composeFiles                    []string
+	services                        []string
+	lastContainer                   string
+	lastCmd                         string
+	portMappings                    map[string]map[string]string
+	dependencies                    map[string][]string
+	containerNames                  map[string]string
+	getContainerStatusFunc          func(containerName string) (string, error)
+	checkImageExistsFunc            func(imageName string) (bool, error)
+	pullImageWithProgressFunc       func(imageName string, progressChan chan<- container.ImagePullProgress, stopChan <-chan struct{}) error
+	getAllDependenciesRecursiveFunc func(serviceName string, composeFiles []string) ([]string, error)
+	getContainerLogsFunc            func(containerName string, tailLines int) ([]string, error)
+	streamContainerLogsFunc         func(containerName string, logChan chan<- string, stopChan <-chan struct{}) error
 }
 
 func NewAppTestMockRuntime() *AppTestMockRuntime {
@@ -80,6 +88,52 @@ func (m *AppTestMockRuntime) GetContainerName(serviceName string, composeFiles [
 		return cn, nil
 	}
 	return fmt.Sprintf("insta_%s_1_app_mock", serviceName), nil
+}
+
+func (m *AppTestMockRuntime) GetContainerStatus(containerName string) (string, error) {
+	if m.getContainerStatusFunc != nil {
+		return m.getContainerStatusFunc(containerName)
+	}
+	return "running", nil
+}
+
+func (m *AppTestMockRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string) ([]string, error) {
+	if m.getAllDependenciesRecursiveFunc != nil {
+		return m.getAllDependenciesRecursiveFunc(serviceName, composeFiles)
+	}
+	return []string{}, nil
+}
+
+func (m *AppTestMockRuntime) CheckImageExists(imageName string) (bool, error) {
+	if m.checkImageExistsFunc != nil {
+		return m.checkImageExistsFunc(imageName)
+	}
+	return true, nil
+}
+
+func (m *AppTestMockRuntime) PullImageWithProgress(imageName string, progressChan chan<- container.ImagePullProgress, stopChan <-chan struct{}) error {
+	if m.pullImageWithProgressFunc != nil {
+		return m.pullImageWithProgressFunc(imageName, progressChan, stopChan)
+	}
+	return nil
+}
+
+func (m *AppTestMockRuntime) GetContainerLogs(containerName string, tailLines int) ([]string, error) {
+	if m.getContainerLogsFunc != nil {
+		return m.getContainerLogsFunc(containerName, tailLines)
+	}
+	return []string{"mock log line"}, nil
+}
+
+func (m *AppTestMockRuntime) StreamContainerLogs(containerName string, logChan chan<- string, stopChan <-chan struct{}) error {
+	if m.streamContainerLogsFunc != nil {
+		return m.streamContainerLogsFunc(containerName, logChan, stopChan)
+	}
+	return nil
+}
+
+func (m *AppTestMockRuntime) GetImageInfo(serviceName string, composeFiles []string) (string, error) {
+	return fmt.Sprintf("%s:latest", serviceName), nil
 }
 
 func TestAppWithMockRuntime(t *testing.T) {
