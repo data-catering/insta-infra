@@ -15,15 +15,15 @@ type mockContainerRuntime struct {
 	composeDownFunc                 func([]string, []string) error
 	execInContainerFunc             func(string, string, bool) error
 	getPortMappingsFunc             func(string) (map[string]string, error)
-	getDependenciesFunc             func(string, []string) ([]string, error)
 	getContainerNameFunc            func(string, []string) (string, error)
-	getAllDependenciesRecursiveFunc func(string, []string) ([]string, error)
+	getAllDependenciesRecursiveFunc func(string, []string, bool) ([]string, error)
 	getContainerLogsFunc            func(string, int) ([]string, error)
 	streamContainerLogsFunc         func(string, chan<- string, <-chan struct{}) error
 	checkImageExistsFunc            func(string) (bool, error)
 	getImageInfoFunc                func(string, []string) (string, error)
 	pullImageWithProgressFunc       func(string, chan<- container.ImagePullProgress, <-chan struct{}) error
 	getContainerStatusFunc          func(string) (string, error)
+	getAllContainerStatusesFunc     func() (map[string]string, error)
 
 	// Default return values
 	defaultName            string
@@ -71,7 +71,7 @@ func (m *mockContainerRuntime) withGetContainerName(fn func(string, []string) (s
 }
 
 // withGetAllDependenciesRecursive sets a custom GetAllDependenciesRecursive function
-func (m *mockContainerRuntime) withGetAllDependenciesRecursive(fn func(string, []string) ([]string, error)) *mockContainerRuntime {
+func (m *mockContainerRuntime) withGetAllDependenciesRecursive(fn func(string, []string, bool) ([]string, error)) *mockContainerRuntime {
 	m.getAllDependenciesRecursiveFunc = fn
 	return m
 }
@@ -85,6 +85,18 @@ func (m *mockContainerRuntime) withGetContainerLogs(fn func(string, int) ([]stri
 // withStreamContainerLogs sets a custom StreamContainerLogs function
 func (m *mockContainerRuntime) withStreamContainerLogs(fn func(string, chan<- string, <-chan struct{}) error) *mockContainerRuntime {
 	m.streamContainerLogsFunc = fn
+	return m
+}
+
+// withGetAllContainerStatuses sets a custom GetAllContainerStatuses function
+func (m *mockContainerRuntime) withGetAllContainerStatuses(fn func() (map[string]string, error)) *mockContainerRuntime {
+	m.getAllContainerStatusesFunc = fn
+	return m
+}
+
+// withGetContainerStatus sets a custom GetContainerStatus function
+func (m *mockContainerRuntime) withGetContainerStatus(fn func(string) (string, error)) *mockContainerRuntime {
+	m.getContainerStatusFunc = fn
 	return m
 }
 
@@ -131,16 +143,9 @@ func (m *mockContainerRuntime) GetPortMappings(containerName string) (map[string
 	return m.defaultPortMappings, nil
 }
 
-func (m *mockContainerRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
-	if m.getDependenciesFunc != nil {
-		return m.getDependenciesFunc(service, composeFiles)
-	}
-	return m.defaultDependencies, nil
-}
-
-func (m *mockContainerRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string) ([]string, error) {
+func (m *mockContainerRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string, isContainer bool) ([]string, error) {
 	if m.getAllDependenciesRecursiveFunc != nil {
-		return m.getAllDependenciesRecursiveFunc(serviceName, composeFiles)
+		return m.getAllDependenciesRecursiveFunc(serviceName, composeFiles, isContainer)
 	}
 	return m.defaultDependencies, nil
 }
@@ -183,11 +188,46 @@ func (m *mockContainerRuntime) CheckImageExists(imageName string) (bool, error) 
 	return m.defaultImageExists, nil
 }
 
+// CheckMultipleImagesExist checks if multiple images exist locally in a single call
+func (m *mockContainerRuntime) CheckMultipleImagesExist(imageNames []string) (map[string]bool, error) {
+	result := make(map[string]bool)
+	for _, imageName := range imageNames {
+		if m.checkImageExistsFunc != nil {
+			exists, err := m.checkImageExistsFunc(imageName)
+			if err != nil {
+				return nil, err
+			}
+			result[imageName] = exists
+		} else {
+			result[imageName] = m.defaultImageExists
+		}
+	}
+	return result, nil
+}
+
 func (m *mockContainerRuntime) GetImageInfo(serviceName string, composeFiles []string) (string, error) {
 	if m.getImageInfoFunc != nil {
 		return m.getImageInfoFunc(serviceName, composeFiles)
 	}
 	return fmt.Sprintf("test/%s:latest", serviceName), nil
+}
+
+// GetMultipleImageInfo returns image information for multiple services from compose files
+func (m *mockContainerRuntime) GetMultipleImageInfo(serviceNames []string, composeFiles []string) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, serviceName := range serviceNames {
+		if m.getImageInfoFunc != nil {
+			imageInfo, err := m.getImageInfoFunc(serviceName, composeFiles)
+			if err != nil {
+				// Skip services with errors rather than failing the whole operation
+				continue
+			}
+			result[serviceName] = imageInfo
+		} else {
+			result[serviceName] = fmt.Sprintf("test/%s:latest", serviceName)
+		}
+	}
+	return result, nil
 }
 
 func (m *mockContainerRuntime) PullImageWithProgress(imageName string, progressChan chan<- container.ImagePullProgress, stopChan <-chan struct{}) error {
@@ -217,6 +257,19 @@ func (m *mockContainerRuntime) GetContainerStatus(containerName string) (string,
 		return m.getContainerStatusFunc(containerName)
 	}
 	return m.defaultContainerStatus, nil
+}
+
+// GetAllContainerStatuses returns all running containers managed by compose
+func (m *mockContainerRuntime) GetAllContainerStatuses() (map[string]string, error) {
+	if m.getAllContainerStatusesFunc != nil {
+		return m.getAllContainerStatusesFunc()
+	}
+	// Return some mock container names for testing that match the expected patterns
+	if m.defaultContainerStatus == "running" {
+		// Return container names that match the patterns used in the optimized handlers
+		return map[string]string{"postgres": "running", "redis": "running", "insta_postgres_1": "running", "insta_redis_1": "running"}, nil
+	}
+	return map[string]string{}, nil
 }
 
 // Test utilities

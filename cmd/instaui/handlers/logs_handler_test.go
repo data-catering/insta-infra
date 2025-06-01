@@ -54,19 +54,83 @@ func TestLogsHandler_GetServiceLogs_ContainerNameError(t *testing.T) {
 	mockRuntime := newMockContainerRuntime().
 		withGetContainerName(func(serviceName string, composeFiles []string) (string, error) {
 			return "", errors.New("service not found")
+		}).
+		withGetContainerLogs(func(containerName string, tailLines int) ([]string, error) {
+			// Simulate that logs can be retrieved using the fallback service name
+			if containerName == "nonexistent" {
+				return []string{"fallback log line 1", "fallback log line 2"}, nil
+			}
+			return nil, errors.New("container not found")
+		})
+	handler := NewLogsHandler(mockRuntime, "/test/insta", nil)
+
+	logs, err := handler.GetServiceLogs("nonexistent", 100)
+
+	if err != nil {
+		t.Fatalf("Expected no error with fallback, got %v", err)
+	}
+	if len(logs) != 2 {
+		t.Errorf("Expected 2 log lines from fallback, got %d", len(logs))
+	}
+	if logs[0] != "fallback log line 1" {
+		t.Errorf("Expected first log to be 'fallback log line 1', got '%s'", logs[0])
+	}
+}
+
+func TestLogsHandler_GetServiceLogs_BothContainerNameAndFallbackFail(t *testing.T) {
+	mockRuntime := newMockContainerRuntime().
+		withGetContainerName(func(serviceName string, composeFiles []string) (string, error) {
+			return "resolved_container_name", nil
+		}).
+		withGetContainerLogs(func(containerName string, tailLines int) ([]string, error) {
+			// Both resolved name and fallback service name fail
+			return nil, errors.New("container not found")
 		})
 	handler := NewLogsHandler(mockRuntime, "/test/insta", nil)
 
 	logs, err := handler.GetServiceLogs("nonexistent", 100)
 
 	if err == nil {
-		t.Fatal("Expected error, got nil")
+		t.Fatal("Expected error when both container names fail, got nil")
 	}
 	if logs != nil {
 		t.Errorf("Expected logs to be nil, got %v", logs)
 	}
-	if !contains(err.Error(), "could not get container name for service nonexistent") {
-		t.Errorf("Expected error to contain 'could not get container name for service nonexistent', got %s", err.Error())
+	if !contains(err.Error(), "tried both 'resolved_container_name' and 'nonexistent'") {
+		t.Errorf("Expected error to mention both container names tried, got %s", err.Error())
+	}
+}
+
+func TestLogsHandler_GetServiceLogs_FallbackToServiceNameSuccess(t *testing.T) {
+	expectedLogs := []string{"fallback log 1", "fallback log 2"}
+	mockRuntime := newMockContainerRuntime().
+		withGetContainerName(func(serviceName string, composeFiles []string) (string, error) {
+			return "resolved_container_name", nil
+		}).
+		withGetContainerLogs(func(containerName string, tailLines int) ([]string, error) {
+			// Resolved container name fails, but service name succeeds
+			if containerName == "resolved_container_name" {
+				return nil, errors.New("resolved container not found")
+			}
+			if containerName == "postgres" {
+				return expectedLogs, nil
+			}
+			return nil, errors.New("container not found")
+		})
+	handler := NewLogsHandler(mockRuntime, "/test/insta", nil)
+
+	logs, err := handler.GetServiceLogs("postgres", 100)
+
+	if err != nil {
+		t.Fatalf("Expected no error with fallback, got %v", err)
+	}
+	if len(logs) != len(expectedLogs) {
+		t.Errorf("Expected %d log lines, got %d", len(expectedLogs), len(logs))
+	}
+	for i, log := range logs {
+		if log != expectedLogs[i] {
+			t.Errorf("Expected log line %d to be '%s', got '%s'", i, expectedLogs[i], log)
+		}
 	}
 }
 
@@ -116,6 +180,10 @@ func TestLogsHandler_StartLogStream_Success(t *testing.T) {
 			}()
 			return nil
 		})
+
+	// Set the mock to return running containers so the optimized approach works
+	mockRuntime.defaultContainerStatus = "running"
+
 	handler := NewLogsHandler(mockRuntime, "/test/insta", nil)
 
 	err := handler.StartLogStream("postgres")
@@ -137,20 +205,59 @@ func TestLogsHandler_StartLogStream_Success(t *testing.T) {
 	handler.StopLogStream("postgres")
 }
 
-func TestLogsHandler_StartLogStream_ContainerNameError(t *testing.T) {
+func TestLogsHandler_StartLogStream_StoppedServiceWithLogs(t *testing.T) {
+	expectedLogs := []string{"historical log 1", "historical log 2"}
 	mockRuntime := newMockContainerRuntime().
 		withGetContainerName(func(serviceName string, composeFiles []string) (string, error) {
-			return "", errors.New("service not found")
+			return "test_nonexistent_1", nil
+		}).
+		withGetContainerLogs(func(containerName string, tailLines int) ([]string, error) {
+			// Simulate that the stopped container has historical logs
+			return expectedLogs, nil
 		})
+
+	// Set the mock to return no running containers so the service appears stopped
+	mockRuntime.defaultContainerStatus = "stopped"
+
 	handler := NewLogsHandler(mockRuntime, "/test/insta", nil)
 
 	err := handler.StartLogStream("nonexistent")
 
-	if err == nil {
-		t.Fatal("Expected error, got nil")
+	// Should not return an error for stopped containers with logs
+	if err != nil {
+		t.Fatalf("Expected no error for stopped container with logs, got %v", err)
 	}
-	if !contains(err.Error(), "could not get container name for service nonexistent") {
-		t.Errorf("Expected error to contain 'could not get container name for service nonexistent', got %s", err.Error())
+
+	// Check that no stream was registered (since service is stopped, no live streaming)
+	handler.logStreamsMutex.RLock()
+	_, exists := handler.logStreams["nonexistent"]
+	handler.logStreamsMutex.RUnlock()
+
+	if exists {
+		t.Error("Expected no log stream to be registered for stopped service")
+	}
+}
+
+func TestLogsHandler_StartLogStream_StoppedServiceNoLogs(t *testing.T) {
+	mockRuntime := newMockContainerRuntime().
+		withGetContainerName(func(serviceName string, composeFiles []string) (string, error) {
+			return "test_nonexistent_1", nil
+		}).
+		withGetContainerLogs(func(containerName string, tailLines int) ([]string, error) {
+			// Simulate that the container doesn't exist or has no logs
+			return nil, errors.New("container not found")
+		})
+
+	// Set the mock to return no running containers so the service appears stopped
+	mockRuntime.defaultContainerStatus = "stopped"
+
+	handler := NewLogsHandler(mockRuntime, "/test/insta", nil)
+
+	err := handler.StartLogStream("nonexistent")
+
+	// Should not return an error even if no logs are available
+	if err != nil {
+		t.Fatalf("Expected no error even when no logs available, got %v", err)
 	}
 
 	// Check that no stream was registered

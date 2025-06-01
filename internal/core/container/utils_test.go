@@ -115,57 +115,7 @@ func TestParsePortMappings(t *testing.T) {
 	}
 }
 
-func TestExtractDependencies(t *testing.T) {
-	tests := []struct {
-		name        string
-		config      ComposeConfig
-		serviceName string
-		expected    []string
-	}{
-		{
-			name:        "service with depends_on dependencies",
-			config:      CreateTestComposeConfig(map[string][]string{"web": {"db", "redis"}, "db": {}, "redis": {}}),
-			serviceName: "web",
-			expected:    []string{"db", "redis"},
-		},
-		{
-			name:        "service with no dependencies",
-			config:      CreateTestComposeConfig(map[string][]string{"db": {}}),
-			serviceName: "db",
-			expected:    []string{},
-		},
-		{
-			name:        "non-existent service",
-			config:      CreateTestComposeConfig(map[string][]string{"db": {}}),
-			serviceName: "nonexistent",
-			expected:    []string{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractDependencies(tt.config, tt.serviceName)
-			// Since the order of dependencies from a map is not guaranteed, we sort both slices
-			if len(result) != len(tt.expected) {
-				t.Errorf("Expected %d dependencies, got %d: %v vs %v", len(tt.expected), len(result), tt.expected, result)
-				return
-			}
-
-			// Check that all expected dependencies are present
-			for _, expected := range tt.expected {
-				found := false
-				for _, actual := range result {
-					if expected == actual {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Expected dependency '%s' not found in result %v", expected, result)
-				}
-			}
-		})
-	}
+func TestContainersPath(t *testing.T) {
 }
 
 func TestGetServiceNames(t *testing.T) {

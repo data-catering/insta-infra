@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // setDefaultEnvVars sets default environment variables for container operations
@@ -48,15 +50,13 @@ func parsePortMappings(output string) map[string]string {
 	return portMappings
 }
 
-// extractDependencies extracts dependencies from compose config (shared between runtimes)
-func extractDependencies(config ComposeConfig, service string) []string {
-	var dependencies []string
-	if serviceConfig, ok := config.Services[service]; ok {
-		for dep := range serviceConfig.DependsOn {
-			dependencies = append(dependencies, dep)
-		}
+// parseComposeConfig parses a compose configuration from YAML content
+func parseComposeConfig(yamlContent []byte) (*ComposeConfig, error) {
+	var config ComposeConfig
+	if err := yaml.Unmarshal(yamlContent, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse compose config: %w", err)
 	}
-	return dependencies
+	return &config, nil
 }
 
 // executeCommand executes shell commands with robust error handling
@@ -178,3 +178,31 @@ func getCustomBinaryPath(binaryName string) string {
 		return ""
 	}
 }
+
+// collectDependenciesRecursive is a shared utility for collecting dependencies recursively
+// This eliminates duplicate code between Docker and Podman implementations
+func collectDependenciesRecursive(serviceName string, config *ComposeConfig, visited map[string]bool) []string {
+	var dependencyServices []string
+
+	var collectDependencies func(string)
+	collectDependencies = func(service string) {
+		if visited[service] {
+			return
+		}
+		visited[service] = true
+
+		if serviceConfig, exists := config.Services[service]; exists {
+			for dep := range serviceConfig.DependsOn {
+				if !visited[dep] {
+					dependencyServices = append(dependencyServices, dep)
+					collectDependencies(dep)
+				}
+			}
+		}
+	}
+
+	collectDependencies(serviceName)
+	return dependencyServices
+}
+
+// SaveAndRestoreEnvVars saves environment variables and returns a restore function

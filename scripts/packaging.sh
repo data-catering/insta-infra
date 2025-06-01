@@ -150,12 +150,12 @@ build_binary() {
     
     # Apply UPX compression if available and supported
     if command -v upx >/dev/null 2>&1; then
-        # Skip UPX on macOS ARM64
-        if [ "$GOOS" != "darwin" ] || [ "$GOARCH" != "arm64" ]; then
+        # Skip UPX on macOS
+        if [ "$GOOS" != "darwin" ]; then
             print_status "Compressing with UPX..."
             upx -q --best --lzma "${BINARY_NAME}-${GOOS}-${GOARCH}"
         else
-            print_warning "Skipping UPX compression on macOS ARM64"
+            print_warning "Skipping UPX compression on macOS"
         fi
     else
         print_warning "UPX not found, skipping compression"

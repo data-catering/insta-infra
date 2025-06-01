@@ -17,6 +17,7 @@ type ServiceHandlerInterface interface {
 	GetAllRunningServices() (map[string]models.ServiceStatus, error)
 	GetAllServiceDependencies() (map[string][]string, error)
 	GetAllServicesWithStatusAndDependencies() ([]models.ServiceDetailInfo, error)
+	GetAllDependencyStatuses() (map[string]models.ServiceStatus, error)
 
 	// Operations with status updates
 	StartServiceWithStatusUpdate(serviceName string, persist bool) (map[string]models.ServiceStatus, error)

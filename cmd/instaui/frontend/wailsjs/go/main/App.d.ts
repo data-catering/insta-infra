@@ -7,11 +7,13 @@ export function AttemptStartRuntime(arg1:string):Promise<container.StartupResult
 
 export function CheckImageExists(arg1:string):Promise<boolean>;
 
+export function CheckMultipleImagesExist(arg1:Array<string>):Promise<Record<string, boolean>>;
+
 export function CheckStartingServicesProgress():Promise<Record<string, models.ServiceStatus>>;
 
-export function GetAllRunningServices():Promise<Record<string, models.ServiceStatus>>;
+export function GetAllDependencyStatuses():Promise<Record<string, models.ServiceStatus>>;
 
-export function GetAllServiceDependencies():Promise<Record<string, Array<string>>>;
+export function GetAllRunningServices():Promise<Record<string, models.ServiceStatus>>;
 
 export function GetAllServiceDetails():Promise<Array<models.ServiceDetailInfo>>;
 
@@ -25,25 +27,17 @@ export function GetCustomDockerPath():Promise<string>;
 
 export function GetCustomPodmanPath():Promise<string>;
 
-export function GetDependencyGraph():Promise<models.DependencyGraph>;
-
-export function GetDependencyStatus(arg1:string):Promise<models.DependencyStatus>;
-
 export function GetImageInfo(arg1:string):Promise<string>;
 
 export function GetImagePullProgress(arg1:string):Promise<models.ImagePullProgress>;
+
+export function GetMultipleImageInfo(arg1:Array<string>):Promise<Record<string, string>>;
 
 export function GetMultipleServiceStatuses(arg1:Array<string>):Promise<Record<string, models.ServiceStatus>>;
 
 export function GetRuntimeStatus():Promise<container.SystemRuntimeStatus>;
 
 export function GetServiceConnectionInfo(arg1:string):Promise<models.ServiceConnectionInfo>;
-
-export function GetServiceContainerDetails(arg1:string):Promise<models.ServiceContainerDetails>;
-
-export function GetServiceDependencies(arg1:string):Promise<Array<string>>;
-
-export function GetServiceDependencyGraph(arg1:string):Promise<models.DependencyGraph>;
 
 export function GetServiceLogs(arg1:string,arg2:number):Promise<Array<string>>;
 
@@ -61,8 +55,6 @@ export function SetCustomDockerPath(arg1:string):Promise<void>;
 
 export function SetCustomPodmanPath(arg1:string):Promise<void>;
 
-export function StartAllDependencies(arg1:string,arg2:boolean):Promise<void>;
-
 export function StartImagePull(arg1:string):Promise<void>;
 
 export function StartLogStream(arg1:string):Promise<void>;
@@ -74,8 +66,6 @@ export function StartServiceWithStatusUpdate(arg1:string,arg2:boolean):Promise<R
 export function StopAllServices():Promise<void>;
 
 export function StopAllServicesWithStatusUpdate():Promise<Record<string, models.ServiceStatus>>;
-
-export function StopDependencyChain(arg1:string):Promise<void>;
 
 export function StopImagePull(arg1:string):Promise<void>;
 

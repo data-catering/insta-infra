@@ -1,34 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import RunningServices from './components/RunningServices';
+import './App.css';
+import './styles.css'; // Import our new CSS
 import ServiceList from './components/ServiceList';
-import DependencyGraphModal from './components/DependencyGraphModal';
+import RunningServices from './components/RunningServices';
+import { ImageStatusProvider, ImageLoader } from './components/ServiceItem';
 import ConnectionModal from './components/ConnectionModal';
 import LogsModal from './components/LogsModal';
 import RuntimeSetup from './components/RuntimeSetup';
-import { ListServices, GetAllRunningServices, GetAllServicesWithStatusAndDependencies, StopAllServices, StartServiceWithStatusUpdate, StopService, GetServiceConnectionInfo, GetRuntimeStatus, GetCurrentRuntime } from "../wailsjs/go/main/App";
-import './App.css';
-import './styles.css'; // Import our new CSS
+import { ListServices, GetAllRunningServices, GetAllServicesWithStatusAndDependencies, GetAllDependencyStatuses, StopAllServices, StopAllServicesWithStatusUpdate, StartServiceWithStatusUpdate, StopService, GetServiceConnectionInfo, GetRuntimeStatus, GetCurrentRuntime } from "../wailsjs/go/main/App";
 
 function App() {
   // Simple state management
   const [services, setServices] = useState([]);
   const [statuses, setStatuses] = useState({});
   const [runningServices, setRunningServices] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [dependencyStatuses, setDependencyStatuses] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [isAnimating, setIsAnimating] = useState(false);
   const [isStoppingAll, setIsStoppingAll] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  const [selectedServiceForGraph, setSelectedServiceForGraph] = useState(null);
-  const [showConnectionInfo, setShowConnectionInfo] = useState(false);
-  const [connectionInfo, setConnectionInfo] = useState(null);
-  const [showLogsModal, setShowLogsModal] = useState(null);
+  const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
   const [copyFeedback, setCopyFeedback] = useState('');
   const [runtimeStatus, setRuntimeStatus] = useState(null);
   const [showRuntimeSetup, setShowRuntimeSetup] = useState(false);
-  const [currentRuntime, setCurrentRuntime] = useState('unknown');
+  const [currentRuntime, setCurrentRuntime] = useState('');
   
   // Auto-clear copy feedback after 2 seconds
   useEffect(() => {
@@ -43,38 +43,24 @@ function App() {
   useEffect(() => {
     // Check runtime status first
     checkRuntimeStatus();
+    // Load services initially
+    loadServicesAndStatuses();
   }, []);
 
-  const checkRuntimeStatus = async () => {
+  const checkRuntimeStatus = useCallback(async () => {
     try {
       const status = await GetRuntimeStatus();
       setRuntimeStatus(status);
       
-      if (status.canProceed) {
-        // Runtime is available, proceed with normal app flow
-        setShowRuntimeSetup(false);
-        
-        // Get the current runtime name
-        try {
-          const runtime = await GetCurrentRuntime();
-          setCurrentRuntime(runtime);
-        } catch (err) {
-          console.error('Failed to get current runtime:', err);
-          setCurrentRuntime('unknown');
-        }
-        
-        loadServicesAndStatuses();
-      } else {
-        // Runtime not available, show setup screen
-        setShowRuntimeSetup(true);
-      }
+      // Get current runtime info
+      const currentRuntime = await GetCurrentRuntime();
+      setCurrentRuntime(currentRuntime);
     } catch (err) {
-      console.error('Failed to check runtime status:', err);
-      // If we can't check runtime status, try to proceed anyway
-      // This handles cases where the backend methods might not be available
-      loadServicesAndStatuses();
+      // Handle runtime check errors gracefully
+      setRuntimeStatus({ available: false, error: err?.message || 'Runtime check failed' });
+      setCurrentRuntime(null);
     }
-  };
+  }, []);
 
   // Highly efficient approach: Load services, statuses, and dependencies in one optimized call
   const loadServicesAndStatuses = async (silent = false) => {
@@ -87,6 +73,9 @@ function App() {
       
       // Get everything with the new highly optimized method
       const serviceDetails = await GetAllServicesWithStatusAndDependencies();
+      
+      // Get dependency statuses separately for individual container status display
+      const depStatuses = await GetAllDependencyStatuses();
       
       // Extract services and statuses from the detailed response
       const servicesList = serviceDetails.map(detail => ({
@@ -106,6 +95,7 @@ function App() {
       }
       
       setStatuses(statusesOnly);
+      setDependencyStatuses(depStatuses || {});
       setLastUpdated(new Date());
       setIsLoading(false);
       
@@ -114,10 +104,10 @@ function App() {
       }, 300);
       
     } catch (error) {
-      console.error("Error loading services:", error);
       setError(error.message || "Failed to load services");
       setServices([]);
       setRunningServices([]);
+      setDependencyStatuses({});
       setIsLoading(false);
       setIsAnimating(false);
     }
@@ -125,6 +115,12 @@ function App() {
 
   // Compute running services whenever services or statuses change
   useEffect(() => {
+    // Get latest dependency statuses
+    GetAllDependencyStatuses().then(depStatuses => {
+      setDependencyStatuses(depStatuses);
+    });
+
+    // Get latest running services
     const runningServicesList = services
       .filter(service => statuses[service.Name] === 'running')
       .map(service => ({
@@ -148,7 +144,7 @@ function App() {
         // Handle both single service updates and multiple service updates
         Object.keys(immediateStatuses).forEach(serviceName => {
           const statusUpdate = immediateStatuses[serviceName];
-          
+
           // Extract status from the update object
           if (typeof statusUpdate === 'object' && statusUpdate.Status) {
             newStatuses[serviceName] = statusUpdate.Status;
@@ -180,94 +176,57 @@ function App() {
     return Object.values(statuses).some(status => status === 'starting');
   };
 
+  // Check if there are any running services
+  const hasRunningServices = () => {
+    return Object.values(statuses).some(status => status === 'running');
+  };
+
+  // Count running services
+  const runningServicesCount = Object.values(statuses).filter(status => status === 'running').length;
+
   // Format time in a more readable way
   const formatTime = (date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Handle stopping all services
   const handleStopAllServices = async () => {
     setIsStoppingAll(true);
     try {
-      await StopAllServices();
-      // Refresh service data after stopping all
+      // Stop all services and get immediate status updates for ALL containers
+      const updatedStatuses = await StopAllServicesWithStatusUpdate();
+      // Update statuses with immediate response instead of doing a full refresh
       fetchAllServices();
     } catch (error) {
-      console.error("Failed to stop all services:", error);
       alert(`Failed to stop all services: ${error.message || error}`);
+      // Fallback to full refresh on error
+      fetchAllServices();
     } finally {
       setIsStoppingAll(false);
     }
   };
 
-  // Handle service actions from dependency graph modal
-  const handleGraphServiceAction = async (action, serviceName) => {
-    try {
-      switch (action) {
-        case 'start':
-          const updatedStatuses = await StartServiceWithStatusUpdate(serviceName, false); // Start without persistence for now
-          fetchAllServices(updatedStatuses);
-          break;
-        case 'stop':
-          await StopService(serviceName);
-          fetchAllServices(); // Full refresh for stop action
-          break;
-        case 'info':
-          // Show connection info modal
-          const connectionData = await GetServiceConnectionInfo(serviceName);
-          setConnectionInfo(connectionData);
-          setShowConnectionInfo(true);
-          break;
-        case 'logs':
-          // Show logs modal
-          setShowLogsModal(serviceName);
-          break;
-        default:
-          break;
-      }
-    } catch (error) {
-      console.error(`Failed to ${action} service ${serviceName}:`, error);
-      alert(`Failed to ${action} service ${serviceName}: ${error.message || error}`);
-    }
+  // Handle runtime becoming ready
+  const handleRuntimeReady = () => {
+    setShowRuntimeSetup(false);
+    loadServicesAndStatuses();
   };
 
   // Handle copying text to clipboard
-  const copyToClipboard = async (text) => {
+  const copyToClipboard = useCallback(async (text) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopyFeedback('Copied to clipboard');
     } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
+      // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
       textArea.value = text;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      setCopyFeedback('Failed to copy');
+      setCopyFeedback('Copied to clipboard');
     }
-  };
-
-  // Handle showing dependency graph for a specific service
-  const handleShowServiceDependencyGraph = (serviceName) => {
-    setSelectedServiceForGraph(serviceName);
-  };
-
-  // Handle runtime becoming ready
-  const handleRuntimeReady = async () => {
-    setShowRuntimeSetup(false);
-    
-    // Get the current runtime name after setup
-    try {
-      const runtime = await GetCurrentRuntime();
-      setCurrentRuntime(runtime);
-    } catch (err) {
-      console.error('Failed to get current runtime after setup:', err);
-      setCurrentRuntime('unknown');
-    }
-    
-    checkRuntimeStatus(); // Re-check and proceed with normal flow
-  };
+  }, []);
 
   // Show runtime setup if needed
   if (showRuntimeSetup) {
@@ -305,8 +264,8 @@ function App() {
               
               {/* Running services count */}
               <div className="status-indicator">
-                <span className={`status-dot ${runningServices.length > 0 ? 'dot-green pulse' : 'dot-gray'}`}></span>
-                <span>{runningServices.length} services running</span>
+                <span className={`status-dot ${runningServicesCount > 0 ? 'dot-green pulse' : 'dot-gray'}`}></span>
+                <span>{runningServicesCount} services running</span>
               </div>
               
               {isLoading && (
@@ -332,28 +291,6 @@ function App() {
               <span className="sr-only md-visible">About</span>
             </button>
             
-            {/* Refresh button */}
-            <button 
-              onClick={() => fetchAllServices()} 
-              disabled={isLoading}
-              className={`button button-primary ${isLoading ? 'button-loading' : ''}`}
-              title="Refresh service status"
-            >
-              {isLoading ? (
-                <>
-                  <div className="button-icon spin"></div>
-                  <span className="sr-only md-visible">Refreshing...</span>
-                </>
-              ) : (
-                <>
-                  <svg width="16" height="16" className="button-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 4V9H4.58152M19.9381 11C19.446 7.05369 16.0796 4 12 4C8.64262 4 5.76829 6.06817 4.58152 9M4.58152 9H9M20 20V15H19.4185M19.4185 15C18.2317 17.9318 15.3574 20 12 20C7.92038 20 4.55399 16.9463 4.06189 13M19.4185 15H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span className="sr-only md-visible">Refresh</span>
-                </>
-              )}
-            </button>
-
             {/* Check Progress button - only show when there are starting services */}
             {hasStartingServices() && (
               <button 
@@ -369,7 +306,7 @@ function App() {
             )}
 
             {/* Stop All button - only show if there are running services */}
-            {runningServices.length > 0 && (
+            {hasRunningServices() && (
               <button 
                 onClick={handleStopAllServices} 
                 disabled={isLoading || isStoppingAll}
@@ -462,19 +399,30 @@ function App() {
         
         {/* Service sections */}
         {(services.length > 0 || isLoading) && (
-          <div className={`services-container ${isAnimating ? 'services-loading' : ''}`}>
-            {/* Running Services Section */}
-            <RunningServices services={runningServices} isLoading={isLoading} onServiceStateChange={fetchAllServices} onShowDependencyGraph={handleShowServiceDependencyGraph} />
-    
-            {/* All Services Section */}
-            <ServiceList 
-              services={services} 
-              statuses={statuses}
-              isLoading={isLoading} 
-              onServiceStateChange={fetchAllServices} 
-              onShowDependencyGraph={handleShowServiceDependencyGraph} 
-            />
-          </div>
+          <ImageStatusProvider services={services}>
+            <ImageLoader services={services} />
+            <div className={`services-container ${isAnimating ? 'services-loading' : ''}`}>
+              {/* Running Services Section - only show when there are running services */}
+              {runningServices.length > 0 && (
+                <RunningServices 
+                  services={runningServices} 
+                  isLoading={false} 
+                  onServiceStateChange={fetchAllServices} 
+                  statuses={statuses}
+                  dependencyStatuses={dependencyStatuses}
+                />
+              )}
+        
+              {/* Active Services Section */}
+              <ServiceList 
+                services={services} 
+                statuses={statuses}
+                dependencyStatuses={dependencyStatuses}
+                isLoading={isLoading} 
+                onServiceStateChange={fetchAllServices} 
+              />
+            </div>
+          </ImageStatusProvider>
         )}
       </main>
 
@@ -573,7 +521,7 @@ function App() {
                     <h4>Resources:</h4>
                     <div className="link-buttons">
                       <a 
-                        href="https://github.com/your-org/insta-infra" 
+                        href="https://github.com/data-catering/insta-infra" 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="link-button"
@@ -584,7 +532,7 @@ function App() {
                         GitHub Repository
                       </a>
                       <a 
-                        href="https://github.com/your-org/insta-infra/blob/main/README.md" 
+                        href="https://github.com/data-catering/insta-infra/blob/main/README.md" 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="link-button"
@@ -609,19 +557,10 @@ function App() {
         )
       )}
       
-      {/* Dependency Graph Modal */}
-      <DependencyGraphModal 
-        isOpen={selectedServiceForGraph !== null}
-        onClose={() => setSelectedServiceForGraph(null)}
-        serviceName={selectedServiceForGraph}
-        onServiceAction={handleGraphServiceAction}
-      />
-      
       {/* Connection Info Modal */}
       <ConnectionModal 
-        isOpen={showConnectionInfo}
-        onClose={() => setShowConnectionInfo(false)}
-        connectionInfo={connectionInfo}
+        isOpen={showConnectionModal}
+        onClose={() => setShowConnectionModal(false)}
         copyFeedback={copyFeedback}
         onCopyToClipboard={copyToClipboard}
       />
@@ -630,8 +569,8 @@ function App() {
       {showLogsModal && (
         <LogsModal 
           isOpen={true}
-          onClose={() => setShowLogsModal(null)}
-          serviceName={showLogsModal}
+          onClose={() => setShowLogsModal(false)}
+          serviceName={selectedService}
         />
       )}
     </div>

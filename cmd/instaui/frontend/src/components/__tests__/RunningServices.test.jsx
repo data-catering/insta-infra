@@ -2,6 +2,16 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import RunningServices from '../RunningServices'
+import { ImageStatusProvider } from '../ServiceItem'
+
+// Helper to render RunningServices with ImageStatusProvider
+const renderWithProvider = (ui, services = []) => {
+  return render(
+    <ImageStatusProvider services={services}>
+      {ui}
+    </ImageStatusProvider>
+  )
+}
 
 describe('RunningServices', () => {
   const mockServices = [
@@ -31,23 +41,21 @@ describe('RunningServices', () => {
   })
 
   test('renders empty state when no services are running', () => {
-    render(<RunningServices {...defaultProps} />)
+    const { container } = renderWithProvider(<RunningServices {...defaultProps} />)
     
-    expect(screen.getByText('Active Services')).toBeInTheDocument()
-    expect(screen.getByText('0 Running')).toBeInTheDocument()
-    expect(screen.getByText('No Active Services')).toBeInTheDocument()
-    expect(screen.getByText('Start a service to see it appear here')).toBeInTheDocument()
+    // Component returns null when no services, so the container should be empty
+    expect(container.firstChild).toBeNull()
   })
 
   test('displays running services count when services are provided', () => {
-    render(<RunningServices {...defaultProps} services={mockServices} />)
+    renderWithProvider(<RunningServices {...defaultProps} services={mockServices} />, mockServices)
     
-    expect(screen.getByText('Active Services')).toBeInTheDocument()
-    expect(screen.getByText('2 Running')).toBeInTheDocument()
+    expect(screen.getByText('Running Services')).toBeInTheDocument()
+    expect(screen.getByText('2 Active')).toBeInTheDocument()
   })
 
   test('renders ServiceItem components for each service', () => {
-    render(<RunningServices {...defaultProps} services={mockServices} />)
+    renderWithProvider(<RunningServices {...defaultProps} services={mockServices} />, mockServices)
     
     // ServiceItem components should be rendered (we can't easily test their content without mocking them)
     // But we can verify the services grid container exists
@@ -56,54 +64,55 @@ describe('RunningServices', () => {
   })
 
   test('shows correct status indicator styling for running services', () => {
-    render(<RunningServices {...defaultProps} services={mockServices} />)
+    renderWithProvider(<RunningServices {...defaultProps} services={mockServices} />, mockServices)
     
     const statusDot = document.querySelector('.status-dot.dot-green.pulse')
     expect(statusDot).toBeInTheDocument()
   })
 
   test('shows correct status indicator styling for no services', () => {
-    render(<RunningServices {...defaultProps} />)
+    const { container } = renderWithProvider(<RunningServices {...defaultProps} />)
     
-    const statusDot = document.querySelector('.status-dot.dot-gray')
-    expect(statusDot).toBeInTheDocument()
+    // Component returns null when no services, so no status dot should exist
+    const statusDot = container.querySelector('.status-dot')
+    expect(statusDot).not.toBeInTheDocument()
   })
 
   test('passes correct props to ServiceItem components', () => {
     const onServiceStateChange = vi.fn()
     const onShowDependencyGraph = vi.fn()
     
-    render(
+    renderWithProvider(
       <RunningServices 
         {...defaultProps} 
         services={[mockServices[0]]} 
         onServiceStateChange={onServiceStateChange}
         onShowDependencyGraph={onShowDependencyGraph}
-      />
+      />,
+      [mockServices[0]]
     )
     
     // We can't easily test ServiceItem props without mocking the component
     // But we can verify the component structure is correct
-    expect(screen.getByText('Active Services')).toBeInTheDocument()
-    expect(screen.getByText('1 Running')).toBeInTheDocument()
+    expect(screen.getByText('Running Services')).toBeInTheDocument()
+    expect(screen.getByText('1 Active')).toBeInTheDocument()
   })
 
   test('handles loading state correctly', () => {
-    render(<RunningServices {...defaultProps} isLoading={true} />)
+    const { container } = renderWithProvider(<RunningServices {...defaultProps} isLoading={true} />)
     
-    // When loading, component should still render normally
-    // The loading state doesn't change the component behavior in this implementation
-    expect(screen.getByText('Active Services')).toBeInTheDocument()
+    // Component returns null when no services regardless of loading state
+    expect(container.firstChild).toBeNull()
   })
 
   test('applies correct animation delays to service items', () => {
-    render(<RunningServices {...defaultProps} services={mockServices} />)
+    renderWithProvider(<RunningServices {...defaultProps} services={mockServices} />, mockServices)
     
     const fadeInElements = document.querySelectorAll('.fade-in')
     expect(fadeInElements).toHaveLength(2)
     
-    // Check that animation delays are applied
+    // Check that animation delays are applied (note: actual delay calculation is Math.min(index * 15, 200))
     expect(fadeInElements[0]).toHaveStyle('animation-delay: 0ms')
-    expect(fadeInElements[1]).toHaveStyle('animation-delay: 50ms')
+    expect(fadeInElements[1]).toHaveStyle('animation-delay: 15ms')
   })
 }) 

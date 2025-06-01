@@ -7,7 +7,7 @@ services:
     healthcheck:
       interval: 15s
       retries: 3
-      test: [CMD-SHELL, "curl -k -f http://localhost:8161/admin"]
+      test: [CMD-SHELL, "curl -k -f http://localhost:8161/"]
       timeout: 5s
     image: "apache/activemq-artemis:${ACTIVEMQ_VERSION:-2.41.0}"
     ports:

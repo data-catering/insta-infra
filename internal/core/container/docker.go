@@ -94,6 +94,17 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	// Set default environment variables
 	setDefaultEnvVars()
 
+	// TODO: Only stop containers that do not have another dependency running (for example, if keycloak is stopped and airflow is also running, we should not stop postgres)
+
+	// Get all dependencies of the services
+	for _, service := range services {
+		dependencies, err := d.GetAllDependenciesRecursive(service, composeFiles, false)
+		if err != nil {
+			return fmt.Errorf("failed to get all dependencies of the services: %w", err)
+		}
+		services = append(services, dependencies...)
+	}
+
 	// Stop containers
 	stopArgs := []string{"--log-level", "error", "compose", "--project-name", "insta"}
 	for _, file := range composeFiles {
@@ -192,311 +203,45 @@ func (d *DockerRuntime) getOrParseComposeConfig(composeFiles []string) (*Compose
 	return d.parsedComposeConfig, nil
 }
 
-func (d *DockerRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
-	config, err := d.getOrParseComposeConfig(composeFiles)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get compose config for dependencies: %w", err)
-	}
-	return extractDependencies(*config, service), nil
-}
-
-func (d *DockerRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string) ([]string, error) {
-	// `toProcessQueue` acts as a queue for services whose dependencies need to be fetched.
-	// Initialize with direct dependencies of serviceName, as serviceName is not its own dependency.
-	toProcessQueue, err := d.GetDependencies(serviceName, composeFiles)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get initial dependencies for %s: %w", serviceName, err)
-	}
-
-	// `allFoundDependencies` will store all unique dependencies discovered.
-	allFoundDependencies := make(map[string]bool)
-	// Add initial direct dependencies to the set and prepare the queue.
-	// We use a new slice for the queue to avoid modifying the original direct deps slice if it's from a cache.
-	queue := make([]string, 0, len(toProcessQueue))
-	for _, dep := range toProcessQueue {
-		if !allFoundDependencies[dep] { // Ensure initial deps are unique if GetDependencies somehow returns duplicates
-			allFoundDependencies[dep] = true
-			queue = append(queue, dep)
-		}
-	}
-
-	head := 0
-	for head < len(queue) {
-		currentServiceToExplore := queue[head]
-		head++
-
-		children, err := d.GetDependencies(currentServiceToExplore, composeFiles)
-		if err != nil {
-			// If fetching dependencies for a sub-service fails, we might have an incomplete list.
-			// For now, we'll propagate the error. Consider if partial results are acceptable.
-			return nil, fmt.Errorf("failed to get dependencies for intermediate service %s during recursive search: %w", currentServiceToExplore, err)
-		}
-
-		for _, child := range children {
-			if !allFoundDependencies[child] { // If this is a newly discovered dependency
-				allFoundDependencies[child] = true
-				queue = append(queue, child) // Add it to the queue to process its dependencies later.
-			}
-		}
-	}
-
-	result := make([]string, 0, len(allFoundDependencies))
-	for dep := range allFoundDependencies {
-		result = append(result, dep)
-	}
-	// Sorting is handled in app.go, so not strictly needed here.
-	return result, nil
-}
-
-func (d *DockerRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
-	config, err := d.getOrParseComposeConfig(composeFiles)
-	if err != nil {
-		return "", err
-	}
-
-	// First, check if there's an explicit container name in the compose config
-	if serviceConfig, ok := config.Services[serviceName]; ok {
-		if serviceConfig.ContainerName != "" {
-			return serviceConfig.ContainerName, nil
-		}
-	}
-
-	// Try different naming patterns in order of preference:
-	candidateNames := []string{
-		serviceName,                            // Direct service name (e.g., "airflow-init")
-		fmt.Sprintf("insta_%s_1", serviceName), // Default compose pattern
-		fmt.Sprintf("insta-%s-1", serviceName), // Alternative dash pattern
-	}
-
-	// Check which container actually exists
-	for _, candidateName := range candidateNames {
-		if d.containerExistsAnywhere(candidateName) {
-			return candidateName, nil
-		}
-	}
-
-	// If none exist, return the most likely candidate (service name itself)
-	return serviceName, nil
-}
-
-func (d *DockerRuntime) GetContainerLogs(containerName string, tailLines int) ([]string, error) {
-	args := []string{"logs", "--tail", fmt.Sprintf("%d", tailLines), containerName}
-	cmd := exec.Command(d.getDockerCommand(), args...)
-
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get logs for container %s: %w", containerName, err)
-	}
-
-	// Split output into individual log lines
-	logLines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(logLines) == 1 && logLines[0] == "" {
-		return []string{}, nil // Return empty slice for empty logs
-	}
-
-	return logLines, nil
-}
-
-func (d *DockerRuntime) StreamContainerLogs(containerName string, logChan chan<- string, stopChan <-chan struct{}) error {
-	args := []string{"logs", "--follow", "--tail", "50", containerName}
-	cmd := exec.Command(d.getDockerCommand(), args...)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdout pipe: %w", err)
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stderr pipe: %w", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start log streaming: %w", err)
-	}
-
-	// Channel to signal when command is done
-	doneChan := make(chan error, 1)
-
-	// Start goroutine to read from stdout
-	go func() {
-		defer func() {
-			stdout.Close()
-		}()
-
-		buf := make([]byte, 1024)
-		for {
-			n, err := stdout.Read(buf)
-			if n > 0 {
-				// Split by lines and send each line
-				lines := strings.Split(strings.TrimSpace(string(buf[:n])), "\n")
-				for _, line := range lines {
-					if line != "" {
-						select {
-						case logChan <- line:
-						case <-stopChan:
-							return
-						}
-					}
-				}
-			}
-			if err != nil {
-				return
-			}
-		}
-	}()
-
-	// Start goroutine to read from stderr
-	go func() {
-		defer func() {
-			stderr.Close()
-		}()
-
-		buf := make([]byte, 1024)
-		for {
-			n, err := stderr.Read(buf)
-			if n > 0 {
-				// Split by lines and send each line
-				lines := strings.Split(strings.TrimSpace(string(buf[:n])), "\n")
-				for _, line := range lines {
-					if line != "" {
-						select {
-						case logChan <- line:
-						case <-stopChan:
-							return
-						}
-					}
-				}
-			}
-			if err != nil {
-				return
-			}
-		}
-	}()
-
-	// Wait for stop signal or command completion
-	go func() {
-		doneChan <- cmd.Wait()
-	}()
-
-	select {
-	case <-stopChan:
-		// Kill the process
-		if cmd.Process != nil {
-			cmd.Process.Kill()
-		}
-		return nil
-	case err := <-doneChan:
-		return err
-	}
-}
-
-// containerExists checks if a container with the given name exists and is running
-func (d *DockerRuntime) containerExists(containerName string) bool {
-	cmd := exec.Command(d.getDockerCommand(), "ps", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-
-	containerNames := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, name := range containerNames {
-		if strings.TrimSpace(name) == containerName {
-			return true
-		}
-	}
-	return false
-}
-
-// containerExistsAnywhere checks if a container with the given name exists (running or stopped)
-func (d *DockerRuntime) containerExistsAnywhere(containerName string) bool {
-	cmd := exec.Command(d.getDockerCommand(), "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-
-	containerNames := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, name := range containerNames {
-		if strings.TrimSpace(name) == containerName {
-			return true
-		}
-	}
-	return false
-}
-
-// GetContainerStatus returns the status of a container (running, exited, created, etc.)
-func (d *DockerRuntime) GetContainerStatus(containerName string) (string, error) {
-	// Check all containers (including stopped ones)
-	cmd := exec.Command(d.getDockerCommand(), "ps", "-a", "--format", "{{.Names}}\t{{.Status}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
-	output, err := cmd.Output()
-	if err != nil {
-		return "not_found", fmt.Errorf("failed to check container status: %w", err)
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(lines) == 1 && lines[0] == "" {
-		// No container found with this name
-		return "not_found", nil
-	}
-
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		parts := strings.Split(line, "\t")
-		if len(parts) >= 2 && strings.TrimSpace(parts[0]) == containerName {
-			status := strings.TrimSpace(parts[1])
-
-			// Normalize Docker status to our standard status values
-			statusLower := strings.ToLower(status)
-			if strings.Contains(statusLower, "up") {
-				return "running", nil
-			} else if strings.Contains(statusLower, "exited") {
-				// Check exit code for init containers
-				if strings.Contains(statusLower, "exited (0)") {
-					return "completed", nil
-				}
-				return "error", nil
-			} else if strings.Contains(statusLower, "created") {
-				return "stopped", nil
-			} else if strings.Contains(statusLower, "paused") {
-				return "paused", nil
-			} else if strings.Contains(statusLower, "restarting") {
-				return "restarting", nil
-			}
-
-			// Default for unknown status
-			return "unknown", nil
-		}
-	}
-
-	return "not_found", nil
-}
-
-// CheckImageExists checks if a Docker image exists locally
-func (d *DockerRuntime) CheckImageExists(imageName string) (bool, error) {
-	cmd := exec.Command(d.getDockerCommand(), "image", "inspect", imageName)
-	return cmd.Run() == nil, nil
-}
-
-// GetImageInfo returns the image name for a service from compose files
 func (d *DockerRuntime) GetImageInfo(serviceName string, composeFiles []string) (string, error) {
 	config, err := d.getOrParseComposeConfig(composeFiles)
 	if err != nil {
-		return "", fmt.Errorf("failed to get compose config for image info: %w", err)
+		return "", fmt.Errorf("failed to get compose config: %w", err)
 	}
 
-	service, exists := config.Services[serviceName]
-	if !exists {
-		return "", fmt.Errorf("service %s not found in compose files", serviceName)
+	if service, exists := config.Services[serviceName]; exists {
+		return service.Image, nil
 	}
 
-	if service.Image == "" {
-		return "", fmt.Errorf("no image specified for service %s", serviceName)
+	return "", fmt.Errorf("service %s not found in compose configuration", serviceName)
+}
+
+// GetMultipleImageInfo returns image information for multiple services from compose files
+func (d *DockerRuntime) GetMultipleImageInfo(serviceNames []string, composeFiles []string) (map[string]string, error) {
+	if len(serviceNames) == 0 {
+		return make(map[string]string), nil
 	}
 
-	return service.Image, nil
+	// Parse compose config once for all services
+	config, err := d.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compose config for image info: %w", err)
+	}
+
+	result := make(map[string]string)
+	for _, serviceName := range serviceNames {
+		service, exists := config.Services[serviceName]
+		if !exists {
+			// Skip services not found in compose files rather than erroring
+			continue
+		}
+
+		if service.Image != "" {
+			result[serviceName] = service.Image
+		}
+	}
+
+	return result, nil
 }
 
 // PullImageWithProgress pulls a Docker image and reports progress
@@ -719,4 +464,309 @@ func (d *DockerRuntime) parseDockerPullOutput(line string, layerProgress map[str
 	}
 
 	return ImagePullProgress{} // Empty progress for unrecognized lines
+}
+
+// GetAllContainerStatuses returns all current containers (including stopped ones) managed by compose
+// Returns back the container names and statuses in a map
+func (d *DockerRuntime) GetAllContainerStatuses() (map[string]string, error) {
+	// Use docker ps to get all running containers with compose labels
+	// This is much faster than checking each service individually
+	cmd := exec.Command(d.getDockerCommand(), "ps", "-a",
+		"--filter", "label=com.docker.compose.project=insta",
+		"--format", "{{.Names}},{{.State}},{{.Status}}")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get running containers: %w", err)
+	}
+
+	// Example output:
+	//  ~ % docker ps -a --format "{{.Names}} {{.State}} {{.Status}}"
+	// postgres-data,exited,Exited (0) About an hour ago
+	// postgres,running,Up About an hour (healthy)
+
+	containerStatuses := make(map[string]string)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		parts := strings.Split(line, ",")
+		if len(parts) > 1 {
+			state := parts[1]
+			status := parts[2] // This is the status of the container
+			if strings.Contains(state, "created") {
+				containerStatuses[parts[0]] = "created"
+			} else if strings.Contains(state, "running") && strings.Contains(status, "starting") {
+				containerStatuses[parts[0]] = "starting"
+			} else if strings.Contains(state, "running") && strings.Contains(status, "unhealthy") {
+				containerStatuses[parts[0]] = "unhealthy"
+			} else if strings.Contains(state, "running") {
+				containerStatuses[parts[0]] = "running"
+			} else if strings.Contains(state, "exited") {
+				containerStatuses[parts[0]] = "stopped"
+			} else if strings.Contains(state, "restarting") {
+				containerStatuses[parts[0]] = "restarting"
+			} else {
+				containerStatuses[parts[0]] = "stopped"
+			}
+		}
+	}
+
+	return containerStatuses, nil
+}
+
+func (d *DockerRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
+	config, err := d.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return "", err
+	}
+
+	// First, check if there's an explicit container name in the compose config
+	if serviceConfig, ok := config.Services[serviceName]; ok {
+		if serviceConfig.ContainerName != "" {
+			return serviceConfig.ContainerName, nil
+		}
+	}
+
+	// Try different naming patterns in order of preference:
+	candidateNames := []string{
+		serviceName,                            // Direct service name (e.g., "airflow-init")
+		fmt.Sprintf("insta_%s_1", serviceName), // Default compose pattern
+		fmt.Sprintf("insta-%s-1", serviceName), // Alternative dash pattern
+	}
+
+	// Check which container actually exists
+	for _, candidateName := range candidateNames {
+		if d.containerExistsAnywhere(candidateName) {
+			return candidateName, nil
+		}
+	}
+
+	// If none exist, return the most likely candidate (service name itself)
+	return serviceName, nil
+}
+
+// GetAllDependenciesRecursive returns all dependencies recursively for a service from compose files
+// Returns container names (if isContainer is true) or service names (if isContainer is false) for UI display purposes
+func (d *DockerRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string, isContainer bool) ([]string, error) {
+	config, err := d.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compose config: %w", err)
+	}
+
+	visited := make(map[string]bool)
+	dependencyServices := collectDependenciesRecursive(serviceName, config, visited)
+
+	if !isContainer {
+		return dependencyServices, nil
+	}
+
+	// Convert service names to container names
+	var containerNames []string
+	for _, serviceName := range dependencyServices {
+		containerName, err := d.GetContainerName(serviceName, composeFiles)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get container name for service %s: %w", serviceName, err)
+		}
+		containerNames = append(containerNames, containerName)
+	}
+
+	return containerNames, nil
+}
+
+func (d *DockerRuntime) GetContainerLogs(containerName string, tailLines int) ([]string, error) {
+	args := buildLogCommand(containerName, tailLines, false)
+	cmd := exec.Command(d.getDockerCommand(), args...)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get logs for container %s: %w", containerName, err)
+	}
+
+	return parseLogOutput(output), nil
+}
+
+func (d *DockerRuntime) StreamContainerLogs(containerName string, logChan chan<- string, stopChan <-chan struct{}) error {
+	args := buildLogCommand(containerName, 0, true)
+	cmd := exec.Command(d.getDockerCommand(), args...)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start log streaming: %w", err)
+	}
+
+	// Channel to signal when command is done
+	doneChan := make(chan error, 1)
+
+	// Use shared log streaming utilities
+	streamLogsFromPipes(stdout, stderr, logChan, stopChan)
+
+	// Wait for stop signal or command completion
+	go func() {
+		doneChan <- cmd.Wait()
+	}()
+
+	select {
+	case <-stopChan:
+		// Kill the process
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		return nil
+	case err := <-doneChan:
+		return err
+	}
+}
+
+// containerExistsAnywhere checks if a container with the given name exists (running or stopped)
+func (d *DockerRuntime) containerExistsAnywhere(containerName string) bool {
+	cmd := exec.Command(d.getDockerCommand(), "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	containerNames := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, name := range containerNames {
+		if strings.TrimSpace(name) == containerName {
+			return true
+		}
+	}
+	return false
+}
+
+// GetContainerStatus returns the status of a container (running, exited, created, etc.)
+func (d *DockerRuntime) GetContainerStatus(containerName string) (string, error) {
+	cmd := exec.Command(d.getDockerCommand(), "inspect", "--format", "{{.State.Status}} {{.State.ExitCode}}", containerName)
+	output, err := cmd.Output()
+	if err != nil {
+		// If container doesn't exist, return stopped
+		if strings.Contains(err.Error(), "No such container") {
+			return "stopped", nil
+		}
+		return "error", fmt.Errorf("failed to get container status: %w", err)
+	}
+
+	statusLine := strings.TrimSpace(string(output))
+	parts := strings.Split(statusLine, " ")
+	if len(parts) < 2 {
+		// Fallback if format doesn't match expected
+		status := parts[0]
+		switch status {
+		case "running":
+			return "running", nil
+		case "exited":
+			return "stopped", nil
+		case "created":
+			return "stopped", nil
+		case "restarting":
+			return "starting", nil
+		case "removing":
+			return "stopping", nil
+		case "paused":
+			return "paused", nil
+		case "dead":
+			return "error", nil
+		default:
+			return status, nil
+		}
+	}
+
+	status := parts[0]
+	exitCode := parts[1]
+
+	switch status {
+	case "running":
+		return "running", nil
+	case "exited":
+		// Check exit code to differentiate between successful completion and failure
+		if exitCode == "0" {
+			return "completed", nil
+		}
+		return "error", nil
+	case "created":
+		return "stopped", nil
+	case "restarting":
+		return "starting", nil
+	case "removing":
+		return "stopping", nil
+	case "paused":
+		return "paused", nil
+	case "dead":
+		return "error", nil
+	default:
+		return status, nil
+	}
+}
+
+// CheckImageExists checks if a Docker image exists locally
+func (d *DockerRuntime) CheckImageExists(imageName string) (bool, error) {
+	cmd := exec.Command(d.getDockerCommand(), "image", "inspect", imageName)
+	return cmd.Run() == nil, nil
+}
+
+// CheckMultipleImagesExist checks if multiple Docker images exist locally in a single call
+func (d *DockerRuntime) CheckMultipleImagesExist(imageNames []string) (map[string]bool, error) {
+	if len(imageNames) == 0 {
+		return make(map[string]bool), nil
+	}
+
+	// Use docker images command to get all local images in one call
+	cmd := exec.Command(d.getDockerCommand(), "images", "--format", "{{.Repository}}:{{.Tag}}")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list docker images: %w", err)
+	}
+
+	// Parse the output to create a set of existing images
+	existingImages := make(map[string]bool)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && line != "<none>:<none>" {
+			existingImages[line] = true
+		}
+	}
+
+	// Check each requested image
+	result := make(map[string]bool)
+	for _, imageName := range imageNames {
+		// Handle different image name formats
+		exists := false
+
+		// Check exact match first
+		if existingImages[imageName] {
+			exists = true
+		} else {
+			// If no tag specified, check with :latest
+			if !strings.Contains(imageName, ":") {
+				if existingImages[imageName+":latest"] {
+					exists = true
+				}
+			}
+
+			// Also check without tag (some images might be listed differently)
+			if !exists && strings.Contains(imageName, ":") {
+				baseImage := strings.Split(imageName, ":")[0]
+				for existingImage := range existingImages {
+					if strings.HasPrefix(existingImage, baseImage+":") {
+						exists = true
+						break
+					}
+				}
+			}
+		}
+
+		result[imageName] = exists
+	}
+
+	return result, nil
 }

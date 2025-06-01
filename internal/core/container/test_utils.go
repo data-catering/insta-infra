@@ -9,22 +9,25 @@ import (
 // MockRuntime implements Runtime interface for testing across all test files.
 // This consolidates the previously duplicated MockRuntime and MockRuntimeForProvider.
 type MockRuntime struct {
-	name                  string
-	available             bool
-	composeUpCalled       bool
-	composeDownCalled     bool
-	execCalled            bool
-	lastServices          []string
-	lastCmd               string
-	portMappings          map[string]string
-	dependencies          []string
-	containerNames        map[string]string
-	imageExists           bool
-	logs                  []string
-	containerStatus       string
-	shouldFailComposeUp   bool
-	shouldFailComposeDown bool
-	shouldFailExec        bool
+	name                   string
+	available              bool
+	composeUpError         error
+	composeDownError       error
+	execError              error
+	portMappings           map[string]string
+	portMappingsError      error
+	containerName          string
+	containerNameError     error
+	containerLogs          []string
+	containerLogsError     error
+	imageExists            bool
+	imageExistsError       error
+	imageInfo              string
+	imageInfoError         error
+	containerStatus        string
+	containerStatusError   error
+	runningContainers      map[string]string
+	runningContainersError error
 }
 
 // NewMockRuntime creates a new mock runtime with sensible defaults
@@ -33,10 +36,7 @@ func NewMockRuntime(name string, available bool) *MockRuntime {
 		name:            name,
 		available:       available,
 		portMappings:    make(map[string]string),
-		dependencies:    []string{},
-		containerNames:  make(map[string]string),
 		imageExists:     true,
-		logs:            []string{"Mock log line 1", "Mock log line 2", "Mock log line 3"},
 		containerStatus: "running",
 	}
 }
@@ -44,18 +44,6 @@ func NewMockRuntime(name string, available bool) *MockRuntime {
 // WithPortMappings sets the port mappings for the mock runtime
 func (m *MockRuntime) WithPortMappings(mappings map[string]string) *MockRuntime {
 	m.portMappings = mappings
-	return m
-}
-
-// WithDependencies sets the dependencies for the mock runtime
-func (m *MockRuntime) WithDependencies(deps []string) *MockRuntime {
-	m.dependencies = deps
-	return m
-}
-
-// WithContainerNames sets the container name mappings for the mock runtime
-func (m *MockRuntime) WithContainerNames(names map[string]string) *MockRuntime {
-	m.containerNames = names
 	return m
 }
 
@@ -67,21 +55,13 @@ func (m *MockRuntime) WithImageExists(exists bool) *MockRuntime {
 
 // WithLogs sets the log lines for the mock runtime
 func (m *MockRuntime) WithLogs(logs []string) *MockRuntime {
-	m.logs = logs
+	m.containerLogs = logs
 	return m
 }
 
 // WithContainerStatus sets the container status for the mock runtime
 func (m *MockRuntime) WithContainerStatus(status string) *MockRuntime {
 	m.containerStatus = status
-	return m
-}
-
-// WithFailures configures the mock to fail on specific operations
-func (m *MockRuntime) WithFailures(composeUp, composeDown, exec bool) *MockRuntime {
-	m.shouldFailComposeUp = composeUp
-	m.shouldFailComposeDown = composeDown
-	m.shouldFailExec = exec
 	return m
 }
 
@@ -98,62 +78,42 @@ func (m *MockRuntime) CheckAvailable() error {
 }
 
 func (m *MockRuntime) ComposeUp(composeFiles []string, services []string, quiet bool) error {
-	if m.shouldFailComposeUp {
-		return fmt.Errorf("mock compose up failure")
-	}
-	m.composeUpCalled = true
-	m.lastServices = services
-	return nil
+	return m.composeUpError
 }
 
 func (m *MockRuntime) ComposeDown(composeFiles []string, services []string) error {
-	if m.shouldFailComposeDown {
-		return fmt.Errorf("mock compose down failure")
-	}
-	m.composeDownCalled = true
-	m.lastServices = services
-	return nil
+	return m.composeDownError
 }
 
 func (m *MockRuntime) ExecInContainer(containerName string, cmd string, interactive bool) error {
-	if m.shouldFailExec {
-		return fmt.Errorf("mock exec failure")
-	}
-	m.execCalled = true
-	m.lastCmd = cmd
-	return nil
+	return m.execError
 }
 
 func (m *MockRuntime) GetPortMappings(containerName string) (map[string]string, error) {
-	if m.portMappings != nil {
-		return m.portMappings, nil
-	}
-	return map[string]string{}, nil
-}
-
-func (m *MockRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
-	return m.dependencies, nil
-}
-
-func (m *MockRuntime) GetAllDependenciesRecursive(service string, composeFiles []string) ([]string, error) {
-	return m.dependencies, nil
+	return m.portMappings, m.portMappingsError
 }
 
 func (m *MockRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
-	if cn, ok := m.containerNames[serviceName]; ok && cn != "" {
-		return cn, nil
+	if m.containerName != "" {
+		return m.containerName, m.containerNameError
 	}
-	return fmt.Sprintf("mock_%s_1", serviceName), nil
+	return fmt.Sprintf("mock_%s_1", serviceName), m.containerNameError
+}
+
+// GetAllDependenciesRecursive returns all dependencies recursively for a service from compose files
+func (m *MockRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string, isContainer bool) ([]string, error) {
+	// For testing, return empty dependencies by default
+	return []string{}, nil
 }
 
 func (m *MockRuntime) GetContainerLogs(containerName string, tailLines int) ([]string, error) {
-	return m.logs, nil
+	return m.containerLogs, m.containerLogsError
 }
 
 func (m *MockRuntime) StreamContainerLogs(containerName string, logChan chan<- string, stopChan <-chan struct{}) error {
 	go func() {
 		defer close(logChan)
-		for _, log := range m.logs {
+		for _, log := range m.containerLogs {
 			select {
 			case logChan <- log:
 			case <-stopChan:
@@ -165,11 +125,29 @@ func (m *MockRuntime) StreamContainerLogs(containerName string, logChan chan<- s
 }
 
 func (m *MockRuntime) CheckImageExists(imageName string) (bool, error) {
-	return m.imageExists, nil
+	return m.imageExists, m.imageExistsError
+}
+
+// CheckMultipleImagesExist checks if multiple images exist locally in a single call
+func (m *MockRuntime) CheckMultipleImagesExist(imageNames []string) (map[string]bool, error) {
+	result := make(map[string]bool)
+	for _, imageName := range imageNames {
+		result[imageName] = m.imageExists
+	}
+	return result, nil
 }
 
 func (m *MockRuntime) GetImageInfo(serviceName string, composeFiles []string) (string, error) {
-	return fmt.Sprintf("mock/%s:latest", serviceName), nil
+	return m.imageInfo, m.imageInfoError
+}
+
+// GetMultipleImageInfo returns image information for multiple services from compose files
+func (m *MockRuntime) GetMultipleImageInfo(serviceNames []string, composeFiles []string) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, serviceName := range serviceNames {
+		result[serviceName] = fmt.Sprintf("mock/%s:latest", serviceName)
+	}
+	return result, nil
 }
 
 func (m *MockRuntime) PullImageWithProgress(imageName string, progressChan chan<- ImagePullProgress, stopChan <-chan struct{}) error {
@@ -194,23 +172,38 @@ func (m *MockRuntime) PullImageWithProgress(imageName string, progressChan chan<
 }
 
 func (m *MockRuntime) GetContainerStatus(containerName string) (string, error) {
-	return m.containerStatus, nil
+	return m.containerStatus, m.containerStatusError
+}
+
+// GetAllContainerStatuses returns all running containers managed by compose
+func (m *MockRuntime) GetAllContainerStatuses() (map[string]string, error) {
+	return m.runningContainers, m.runningContainersError
 }
 
 // Test state accessors
-func (m *MockRuntime) WasComposeUpCalled() bool   { return m.composeUpCalled }
-func (m *MockRuntime) WasComposeDownCalled() bool { return m.composeDownCalled }
-func (m *MockRuntime) WasExecCalled() bool        { return m.execCalled }
-func (m *MockRuntime) GetLastServices() []string  { return m.lastServices }
-func (m *MockRuntime) GetLastCmd() string         { return m.lastCmd }
+func (m *MockRuntime) WasComposeUpCalled() bool   { return m.composeUpError != nil }
+func (m *MockRuntime) WasComposeDownCalled() bool { return m.composeDownError != nil }
+func (m *MockRuntime) WasExecCalled() bool        { return m.execError != nil }
 
 // Reset clears all call tracking state
 func (m *MockRuntime) Reset() {
-	m.composeUpCalled = false
-	m.composeDownCalled = false
-	m.execCalled = false
-	m.lastServices = nil
-	m.lastCmd = ""
+	m.composeUpError = nil
+	m.composeDownError = nil
+	m.execError = nil
+	m.portMappings = nil
+	m.portMappingsError = nil
+	m.containerName = ""
+	m.containerNameError = nil
+	m.containerLogs = nil
+	m.containerLogsError = nil
+	m.imageExists = true
+	m.imageExistsError = nil
+	m.imageInfo = ""
+	m.imageInfoError = nil
+	m.containerStatus = "running"
+	m.containerStatusError = nil
+	m.runningContainers = map[string]string{}
+	m.runningContainersError = nil
 }
 
 // Common test utilities

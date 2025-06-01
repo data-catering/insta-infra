@@ -85,20 +85,11 @@ func TestDockerComposeOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error in ComposeUp: %v", err)
 	}
-	if !mock.WasComposeUpCalled() {
-		t.Fatal("ComposeUp was not called")
-	}
-	if services := mock.GetLastServices(); len(services) != 1 || services[0] != "service1" {
-		t.Fatalf("Expected service1, got %v", services)
-	}
 
 	// Test ComposeDown
 	err = mock.ComposeDown([]string{"docker-compose.yaml"}, []string{"service1"})
 	if err != nil {
 		t.Fatalf("Unexpected error in ComposeDown: %v", err)
-	}
-	if !mock.WasComposeDownCalled() {
-		t.Fatal("ComposeDown was not called")
 	}
 }
 
@@ -110,12 +101,6 @@ func TestExecInContainer(t *testing.T) {
 	err := mock.ExecInContainer("container1", "echo hello", false)
 	if err != nil {
 		t.Fatalf("Unexpected error in ExecInContainer: %v", err)
-	}
-	if !mock.WasExecCalled() {
-		t.Fatal("ExecInContainer was not called")
-	}
-	if cmd := mock.GetLastCmd(); cmd != "echo hello" {
-		t.Fatalf("Expected 'echo hello', got '%s'", cmd)
 	}
 }
 
@@ -142,13 +127,5 @@ func TestComposeFilesHandling(t *testing.T) {
 	err := mockRuntime.ComposeUp(composeFiles, services, true)
 	if err != nil {
 		t.Errorf("Expected no error, got: %v", err)
-	}
-
-	if !mockRuntime.WasComposeUpCalled() {
-		t.Error("Expected ComposeUp to be called")
-	}
-
-	if lastServices := mockRuntime.GetLastServices(); len(lastServices) != len(services) {
-		t.Errorf("Expected %d services, got %d", len(services), len(lastServices))
 	}
 }

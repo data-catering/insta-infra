@@ -4,9 +4,9 @@ import ServiceItem from './ServiceItem';
 function ServiceList({ 
   services = [], 
   statuses = {}, 
+  dependencyStatuses = {},
   isLoading = false, 
-  onServiceStateChange, 
-  onShowDependencyGraph 
+  onServiceStateChange
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -18,6 +18,7 @@ function ServiceList({
     name: service.Name,  // ServiceList expects lowercase name
     type: service.Type,  // ServiceList expects lowercase type  
     status: statuses[service.Name] || 'stopped', // Default to stopped if no status
+    dependencies: service.Dependencies || [], // Include dependencies from backend
   }));
   
   // Get unique service types for filter dropdown
@@ -44,7 +45,7 @@ function ServiceList({
                 <path d="M21 10V8C21 6.89543 20.1046 6 19 6H5C3.89543 6 3 6.89543 3 8V10M21 10V16C21 17.1046 20.1046 18 19 18H5C3.89543 18 3 17.1046 3 16V10M21 10H3M7 14H12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
-            <h2>All Services</h2>
+            <h2>Services</h2>
           </div>
         </div>
         
@@ -67,7 +68,7 @@ function ServiceList({
               <path d="M21 10V8C21 6.89543 20.1046 6 19 6H5C3.89543 6 3 6.89543 3 8V10M21 10V16C21 17.1046 20.1046 18 19 18H5C3.89543 18 3 17.1046 3 16V10M21 10H3M7 14H12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
           </div>
-          <h2>All Services</h2>
+          <h2>Services</h2>
         </div>
         
         {/* Status Counts */}
@@ -192,9 +193,9 @@ function ServiceList({
                 <div 
                   key={service.name} 
                   className="fade-in" 
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  style={{ animationDelay: `${Math.min(index * 20, 500)}ms` }}
                 >
-                  <ServiceItem service={service} onServiceStateChange={onServiceStateChange} onShowDependencyGraph={onShowDependencyGraph} />
+                  <ServiceItem service={service} onServiceStateChange={onServiceStateChange} statuses={statuses} dependencyStatuses={dependencyStatuses} />
                 </div>
               ))}
             </div>
@@ -204,76 +205,9 @@ function ServiceList({
                 <div 
                   key={service.name}
                   className="fade-in" 
-                  style={{ animationDelay: `${index * 30}ms` }}
+                  style={{ animationDelay: `${Math.min(index * 15, 300)}ms` }}
                 >
-                  <div className={`list-item ${
-                    service.status === 'running' 
-                      ? 'list-item-running' 
-                      : service.statusError 
-                        ? 'list-item-error' 
-                        : ''
-                  }`}>
-                    <div className={`list-status-dot ${
-                      service.status === 'running' 
-                        ? 'dot-green pulse' 
-                        : service.statusError 
-                          ? 'dot-red' 
-                          : 'dot-gray'
-                    }`}></div>
-                    
-                    <div className="list-content">
-                      <div className="list-header">
-                        <h3 className="list-name">
-                          {service.name}
-                        </h3>
-                        <span className="list-type">
-                          {service.type || 'Service'}
-                        </span>
-                      </div>
-                      
-                      {service.dependencies?.length > 0 && (
-                        <p className="list-deps">
-                          Deps: {service.dependencies.join(', ')}
-                        </p>
-                      )}
-                      
-                      {service.statusError && (
-                        <p className="list-error">
-                          Error: {service.statusError}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="list-actions">
-                      {service.status !== 'running' ? (
-                        <button className="action-button start-button">
-                          <svg width="12" height="12" className="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M5 4.99999L19 12L5 19V4.99999Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                          Start
-                        </button>
-                      ) : (
-                        <button className="action-button stop-button">
-                          <svg width="12" height="12" className="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M6 6H18V18H6V6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                          Stop
-                        </button>
-                      )}
-                      
-                      <button className="icon-button" title="View logs">
-                        <svg width="16" height="16" className="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M9 5H7C4.79086 5 3 6.79086 3 9V15C3 17.2091 4.79086 19 7 19H9M9 5V19M9 5H15M9 19H15M15 5H17C19.2091 5 21 6.79086 21 9V15C21 17.2091 19.2091 19 17 19H15M15 5V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        </svg>
-                      </button>
-                      
-                      <button className="icon-button" title="Service details">
-                        <svg width="16" height="16" className="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M13 16H12V12H11M12 8H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
+                  <ServiceItem service={service} onServiceStateChange={onServiceStateChange} statuses={statuses} dependencyStatuses={dependencyStatuses} />
                 </div>
               ))}
             </div>

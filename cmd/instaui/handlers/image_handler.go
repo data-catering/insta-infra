@@ -172,3 +172,62 @@ func (h *ImageHandler) GetImageInfo(serviceName string) (string, error) {
 
 	return imageName, nil
 }
+
+// CheckMultipleImagesExist checks if Docker/Podman images exist locally for multiple services
+func (h *ImageHandler) CheckMultipleImagesExist(serviceNames []string) (map[string]bool, error) {
+	if len(serviceNames) == 0 {
+		return make(map[string]bool), nil
+	}
+
+	composeFiles := h.getComposeFiles()
+
+	// First get image names for all services
+	imageInfoMap, err := h.Runtime().GetMultipleImageInfo(serviceNames, composeFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image info for services: %w", err)
+	}
+
+	// Extract just the image names
+	imageNames := make([]string, 0, len(imageInfoMap))
+	serviceToImage := make(map[string]string)
+	for serviceName, imageName := range imageInfoMap {
+		imageNames = append(imageNames, imageName)
+		serviceToImage[serviceName] = imageName
+	}
+
+	// Check if images exist locally in bulk
+	imageExistsMap, err := h.Runtime().CheckMultipleImagesExist(imageNames)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if images exist: %w", err)
+	}
+
+	// Map results back to service names
+	result := make(map[string]bool)
+	for _, serviceName := range serviceNames {
+		if imageName, exists := serviceToImage[serviceName]; exists {
+			result[serviceName] = imageExistsMap[imageName]
+		} else {
+			// Service not found in compose files
+			result[serviceName] = false
+		}
+	}
+
+	return result, nil
+}
+
+// GetMultipleImageInfo returns the Docker/Podman image names for multiple services
+func (h *ImageHandler) GetMultipleImageInfo(serviceNames []string) (map[string]string, error) {
+	if len(serviceNames) == 0 {
+		return make(map[string]string), nil
+	}
+
+	composeFiles := h.getComposeFiles()
+
+	// Get image names for all services
+	imageInfoMap, err := h.Runtime().GetMultipleImageInfo(serviceNames, composeFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get image info for services: %w", err)
+	}
+
+	return imageInfoMap, nil
+}

@@ -21,25 +21,25 @@ var assets embed.FS
 // createMenu creates the application menu
 func createMenu(ctx context.Context) *menu.Menu {
 	appMenu := menu.NewMenu()
-	
+
 	// File menu
 	fileMenu := appMenu.AddSubmenu("File")
 	fileMenu.AddText("Quit", keys.CmdOrCtrl("q"), func(_ *menu.CallbackData) {
 		// Quit the application
 	})
-	
+
 	// View menu
 	viewMenu := appMenu.AddSubmenu("View")
 	viewMenu.AddText("Reload", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
 		// Reload the application
 	})
-	
+
 	// Help menu
 	helpMenu := appMenu.AddSubmenu("Help")
 	helpMenu.AddText("About", nil, func(_ *menu.CallbackData) {
 		// Show about dialog
 	})
-	
+
 	return appMenu
 }
 

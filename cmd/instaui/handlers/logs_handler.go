@@ -29,21 +29,28 @@ func NewLogsHandler(runtime container.Runtime, instaDir string, ctx context.Cont
 
 // GetServiceLogs returns recent logs from a service container (running or exited)
 func (h *LogsHandler) GetServiceLogs(serviceName string, tailLines int) ([]string, error) {
-	// Prepare compose files
-	composeFiles := h.getComposeFiles()
-
-	// First try to get container name (works for both running and exited containers)
-	containerName, err := h.Runtime().GetContainerName(serviceName, composeFiles)
+	// Try to get the proper container name for the service
+	containerName, err := h.Runtime().GetContainerName(serviceName, h.getComposeFiles())
 	if err != nil {
-		return nil, fmt.Errorf("could not get container name for service %s: %w", serviceName, err)
+		// If GetContainerName fails, fall back to using service name directly
+		// This handles cases where the container exists but compose files might not be found
+		containerName = serviceName
 	}
 
-	// Get logs from container (works for both running and exited containers)
+	// Try to get logs from the container (works for both running and stopped containers)
 	logs, err := h.Runtime().GetContainerLogs(containerName, tailLines)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get logs for service %s: %w", serviceName, err)
+		// If using the resolved container name fails, try with the original service name
+		// This provides a fallback in case the container naming doesn't match expectations
+		if containerName != serviceName {
+			logs, err = h.Runtime().GetContainerLogs(serviceName, tailLines)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get logs for service %s (tried both '%s' and '%s'): %w", serviceName, containerName, serviceName, err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to get logs for service %s: %w", serviceName, err)
+		}
 	}
-
 	return logs, nil
 }
 
@@ -61,49 +68,64 @@ func (h *LogsHandler) StartLogStream(serviceName string) error {
 	h.logStreams[serviceName] = stopChan
 	h.logStreamsMutex.Unlock()
 
-	// Prepare compose files
-	composeFiles := h.getComposeFiles()
-
-	// Get all running containers first
-	runningContainers, err := h.getRunningContainers()
+	// Try to get the proper container name for the service
+	// This will work for both running and stopped containers
+	containerName, err := h.Runtime().GetContainerName(serviceName, h.getComposeFiles())
 	if err != nil {
-		// Clean up the stop channel if we can't get running containers
-		h.logStreamsMutex.Lock()
-		delete(h.logStreams, serviceName)
-		h.logStreamsMutex.Unlock()
-		return fmt.Errorf("could not get running containers: %w", err)
+		// If GetContainerName fails, fall back to using service name directly
+		// This handles cases where the container exists but compose files might not be found
+		containerName = serviceName
 	}
 
-	// Try to get container name first (works for both running and exited containers)
-	containerName, err := h.Runtime().GetContainerName(serviceName, composeFiles)
+	// Get all running containers to check if this service is currently running
+	currentContainers, err := h.getCurrentContainers()
 	if err != nil {
-		// Clean up the stop channel if we can't get container name
-		h.logStreamsMutex.Lock()
-		delete(h.logStreams, serviceName)
-		h.logStreamsMutex.Unlock()
-		return fmt.Errorf("could not get container name for service %s: %w", serviceName, err)
+		// If we can't get current containers, we'll still try to get logs from the container
+		// but we won't be able to stream live logs
+		currentContainers = make(map[string]string)
 	}
 
-	// Check if container is running for streaming (only running containers can be streamed)
-	isRunning := h.isServiceRunning(serviceName, composeFiles, runningContainers)
+	// Check if the service is currently running
+	var isRunning bool
+	if status, exists := currentContainers[serviceName]; exists {
+		isRunning = (status == "running" || status == "restarting")
+	}
+
+	// If not running, try to get historical logs from the container (stopped container)
 	if !isRunning {
-		// Check if container exists but is not running - we can't stream but should provide helpful error
-		containerStatus, err := h.Runtime().GetContainerStatus(containerName)
-		if err == nil && containerStatus != "not_found" {
-			// Clean up the stop channel if service is not running
-			h.logStreamsMutex.Lock()
-			delete(h.logStreams, serviceName)
-			h.logStreamsMutex.Unlock()
-			return fmt.Errorf("service %s is not running (status: %s) - cannot stream logs from stopped containers", serviceName, containerStatus)
+		// Try to get logs from the container (works for both running and stopped containers)
+		logs, err := h.Runtime().GetContainerLogs(containerName, 1000)
+
+		// Clean up the stop channel since we won't be streaming
+		h.logStreamsMutex.Lock()
+		delete(h.logStreams, serviceName)
+		h.logStreamsMutex.Unlock()
+
+		if err != nil {
+			// If we can't get logs, it might mean the container doesn't exist at all
+			// This is not necessarily an error - just means no logs are available
+			if h.ctx != nil {
+				runtime.EventsEmit(h.ctx, "service-log", map[string]interface{}{
+					"serviceName": serviceName,
+					"log":         []string{fmt.Sprintf("No logs available for service '%s' (container may not exist or have no logs)", serviceName)},
+					"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+				})
+			}
+			return nil // Don't return error, just no logs available
 		}
 
-		// Clean up the stop channel if service is not running
-		h.logStreamsMutex.Lock()
-		delete(h.logStreams, serviceName)
-		h.logStreamsMutex.Unlock()
-		return fmt.Errorf("service %s is not running", serviceName)
+		// Emit the historical logs
+		if h.ctx != nil {
+			runtime.EventsEmit(h.ctx, "service-log", map[string]interface{}{
+				"serviceName": serviceName,
+				"log":         logs,
+				"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+			})
+		}
+		return nil
 	}
 
+	// Service is running, set up live log streaming
 	// Create channels for log streaming
 	logChan := make(chan string, 100) // Buffer for logs
 
@@ -154,6 +176,14 @@ func (h *LogsHandler) StartLogStream(serviceName string) error {
 	return nil
 }
 
+// getComposeFiles returns the list of compose files to use
+func (h *LogsHandler) getComposeFiles() []string {
+	return []string{
+		fmt.Sprintf("%s/docker-compose.yaml", h.InstaDir()),
+		fmt.Sprintf("%s/docker-compose-persist.yaml", h.InstaDir()),
+	}
+}
+
 // StopLogStream stops log streaming for a service
 func (h *LogsHandler) StopLogStream(serviceName string) error {
 	h.logStreamsMutex.Lock()
@@ -171,4 +201,3 @@ func (h *LogsHandler) StopLogStream(serviceName string) error {
 
 	return nil
 }
-

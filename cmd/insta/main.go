@@ -258,69 +258,33 @@ func (a *App) startServices(services []string, persist bool) error {
 		return fmt.Errorf("%sError: Failed to start up services: %v%s", colorRed, err, colorReset)
 	}
 
-	// Get the expanded list of services including recursive dependencies
-	expandedServices := make(map[string]bool)
+	// Build list of containers to display (requested containers + their dependencies)
+	allContainersToDisplay := make(map[string]bool)
 
-	// Function to recursively collect dependencies
-	var collectDependencies func(service string) error
-	collectDependencies = func(service string) error {
-		if expandedServices[service] {
-			return nil // Already processed this service
-		}
-
-		expandedServices[service] = true
-
-		// Get dependencies for this service
-		deps, err := a.runtime.GetDependencies(service, composeFiles) // Keep this for direct deps if needed elsewhere or for logging
-		if err != nil {
-			return fmt.Errorf("failed to get dependencies for %s: %w", service, err)
-		}
-
-		// Recursively process each dependency
-		for _, dep := range deps {
-			if err := collectDependencies(dep); err != nil {
-				// Just log the error and continue
-				fmt.Printf("%sWarning: %v%s\n", colorYellow, err, colorReset)
-			}
-		}
-
-		return nil
+	// Add requested services
+	for _, service := range services {
+		allContainersToDisplay[service] = true
 	}
 
-	// Process each requested service and collect all their recursive dependencies
-	for _, serviceName := range services {
-		if !expandedServices[serviceName] { // Add the initially requested service itself
-			expandedServices[serviceName] = true
-		}
-		recursiveDeps, err := a.runtime.GetAllDependenciesRecursive(serviceName, composeFiles)
+	// Add all dependencies recursively for each requested service (container names)
+	for _, service := range services {
+		dependencies, err := a.runtime.GetAllDependenciesRecursive(service, composeFiles, true)
 		if err != nil {
-			fmt.Printf("%sWarning: Failed to get all dependencies for %s: %v%s\n", colorYellow, serviceName, err, colorReset)
-			// Decide if we should continue or error out. For now, continue with what we have.
+			// Log warning but continue - dependency resolution failure shouldn't stop the whole operation
+			fmt.Fprintf(os.Stderr, "%sWarning: failed to get dependencies for %s: %v%s\n", colorYellow, service, err, colorReset)
 		} else {
-			for _, dep := range recursiveDeps {
-				expandedServices[dep] = true
+			for _, dep := range dependencies {
+				allContainersToDisplay[dep] = true
 			}
 		}
 	}
 
-	// Extract all services to display
-	var servicesToDisplay []string
-	for service := range expandedServices {
-		servicesToDisplay = append(servicesToDisplay, service)
+	// Convert map to sorted slice
+	var containersToDisplay []string
+	for container := range allContainersToDisplay {
+		containersToDisplay = append(containersToDisplay, container)
 	}
-	sort.Strings(servicesToDisplay)
-
-	// Map to store service name to actual container name
-	serviceToContainerName := make(map[string]string)
-	for _, serviceName := range servicesToDisplay {
-		cn, err := a.runtime.GetContainerName(serviceName, composeFiles)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%sWarning: failed to get container name for %s: %v. Using service name as fallback.%s\n", colorYellow, serviceName, err, colorReset)
-			serviceToContainerName[serviceName] = serviceName // Fallback to service name
-		} else {
-			serviceToContainerName[serviceName] = cn
-		}
-	}
+	sort.Strings(containersToDisplay)
 
 	// Display connection information for all services in a single table
 	fmt.Printf("\n%sConnection Information Table%s\n", colorBlue, colorReset)
@@ -329,13 +293,11 @@ func (a *App) startServices(services []string, persist bool) error {
 	fmt.Printf("%s├─────────────────────────┼──────────────────────────────┼──────────────────────┼──────────────────────────────┼────────────┼────────────┤%s\n", colorYellow, colorReset)
 
 	// Track if any services with ports were displayed
-	servicesDisplayed := false
+	containersDisplayed := false
 
 	// Print each service row
-	for _, serviceName := range servicesToDisplay {
-		// Get port information from the container runtime
-		actualContainerName := serviceToContainerName[serviceName]
-		portMappings, err := a.runtime.GetPortMappings(actualContainerName)
+	for _, containerName := range containersToDisplay {
+		portMappings, err := a.runtime.GetPortMappings(containerName)
 		// Skip services without any port mappings
 		if err != nil || len(portMappings) == 0 {
 			continue
@@ -355,9 +317,9 @@ func (a *App) startServices(services []string, persist bool) error {
 			break // Use the first mapping
 		}
 
-		servicesDisplayed = true
+		containersDisplayed = true
 
-		if service, exists := core.Services[actualContainerName]; exists {
+		if service, exists := core.Services[containerName]; exists {
 			// Get username and password, defaulting to empty string if not set
 			username := ""
 			if service.DefaultUser != "" {
@@ -370,8 +332,8 @@ func (a *App) startServices(services []string, persist bool) error {
 
 			fmt.Printf("%s│ %-23s │ %-28s │ %-20s │ %-28s │ %-10s │ %-10s │%s\n",
 				colorYellow,
-				serviceName,
-				fmt.Sprintf("%s:%s", actualContainerName, containerPort),
+				containerName,
+				fmt.Sprintf("%s:%s", containerName, containerPort),
 				fmt.Sprintf("localhost:%s", hostPort),
 				fmt.Sprintf("host.docker.internal:%s", hostPort),
 				username,
@@ -381,8 +343,8 @@ func (a *App) startServices(services []string, persist bool) error {
 			// For services not in the Services map, still display what we know
 			fmt.Printf("%s│ %-23s │ %-28s │ %-20s │ %-28s │ %-10s │ %-10s │%s\n",
 				colorYellow,
-				serviceName,
-				fmt.Sprintf("%s:%s", actualContainerName, containerPort),
+				containerName,
+				fmt.Sprintf("%s:%s", containerName, containerPort),
 				fmt.Sprintf("localhost:%s", hostPort),
 				fmt.Sprintf("host.docker.internal:%s", hostPort),
 				"N/A",
@@ -392,7 +354,7 @@ func (a *App) startServices(services []string, persist bool) error {
 	}
 
 	// If no services were displayed, show a message
-	if !servicesDisplayed {
+	if !containersDisplayed {
 		fmt.Printf("%s│ %-23s │ %-28s │ %-20s │ %-28s │ %-10s │ %-10s │%s\n",
 			colorYellow,
 			"No services with ports",

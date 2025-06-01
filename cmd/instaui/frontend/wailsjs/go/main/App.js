@@ -10,16 +10,20 @@ export function CheckImageExists(arg1) {
   return window['go']['main']['App']['CheckImageExists'](arg1);
 }
 
+export function CheckMultipleImagesExist(arg1) {
+  return window['go']['main']['App']['CheckMultipleImagesExist'](arg1);
+}
+
 export function CheckStartingServicesProgress() {
   return window['go']['main']['App']['CheckStartingServicesProgress']();
 }
 
-export function GetAllRunningServices() {
-  return window['go']['main']['App']['GetAllRunningServices']();
+export function GetAllDependencyStatuses() {
+  return window['go']['main']['App']['GetAllDependencyStatuses']();
 }
 
-export function GetAllServiceDependencies() {
-  return window['go']['main']['App']['GetAllServiceDependencies']();
+export function GetAllRunningServices() {
+  return window['go']['main']['App']['GetAllRunningServices']();
 }
 
 export function GetAllServiceDetails() {
@@ -46,20 +50,16 @@ export function GetCustomPodmanPath() {
   return window['go']['main']['App']['GetCustomPodmanPath']();
 }
 
-export function GetDependencyGraph() {
-  return window['go']['main']['App']['GetDependencyGraph']();
-}
-
-export function GetDependencyStatus(arg1) {
-  return window['go']['main']['App']['GetDependencyStatus'](arg1);
-}
-
 export function GetImageInfo(arg1) {
   return window['go']['main']['App']['GetImageInfo'](arg1);
 }
 
 export function GetImagePullProgress(arg1) {
   return window['go']['main']['App']['GetImagePullProgress'](arg1);
+}
+
+export function GetMultipleImageInfo(arg1) {
+  return window['go']['main']['App']['GetMultipleImageInfo'](arg1);
 }
 
 export function GetMultipleServiceStatuses(arg1) {
@@ -72,18 +72,6 @@ export function GetRuntimeStatus() {
 
 export function GetServiceConnectionInfo(arg1) {
   return window['go']['main']['App']['GetServiceConnectionInfo'](arg1);
-}
-
-export function GetServiceContainerDetails(arg1) {
-  return window['go']['main']['App']['GetServiceContainerDetails'](arg1);
-}
-
-export function GetServiceDependencies(arg1) {
-  return window['go']['main']['App']['GetServiceDependencies'](arg1);
-}
-
-export function GetServiceDependencyGraph(arg1) {
-  return window['go']['main']['App']['GetServiceDependencyGraph'](arg1);
 }
 
 export function GetServiceLogs(arg1, arg2) {
@@ -118,10 +106,6 @@ export function SetCustomPodmanPath(arg1) {
   return window['go']['main']['App']['SetCustomPodmanPath'](arg1);
 }
 
-export function StartAllDependencies(arg1, arg2) {
-  return window['go']['main']['App']['StartAllDependencies'](arg1, arg2);
-}
-
 export function StartImagePull(arg1) {
   return window['go']['main']['App']['StartImagePull'](arg1);
 }
@@ -144,10 +128,6 @@ export function StopAllServices() {
 
 export function StopAllServicesWithStatusUpdate() {
   return window['go']['main']['App']['StopAllServicesWithStatusUpdate']();
-}
-
-export function StopDependencyChain(arg1) {
-  return window['go']['main']['App']['StopDependencyChain'](arg1);
 }
 
 export function StopImagePull(arg1) {

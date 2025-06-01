@@ -1,30 +1,191 @@
-import React, { useState, useEffect } from 'react';
-import { StartServiceWithStatusUpdate, StopService, GetServiceConnectionInfo, OpenServiceInBrowser, CheckImageExists, StartImagePull, GetImageInfo, GetDependencyStatus, StopDependencyChain, GetServiceStatus } from "../../wailsjs/go/main/App";
-import { ChevronDown, ChevronUp, ExternalLink, Database, Server, Eye, Play, Square, Copy, ScrollText, Download, CheckCircle, AlertCircle, Users } from 'lucide-react';
-import ConnectionModal from './ConnectionModal';
-import LogsModal from './LogsModal';
+import React, { useState, useEffect, useContext, createContext, useCallback } from 'react';
+import { StartServiceWithStatusUpdate, StopService, StopServiceWithStatusUpdate, GetServiceConnectionInfo, OpenServiceInBrowser, CheckImageExists, StartImagePull, GetImageInfo, GetServiceStatus } from "../../wailsjs/go/main/App";
+import { ChevronDown, ChevronUp, ExternalLink, Database, Server, Eye, Play, Square, Copy, ScrollText, Download, CheckCircle, AlertCircle } from 'lucide-react';
 import ProgressModal from './ProgressModal';
+import LogsModal from './LogsModal';
+import ConnectionModal from './ConnectionModal';
+
+// Create a context for bulk image status management
+const ImageStatusContext = React.createContext();
+
+// Provider component for bulk image status management
+export const ImageStatusProvider = ({ children, services }) => {
+  const [imageStatuses, setImageStatuses] = useState({});
+  const [imageNames, setImageNames] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Bulk load image statuses for all services
+  const loadImageStatuses = useCallback(async () => {
+    if (!services || services.length === 0 || isLoading) return;
+
+    setIsLoading(true);
+    try {
+      const serviceNames = services.map(service => service.name || service.Name); // Handle both lowercase and uppercase Name
+      
+      // Get image names and existence status in bulk
+      const [imageInfoMap, imageExistsMap] = await Promise.all([
+        window.go.main.App.GetMultipleImageInfo(serviceNames),
+        window.go.main.App.CheckMultipleImagesExist(serviceNames)
+      ]);
+
+      setImageNames(imageInfoMap);
+      
+      // Convert boolean existence to status strings
+      const statusMap = {};
+      for (const serviceName of serviceNames) {
+        const exists = imageExistsMap[serviceName];
+        statusMap[serviceName] = exists ? 'ready' : 'missing';
+      }
+      
+      setImageStatuses(statusMap);
+      
+    } catch (error) {
+      console.error('ImageStatusProvider: Error loading bulk image statuses:', error);
+      // Set all to unknown on error
+      const statusMap = {};
+      services.forEach(service => {
+        statusMap[service.name || service.Name] = 'unknown';
+      });
+      setImageStatuses(statusMap);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [services?.length]); // Only depend on services length, not the full services array
+
+  // Update individual image status
+  const updateImageStatus = (serviceName, status, imageName = null) => {
+    setImageStatuses(prev => ({
+      ...prev,
+      [serviceName]: status
+    }));
+    
+    if (imageName) {
+      setImageNames(prev => ({
+        ...prev,
+        [serviceName]: imageName
+      }));
+    }
+  };
+
+  const value = {
+    imageStatuses,
+    imageNames,
+    isLoading,
+    loadImageStatuses,
+    updateImageStatus
+  };
+
+  return (
+    <ImageStatusContext.Provider value={value}>
+      {children}
+    </ImageStatusContext.Provider>
+  );
+};
+
+// Hook to use image status context
+const useImageStatus = () => {
+  const context = useContext(ImageStatusContext);
+  if (!context) {
+    throw new Error('useImageStatus must be used within an ImageStatusProvider');
+  }
+  return context;
+};
+
+// Component to automatically trigger image loading when services are available
+const ImageLoader = ({ services }) => {
+  const { loadImageStatuses, isLoading, imageStatuses } = useImageStatus();
+  
+  // Create a stable key based on service names to prevent unnecessary reloads
+  const servicesKey = React.useMemo(() => {
+    if (!services || services.length === 0) return '';
+    return services.map(s => s.name || s.Name).sort().join(',');
+  }, [services]);
+  
+  // Track if we've already loaded for this set of services
+  const [loadedForKey, setLoadedForKey] = React.useState('');
+  
+  useEffect(() => {
+    // Only load if:
+    // 1. We have services
+    // 2. We're not already loading
+    // 3. We haven't loaded for this exact set of services
+    // 4. We don't already have image statuses for most services
+    if (services && services.length > 0 && !isLoading && servicesKey !== loadedForKey) {
+      // Check if we already have image statuses for most services
+      const hasExistingStatuses = services.some(service => {
+        const serviceName = service.name || service.Name;
+        return imageStatuses[serviceName] && imageStatuses[serviceName] !== 'unknown';
+      });
+      
+      // Only load if we don't have existing statuses
+      if (!hasExistingStatuses) {
+        loadImageStatuses();
+        setLoadedForKey(servicesKey);
+      }
+    }
+  }, [servicesKey, loadImageStatuses, isLoading, loadedForKey, imageStatuses]); // Use servicesKey instead of services.length
+  
+  return null; // This component doesn't render anything
+};
+
+// Simple dependency item component that shows dependency name and status
+const DependencyItem = ({ serviceName, globalStatuses = {} }) => {
+  // Get status from global statuses passed down from the parent
+  // globalStatuses contains ServiceStatus objects, so we need to extract the Status property
+  const statusObj = globalStatuses[serviceName];
+  const containerStatus = statusObj ? (statusObj.Status || statusObj.status || 'unknown') : 'unknown';
+  
+  // Get status indicator
+  const getStatusIndicator = () => {
+    switch (containerStatus) {
+      case 'running':
+        return <div className="dependency-status-dot status-running" title="Running"></div>;
+      case 'stopped':
+        return <div className="dependency-status-dot status-stopped" title="Stopped"></div>;
+      case 'starting':
+        return <div className="dependency-status-dot status-starting" title="Starting"></div>;
+      case 'completed':
+        return <div className="dependency-status-dot status-completed" title="Completed successfully"></div>;
+      case 'failed':
+        return <div className="dependency-status-dot status-failed" title="Failed"></div>;
+      default:
+        return <div className="dependency-status-dot status-unknown" title="Status unknown"></div>;
+    }
+  };
+  
+  return (
+    <div className="dependency-item">
+      {getStatusIndicator()}
+      <span className="dependency-name">{serviceName}</span>
+      <span className="dependency-container-status" title={`Container status: ${containerStatus}`}>
+        {containerStatus.toUpperCase()}
+      </span>
+    </div>
+  );
+};
 
 // Placeholder ServiceItem component
 // This will be expanded to show service details and actions
-function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
+function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyStatuses = {} }) {
+  const { name, type } = service;
+  const [status, setStatus] = useState('stopped');
   const [expanded, setExpanded] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [isCheckingImage, setIsCheckingImage] = useState(false);
+  const [imageExists, setImageExists] = useState(null);
+  const [imageName, setImageName] = useState('');
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const [connectionInfo, setConnectionInfo] = useState(null);
+  const [copyFeedback, setCopyFeedback] = useState('');
   const [persistData, setPersistData] = useState(false);
   const [showConnectionInfo, setShowConnectionInfo] = useState(false);
-  const [connectionInfo, setConnectionInfo] = useState(null);
   const [isLoadingConnectionInfo, setIsLoadingConnectionInfo] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState('');
-  const [showLogsModal, setShowLogsModal] = useState(false);
-  const [imageStatus, setImageStatus] = useState('unknown'); // 'ready', 'missing', 'downloading', 'unknown'
-  const [showProgressModal, setShowProgressModal] = useState(false);
-  const [isCheckingImage, setIsCheckingImage] = useState(false);
-  const [imageName, setImageName] = useState('');
-  const [dependencyStatus, setDependencyStatus] = useState(null); // Detailed dependency status
-  const [isCheckingDeps, setIsCheckingDeps] = useState(false);
-  const [showDependencyDetails, setShowDependencyDetails] = useState(false);
-  const [selectedDependencyForLogs, setSelectedDependencyForLogs] = useState(null); // Track which dependency's logs to show
+  
+  // Use image status context instead of local state
+  const { imageStatuses, imageNames, updateImageStatus } = useImageStatus();
   
   // Local status management - this component controls its own status
   const [localStatus, setLocalStatus] = useState(service.status);
@@ -33,9 +194,7 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
   // Auto-clear copy feedback after 2 seconds
   useEffect(() => {
     if (copyFeedback) {
-      const timer = setTimeout(() => {
-        setCopyFeedback('');
-      }, 2000);
+      const timer = setTimeout(() => setCopyFeedback(''), 2000);
       return () => clearTimeout(timer);
     }
   }, [copyFeedback]);
@@ -46,121 +205,48 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
     setLocalStatusError(service.statusError);
   }, [service.status, service.statusError]);
 
-  const { 
-    name, 
-    type, 
-    dependencies = [] 
-  } = service || {};
-
-  // Use local status for display
-  const status = localStatus;
-  const statusError = localStatusError;
+  // Get image status from context
+  const imageStatus = imageStatuses[name] || 'unknown';
+  const imageNameFromContext = imageNames[name] || '';
 
   // Early return if service is not properly defined
   if (!name) {
     return null;
   }
 
-  // Check image status when component mounts or when service changes
-  useEffect(() => {
-    if (name) {
-      checkImageStatus();
-      checkDependencyStatus();
-    }
-  }, [name]);
-
-  // Also check dependency status when service status changes
-  useEffect(() => {
-    if (name && status) {
-      checkDependencyStatus();
-    }
-  }, [name, status]);
-
-  // Poll for status updates when service is starting
-  useEffect(() => {
-    let statusPollInterval;
-    
-    if (status === 'starting' && name) {
-      // Poll every 2 seconds to check if service has finished starting
-      statusPollInterval = setInterval(async () => {
-        try {
-          // Get current status for this service
-          const currentStatus = await GetServiceStatus(name);
-          
-          // Only update if status actually changed and is valid
-          if (currentStatus && currentStatus !== status) {
-            setLocalStatus(currentStatus);
-            setLocalStatusError(null); // Clear error on successful status check
-            
-            // Notify parent about the status change
-            notifyStatusChange(currentStatus, null);
-            
-            // If service is no longer starting, refresh dependencies
-            if (currentStatus !== 'starting') {
-              setTimeout(() => {
-                checkDependencyStatus();
-              }, 500);
-            }
-          }
-        } catch (error) {
-          console.error(`Error polling status for ${name}:`, error);
-          // On error, assume service failed to start (but only if still starting)
-          if (status === 'starting') {
-            const errorMessage = error.message || error.toString();
-            setLocalStatus('failed');
-            setLocalStatusError(errorMessage);
-            notifyStatusChange('failed', errorMessage);
-          }
-        }
-      }, 2000);
-    }
-    
-    return () => {
-      if (statusPollInterval) {
-        clearInterval(statusPollInterval);
-      }
-    };
-  }, [status, name]);
-
   // Determine status styling
   let statusClass = '';
-  let statusText = status || 'Unknown';
   let statusIcon = null;
   let typeClass = 'color-default';
 
-  if (statusError) {
+  if (localStatusError) {
     statusClass = 'status-bar-error';
-    statusText = 'Error';
     statusIcon = (
       <svg width="16" height="16" className="status-icon" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
       </svg>
     );
-  } else if (status === 'running') {
+  } else if (localStatus === 'running') {
     statusClass = 'status-bar-running';
-    statusText = 'Running';
     statusIcon = (
       <svg width="16" height="16" className="status-icon" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
       </svg>
     );
-  } else if (status === 'starting') {
+  } else if (localStatus === 'starting') {
     statusClass = 'status-bar-starting';
-    statusText = 'Starting';
     statusIcon = (
       <div className="status-icon spin"></div>
     );
-  } else if (status === 'failed') {
+  } else if (localStatus === 'failed') {
     statusClass = 'status-bar-error';
-    statusText = 'Failed';
     statusIcon = (
       <svg width="16" height="16" className="status-icon" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
       </svg>
     );
-  } else if (status === 'stopped') {
+  } else if (localStatus === 'stopped') {
     statusClass = 'status-bar-stopped';
-    statusText = 'Stopped';
     statusIcon = (
       <svg width="16" height="16" className="status-icon" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
@@ -247,8 +333,8 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
   };
 
   // Button state based on status
-  const showStartButton = status !== 'running' && status !== 'starting';
-  const showStopButton = status === 'running';
+  const showStartButton = localStatus !== 'running' && localStatus !== 'starting';
+  const showStopButton = localStatus === 'running';
   
   // Determine if service has web UI (based on common web UI services)
   const hasWebUI = [
@@ -259,12 +345,13 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
     'ray', 'label-studio', 'opensearch', 'loki'
   ].includes(name.toLowerCase());
   
-  const showOpenButton = status === 'running' && hasWebUI;
-  const showConnectButton = status === 'running';
+  const showOpenButton = localStatus === 'running' && hasWebUI;
+  const showConnectButton = localStatus === 'running';
 
   // Handle card click to expand/collapse
   const toggleExpanded = () => {
-    setExpanded(!expanded);
+    const newExpanded = !expanded;
+    setExpanded(newExpanded);
   };
 
   // Handle starting a service
@@ -282,7 +369,7 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
       
       if (!imageExists) {
         // Image doesn't exist, need to download it
-        setImageStatus('downloading');
+        updateImageStatus(name, 'downloading');
         setShowProgressModal(true);
         
         // Start image pull
@@ -292,11 +379,11 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
         // The progress modal will close automatically when download completes
       }
       
-      // Start the service and get immediate status updates
+      // Start the service and get immediate status updates for ALL containers
       const updatedStatuses = await StartServiceWithStatusUpdate(name, persistData);
       
       // Update image status to ready
-      setImageStatus('ready');
+      updateImageStatus(name, 'ready');
       
       // Update our local status based on the response
       if (updatedStatuses && updatedStatuses[name]) {
@@ -317,15 +404,11 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
         notifyStatusChange('running', null);
       }
       
-      // Notify parent component about all status updates (for other services)
-      if (onServiceStateChange) {
+      // Notify parent component about ALL status updates from the backend
+      // This includes not just the service being started, but ALL containers that may have been affected
+      if (onServiceStateChange && updatedStatuses) {
         onServiceStateChange(updatedStatuses);
       }
-      
-      // After successful start, refresh dependency status
-      setTimeout(() => {
-        checkDependencyStatus();
-      }, 1000); // Small delay to allow containers to fully start
       
     } catch (error) {
       console.error(`Failed to start ${name}:`, error);
@@ -340,7 +423,7 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
       
       // Reset image status if there was an error
       if (imageStatus === 'downloading') {
-        setImageStatus('missing');
+        updateImageStatus(name, 'missing');
       }
       
       alert(`Failed to start ${name}: ${error.message || error}`);
@@ -356,34 +439,44 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
     setIsStopping(true);
     
     try {
-      await StopService(name);
+      // Stop the service and get immediate status updates for ALL containers
+      const updatedStatuses = await StopServiceWithStatusUpdate(name);
       
-      // Immediately update local status to stopped
-      setLocalStatus('stopped');
-      setLocalStatusError(null);
-      
-      // Notify parent about the status change
-      notifyStatusChange('stopped', null);
-      
-      // Refresh the service data after stopping (for other services)
-      if (onServiceStateChange) {
-        onServiceStateChange();
+      // Update our local status based on the response
+      if (updatedStatuses && updatedStatuses[name]) {
+        const serviceStatus = updatedStatuses[name];
+        const newStatus = serviceStatus.Status || 'stopped';
+        const newError = serviceStatus.Error || null;
+        setLocalStatus(newStatus);
+        setLocalStatusError(newError);
+        
+        // Notify parent about our status change
+        notifyStatusChange(newStatus, newError);
+      } else {
+        // Fallback to stopped if no specific status returned
+        setLocalStatus('stopped');
+        setLocalStatusError(null);
+        
+        // Notify parent about our status change
+        notifyStatusChange('stopped', null);
       }
       
-      // After successful stop, refresh dependency status
-      setTimeout(() => {
-        checkDependencyStatus();
-      }, 500); // Small delay to allow containers to fully stop
+      // Notify parent component about ALL status updates from the backend
+      // This includes not just the service being stopped, but ALL containers that may have been affected
+      if (onServiceStateChange && updatedStatuses) {
+        onServiceStateChange(updatedStatuses);
+      }
       
     } catch (error) {
       console.error(`Failed to stop ${name}:`, error);
       
       // Set error status if stop failed
       const errorMessage = error.message || error.toString();
+      setLocalStatus('failed');
       setLocalStatusError(errorMessage);
       
       // Notify parent about the error
-      notifyStatusChange(status, errorMessage);
+      notifyStatusChange('failed', errorMessage);
       
       alert(`Failed to stop ${name}: ${error.message || error}`);
     } finally {
@@ -421,58 +514,11 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
   // Handle showing logs modal
   const handleShowLogs = (e) => {
     e.stopPropagation();
-    setSelectedDependencyForLogs(null); // Clear any selected dependency
     setShowLogsModal(true);
   };
 
   const handleCloseLogsModal = () => {
     setShowLogsModal(false);
-    setSelectedDependencyForLogs(null); // Clear selected dependency when closing
-  };
-
-  // Handle stopping dependency chain
-  const handleStopDependencyChain = async (e) => {
-    e.stopPropagation();
-    const confirmed = window.confirm(
-      `This will stop ${name} and all services that depend on it. Are you sure?`
-    );
-    
-    if (!confirmed) return;
-
-    setIsStopping(true);
-    try {
-      await StopDependencyChain(name);
-      
-      // Immediately update local status to stopped
-      setLocalStatus('stopped');
-      setLocalStatusError(null);
-      
-      // Notify parent about the status change
-      notifyStatusChange('stopped', null);
-      
-      // Refresh service data (for other services in the chain)
-      if (onServiceStateChange) {
-        onServiceStateChange();
-      }
-      
-      // After successful stop, refresh dependency status
-      setTimeout(() => {
-        checkDependencyStatus();
-      }, 1000); // Longer delay for dependency chain stops
-    } catch (error) {
-      console.error(`Failed to stop dependency chain for ${name}:`, error);
-      
-      // Set error status if stop failed
-      const errorMessage = error.message || error.toString();
-      setLocalStatusError(errorMessage);
-      
-      // Notify parent about the error
-      notifyStatusChange(status, errorMessage);
-      
-      alert(`Failed to stop dependency chain for ${name}: ${error.message || error}`);
-    } finally {
-      setIsStopping(false);
-    }
   };
 
   // Handle copying text to clipboard
@@ -493,48 +539,6 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
     }
   };
 
-  // Check if Docker image exists for this service
-  const checkImageStatus = async () => {
-    if (!name || isCheckingImage) return;
-    
-    setIsCheckingImage(true);
-    try {
-      // First get the image name for this service
-      const imageInfo = await GetImageInfo(name);
-      setImageName(imageInfo);
-      
-      // Then check if the image exists
-      const exists = await CheckImageExists(name);
-      setImageStatus(exists ? 'ready' : 'missing');
-    } catch (error) {
-      console.error('Error checking image status:', error);
-      setImageStatus('unknown');
-      setImageName('');
-    } finally {
-      setIsCheckingImage(false);
-    }
-  };
-
-  const checkDependencyStatus = async () => {
-    if (!name || isCheckingDeps) return;
-    
-    setIsCheckingDeps(true);
-    try {
-      const depStatus = await GetDependencyStatus(name);
-      setDependencyStatus(depStatus);
-    } catch (error) {
-      console.error(`Error checking dependency status for ${name}:`, error);
-      // Don't set to null immediately, keep previous status to avoid UI flicker
-      // Only set to null if this is the first check
-      if (dependencyStatus === null) {
-        setDependencyStatus(null);
-      }
-    } finally {
-      setIsCheckingDeps(false);
-    }
-  };
-
-  // Notify parent about status changes that might affect other services
   const notifyStatusChange = (newStatus, error = null) => {
     try {
       // Create a status update object for this service
@@ -558,13 +562,10 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
 
   // Get image status indicator
   const getImageStatusIndicator = () => {
-    if (isCheckingImage) {
+    if (imageStatus === 'downloading') {
       return (
-        <div className="image-status checking" title="Checking image status...">
-          <svg width="12" height="12" className="spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
+        <div className="image-status downloading" title="Downloading image...">
+          <Download size={12} className="text-blue-400 animate-bounce" />
         </div>
       );
     }
@@ -582,12 +583,6 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
             <Download size={12} className="text-yellow-400" />
           </div>
         );
-      case 'downloading':
-        return (
-          <div className="image-status downloading" title="Downloading image...">
-            <Download size={12} className="text-blue-400 animate-bounce" />
-          </div>
-        );
       case 'unknown':
       default:
         return (
@@ -598,63 +593,13 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
     }
   };
 
-  // Get dependency status indicator
-  const getDependencyStatusIndicator = () => {
-    if (!dependencyStatus || isCheckingDeps) {
-      return (
-        <div className="dependency-status loading" title="Checking dependencies...">
-          <Users size={16} />
-          <div className="status-spinner animate-spin"></div>
-        </div>
-      );
-    }
-
-    const { dependencies, allDependenciesReady, runningCount, requiredCount, errorCount } = dependencyStatus;
-    
-    if (dependencies.length === 0) {
-      return null; // No dependencies, no indicator needed
-    }
-
-    let statusClass = 'dependency-status';
-    let statusIcon = <Users size={16} />;
-    let tooltipText = '';
-
-    if (allDependenciesReady) {
-      statusClass += ' ready';
-      statusIcon = <CheckCircle size={16} />;
-      tooltipText = `All ${dependencies.length} dependencies are running`;
-    } else if (errorCount > 0) {
-      statusClass += ' error';
-      statusIcon = <AlertCircle size={16} />;
-      tooltipText = `${errorCount} dependencies have errors`;
-    } else {
-      statusClass += ' partial';
-      statusIcon = <Users size={16} />;
-      tooltipText = `${runningCount}/${requiredCount} dependencies running`;
-    }
-
-    return (
-      <div 
-        className={statusClass} 
-        title={tooltipText}
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowDependencyDetails(!showDependencyDetails);
-        }}
-      >
-        {statusIcon}
-        <span className="dependency-count">{runningCount}/{dependencies.length}</span>
-      </div>
-    );
-  };
-
   // Determine item classes based on status
   let itemClass = 'service-item';
-  if (status === 'running') {
+  if (localStatus === 'running') {
     itemClass += ' service-item-running';
-  } else if (status === 'starting') {
+  } else if (localStatus === 'starting') {
     itemClass += ' service-item-starting';
-  } else if (status === 'failed' || statusError) {
+  } else if (localStatus === 'failed' || localStatusError) {
     itemClass += ' service-item-error';
   } else {
     itemClass += ' service-item-stopped';
@@ -682,13 +627,11 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
               </h3>
               {/* Image Status Indicator */}
               {getImageStatusIndicator()}
-              {/* Dependency Status Indicator */}
-              {getDependencyStatusIndicator()}
             </div>
             <div className="service-meta">
-              <div className={`service-status ${status === 'running' ? 'text-green' : statusError ? 'text-red' : 'text-gray'}`}>
+              <div className={`service-status ${localStatus === 'running' ? 'text-green' : localStatusError ? 'text-red' : 'text-gray'}`}>
                 {statusIcon}
-                {statusText}
+                {localStatus}
               </div>
               
               <span className="service-type-badge">
@@ -703,147 +646,35 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
           {/* Service Details (expanded content) */}
           {expanded && (
             <div className="service-details">
-              {/* Dependencies Section */}
-              {dependencyStatus && dependencyStatus.dependencies.length > 0 && (
-                <div className="dependencies-section">
-                  <div className="section-header">
-                    <h4 className="section-title">
-                      <Users size={14} />
-                      Dependencies ({dependencyStatus.runningCount}/{dependencyStatus.dependencies.length} running)
-                    </h4>
-                    <div className="dependency-actions">
-                      {/* Show Dependencies Graph button */}
-                      <button
-                        className="action-button graph-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onShowDependencyGraph) {
-                            onShowDependencyGraph(name);
-                          }
-                        }}
-                        title="Show dependency graph"
-                      >
-                        <svg width="10" height="10" className="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        Show Graph
-                      </button>
-
-                      {status === 'running' && (
-                        <button
-                          className="action-button stop-chain-button"
-                          onClick={handleStopDependencyChain}
-                          disabled={isStopping}
-                          title="Stop service and dependent services"
-                        >
-                          <Square size={10} />
-                          Stop Chain
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="dependencies-list">
-                    {dependencyStatus.dependencies.map((dep, index) => (
-                      <div key={dep.serviceName} className={`dependency-item ${dep.status}`}>
-                        <div className="dependency-info">
-                          <span className="dependency-name">{dep.serviceName}</span>
-                          <span className="dependency-type">{dep.type}</span>
-                          {/* Show failure reason if available */}
-                          {dep.failureReason && (
-                            <div className="dependency-failure-reason">
-                              <AlertCircle size={12} className="text-red-400" />
-                              <span className="failure-text">{dep.failureReason}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="dependency-status-badges">
-                          <span className={`status-badge ${dep.status}`}>
-                            {dep.status === 'running' ? '●' : 
-                             dep.status === 'completed' ? '✓' :
-                             dep.status === 'error' || dep.status === 'failed' ? '✕' : '○'}
-                            {dep.status}
-                          </span>
-                          <span className={`health-badge ${dep.health}`}>
-                            {dep.health}
-                          </span>
-                          {/* Quick logs access for failed dependencies */}
-                          {((dep.status === 'error' || dep.status === 'failed') || dep.failureReason) && dep.hasLogs && (
-                            <button
-                              className="dependency-logs-button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedDependencyForLogs(dep);
-                                setShowLogsModal(true);
-                              }}
-                              title={`View logs for ${dep.serviceName}`}
-                            >
-                              <ScrollText size={12} />
-                              Logs
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Simple Dependencies Section (when no detailed status) */}
-              {(!dependencyStatus || dependencyStatus.dependencies.length === 0) && dependencies.length > 0 && (
-                <div className="dependencies-section">
-                  <div className="section-header">
-                    <h4 className="section-title">
-                      <Users size={14} />
-                      Dependencies ({dependencies.length})
-                    </h4>
-                    <div className="dependency-actions">
-                      {/* Show Dependencies Graph button */}
-                      <button
-                        className="action-button graph-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onShowDependencyGraph) {
-                            onShowDependencyGraph(name);
-                          }
-                        }}
-                        title="Show dependency graph"
-                      >
-                        <svg width="10" height="10" className="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        Show Graph
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="dependencies-list">
-                    {dependencies.map((dep, index) => (
-                      <div key={dep} className="dependency-item">
-                        <div className="dependency-info">
-                          <span className="dependency-name">{dep}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Existing Service Details */}
               <div className="details-grid">
                 <div className="details-label">Type:</div>
                 <div>{type}</div>
                 <div className="details-label">Status:</div>
-                <div className={status === 'running' ? 'text-green' : statusError ? 'text-red' : 'text-gray'}>
-                  {statusText}
+                <div className={localStatus === 'running' ? 'text-green' : localStatusError ? 'text-red' : 'text-gray'}>
+                  {localStatus}
                 </div>
-                {dependencies.length > 0 && (
-                  <>
-                    <div className="details-label">Dependencies:</div>
-                    <div>{dependencies.join(', ')}</div>
-                  </>
-                )}
               </div>
+              
+              {/* Dependencies Section */}
+              {service.dependencies && service.dependencies.length > 0 && (
+                <div className="dependencies-section">
+                  <div className="dependencies-header">
+                    <div className="dependencies-label">Dependencies:</div>
+                  </div>
+                  <div className="dependencies-list">
+                    {service.dependencies.map(dependency => {
+                      return (
+                        <DependencyItem 
+                          key={dependency} 
+                          serviceName={dependency} 
+                          globalStatuses={dependencyStatuses}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -873,7 +704,7 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
       {/* Action Buttons */}
       <div className="service-actions">
         {/* Start Service button with inline persist checkbox button */}
-        {service.status !== 'running' && (
+        {localStatus !== 'running' && (
           <>
             {/* Persist Data checkbox button */}
             <button 
@@ -918,7 +749,7 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
         )}
         
         {/* Stop Service button */}
-        {service.status === 'running' && (
+        {localStatus === 'running' && (
           <button 
             className={`action-button stop-button ${isStopping ? 'button-loading' : ''}`} 
             onClick={handleStopService}
@@ -1002,7 +833,6 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
         isOpen={showLogsModal}
         onClose={handleCloseLogsModal}
         serviceName={name}
-        selectedDependency={selectedDependencyForLogs}
       />
 
       {/* Progress Modal */}
@@ -1010,10 +840,13 @@ function ServiceItem({ service, onServiceStateChange, onShowDependencyGraph }) {
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
         serviceName={name}
-        imageName={imageName}
+        imageName={imageNameFromContext}
       />
     </div>
   );
 }
 
-export default ServiceItem; 
+export default ServiceItem;
+
+export { useImageStatus, ImageLoader };
+

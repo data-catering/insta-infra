@@ -1,4 +1,4 @@
-import { expect, afterEach } from 'vitest';
+import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
 
@@ -15,11 +15,23 @@ global.window = global.window || {};
 global.window.go = global.window.go || {};
 global.window.runtime = global.window.runtime || {};
 
+// Mock clipboard API globally only if not already defined
+if (!navigator.clipboard) {
+  Object.defineProperty(navigator, 'clipboard', {
+    value: {
+      writeText: vi.fn().mockResolvedValue()
+    },
+    writable: true,
+    configurable: true
+  });
+}
+
 // Mock the Wails backend functions
 const mockWailsFunctions = {
   ListServices: () => Promise.resolve([]),
   GetServiceStatus: () => Promise.resolve('stopped'),
   StartService: () => Promise.resolve(),
+  StartServiceWithStatusUpdate: () => Promise.resolve(),
   StopService: () => Promise.resolve(),
   GetServiceConnectionInfo: () => Promise.resolve({}),
   GetServiceLogs: () => Promise.resolve([]),
@@ -28,7 +40,7 @@ const mockWailsFunctions = {
   GetCurrentRuntime: () => Promise.resolve('docker'),
   GetDependencyStatus: () => Promise.resolve({ dependencies: [], allDependenciesReady: true, runningCount: 0, requiredCount: 0, errorCount: 0 }),
   GetImageInfo: () => Promise.resolve('test-image:latest'),
-  StartServiceWithStatusUpdate: () => Promise.resolve({}),
+  GetMultipleImageInfo: () => Promise.resolve({}),
   StopAllServices: () => Promise.resolve(),
   GetAllRunningServices: () => Promise.resolve([]),
   GetAllServicesWithStatusAndDependencies: () => Promise.resolve([]),
@@ -51,10 +63,13 @@ const mockWailsFunctions = {
 global.window.go.main = global.window.go.main || {};
 global.window.go.main.App = mockWailsFunctions;
 
+// Mock window.alert
+global.window.alert = vi.fn();
+
 // Mock runtime functions
 global.window.runtime.EventsOn = () => {};
 global.window.runtime.EventsOff = () => {};
-global.window.runtime.EventsOnMultiple = () => {};
+global.window.runtime.EventsOnMultiple = () => () => {};
 global.window.runtime.LogPrint = () => {};
 global.window.runtime.LogInfo = () => {};
 global.window.runtime.LogWarning = () => {};

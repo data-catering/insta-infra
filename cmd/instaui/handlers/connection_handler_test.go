@@ -84,12 +84,17 @@ func TestConnectionHandler_GetServiceConnectionInfo_ServiceNotRunning(t *testing
 
 func TestConnectionHandler_GetServiceConnectionInfo_ContainerNameError(t *testing.T) {
 	mockRuntime := newMockContainerRuntime().
-		withGetContainerName(func(serviceName string, composeFiles []string) (string, error) {
-			return "", errors.New("service not found")
+		withGetAllContainerStatuses(func() (map[string]string, error) {
+			// Return a running container for postgres so it's considered running
+			return map[string]string{"postgres": "running"}, nil
+		}).
+		withGetPortMappings(func(containerName string) (map[string]string, error) {
+			// Simulate the port mappings call failing
+			return nil, errors.New("failed to get port mappings")
 		})
 	handler := NewConnectionHandler(mockRuntime, "/test/insta")
 
-	// Use a real service name that exists in core.Services but mock the container name error
+	// Use a real service name that exists in core.Services
 	connInfo, err := handler.GetServiceConnectionInfo("postgres")
 
 	if err != nil {
@@ -101,8 +106,8 @@ func TestConnectionHandler_GetServiceConnectionInfo_ContainerNameError(t *testin
 	if connInfo.Available {
 		t.Error("Expected service to not be available")
 	}
-	if !contains(connInfo.Error, "service not running") {
-		t.Errorf("Expected error to contain 'service not running', got %s", connInfo.Error)
+	if !contains(connInfo.Error, "service running but no port mappings available") {
+		t.Errorf("Expected error to contain 'service running but no port mappings available', got %s", connInfo.Error)
 	}
 }
 
@@ -125,8 +130,9 @@ func TestConnectionHandler_GetServiceConnectionInfo_UnknownService(t *testing.T)
 
 func TestConnectionHandler_GetServiceConnectionInfo_WebUIService(t *testing.T) {
 	mockRuntime := newMockContainerRuntime().
-		withGetContainerName(func(serviceName string, composeFiles []string) (string, error) {
-			return "test_grafana_1", nil
+		withGetAllContainerStatuses(func() (map[string]string, error) {
+			// Return grafana as a running container
+			return map[string]string{"grafana": "running"}, nil
 		}).
 		withGetPortMappings(func(containerName string) (map[string]string, error) {
 			return map[string]string{"3000/tcp": "3000"}, nil

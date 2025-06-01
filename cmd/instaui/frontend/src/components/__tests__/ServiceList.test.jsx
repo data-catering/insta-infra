@@ -3,6 +3,16 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import ServiceList from '../ServiceList'
+import { ImageStatusProvider } from '../ServiceItem'
+
+// Helper to render ServiceList with ImageStatusProvider
+const renderWithProvider = (ui, services = []) => {
+  return render(
+    <ImageStatusProvider services={services}>
+      {ui}
+    </ImageStatusProvider>
+  )
+}
 
 describe('ServiceList', () => {
   const mockServices = [
@@ -39,16 +49,16 @@ describe('ServiceList', () => {
   })
 
   test('renders empty state when no services are provided', () => {
-    render(<ServiceList {...defaultProps} />)
+    renderWithProvider(<ServiceList {...defaultProps} />)
     
-    expect(screen.getByText('All Services')).toBeInTheDocument()
+    expect(screen.getByText('Services')).toBeInTheDocument()
     expect(screen.getByText('No services available.')).toBeInTheDocument()
   })
 
   test('displays services when provided', () => {
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
-    expect(screen.getByText('All Services')).toBeInTheDocument()
+    expect(screen.getByText('Services')).toBeInTheDocument()
     // The component should render ServiceItem components for each service
     // We can verify the services grid container exists
     const servicesGrid = document.querySelector('.services-grid')
@@ -56,14 +66,14 @@ describe('ServiceList', () => {
   })
 
   test('displays search input', () => {
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     expect(screen.getByPlaceholderText('Search by name...')).toBeInTheDocument()
   })
 
   test('filters services based on search input', async () => {
     const user = userEvent.setup()
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     const searchInput = screen.getByPlaceholderText('Search by name...')
     await user.type(searchInput, 'postgres')
@@ -76,7 +86,7 @@ describe('ServiceList', () => {
   })
 
   test('displays service type filter dropdown', () => {
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     const filterSelect = screen.getByDisplayValue('All Types')
     expect(filterSelect).toBeInTheDocument()
@@ -84,7 +94,7 @@ describe('ServiceList', () => {
 
   test('filters services by type when filter is changed', async () => {
     const user = userEvent.setup()
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     const filterSelect = screen.getByDisplayValue('All Types')
     await user.selectOptions(filterSelect, 'Database')
@@ -97,7 +107,7 @@ describe('ServiceList', () => {
   })
 
   test('displays service count correctly', () => {
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     // Check that the results count section exists
     const resultsCount = document.querySelector('.results-count')
@@ -110,7 +120,7 @@ describe('ServiceList', () => {
   })
 
   test('displays status counters', () => {
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     // Based on mockStatuses: redis is running (1), postgres and mongodb are stopped (2)
     expect(screen.getByText('1 Running')).toBeInTheDocument()
@@ -118,7 +128,7 @@ describe('ServiceList', () => {
   })
 
   test('shows view toggle buttons', () => {
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     const gridButton = screen.getByTitle('Grid view')
     const listButton = screen.getByTitle('List view')
@@ -129,7 +139,7 @@ describe('ServiceList', () => {
 
   test('switches between grid and list view', async () => {
     const user = userEvent.setup()
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     const listButton = screen.getByTitle('List view')
     await user.click(listButton)
@@ -140,7 +150,7 @@ describe('ServiceList', () => {
 
   test('shows clear filters button when filters are applied', async () => {
     const user = userEvent.setup()
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     const searchInput = screen.getByPlaceholderText('Search by name...')
     await user.type(searchInput, 'postgres')
@@ -150,7 +160,7 @@ describe('ServiceList', () => {
 
   test('clears filters when clear button is clicked', async () => {
     const user = userEvent.setup()
-    render(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={mockServices} statuses={mockStatuses} />, mockServices)
     
     const searchInput = screen.getByPlaceholderText('Search by name...')
     await user.type(searchInput, 'postgres')
@@ -163,30 +173,31 @@ describe('ServiceList', () => {
   })
 
   test('handles loading state correctly', () => {
-    render(<ServiceList {...defaultProps} isLoading={true} />)
+    renderWithProvider(<ServiceList {...defaultProps} isLoading={true} />)
     
     // When loading, component should still render normally
     // The loading state doesn't change the component behavior in this implementation
-    expect(screen.getByText('All Services')).toBeInTheDocument()
+    expect(screen.getByText('Services')).toBeInTheDocument()
   })
 
   test('passes correct props to ServiceItem components', () => {
     const onServiceStateChange = vi.fn()
     const onShowDependencyGraph = vi.fn()
     
-    render(
+    renderWithProvider(
       <ServiceList 
         {...defaultProps} 
         services={[mockServices[0]]} 
         statuses={mockStatuses}
         onServiceStateChange={onServiceStateChange}
         onShowDependencyGraph={onShowDependencyGraph}
-      />
+      />,
+      [mockServices[0]]
     )
     
     // We can't easily test ServiceItem props without mocking the component
     // But we can verify the component structure is correct
-    expect(screen.getByText('All Services')).toBeInTheDocument()
+    expect(screen.getByText('Services')).toBeInTheDocument()
     
     // Check that the results count section exists
     const resultsCount = document.querySelector('.results-count')
@@ -194,7 +205,7 @@ describe('ServiceList', () => {
   })
 
   test('handles empty services with loading false', () => {
-    render(<ServiceList {...defaultProps} services={[]} isLoading={false} />)
+    renderWithProvider(<ServiceList {...defaultProps} services={[]} isLoading={false} />)
     
     expect(screen.getByText('No services available.')).toBeInTheDocument()
   })

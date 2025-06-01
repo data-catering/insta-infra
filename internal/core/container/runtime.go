@@ -19,12 +19,10 @@ type Runtime interface {
 	ExecInContainer(containerName string, cmd string, interactive bool) error
 	// GetPortMappings returns port mappings for a container
 	GetPortMappings(containerName string) (map[string]string, error)
-	// GetDependencies returns dependencies for a service
-	GetDependencies(service string, composeFiles []string) ([]string, error)
-	// GetAllDependenciesRecursive returns all direct and indirect dependencies for a service
-	GetAllDependenciesRecursive(serviceName string, composeFiles []string) ([]string, error)
 	// GetContainerName returns the container name for a service
-	GetContainerName(serviceName string, composeFiles []string) (string, error)
+	GetContainerName(service string, composeFiles []string) (string, error)
+	// GetAllDependenciesRecursive returns all dependencies recursively for a service from compose files (isContainer is true to return container names, false to return service names)
+	GetAllDependenciesRecursive(serviceName string, composeFiles []string, isContainer bool) ([]string, error)
 	// GetContainerLogs returns recent logs from a container
 	GetContainerLogs(containerName string, tailLines int) ([]string, error)
 	// StreamContainerLogs streams logs from a container in real-time
@@ -33,10 +31,16 @@ type Runtime interface {
 	CheckImageExists(imageName string) (bool, error)
 	// GetImageInfo returns information about a service's image from compose files
 	GetImageInfo(serviceName string, composeFiles []string) (string, error)
+	// CheckMultipleImagesExist checks if multiple images exist locally in a single call
+	CheckMultipleImagesExist(imageNames []string) (map[string]bool, error)
+	// GetMultipleImageInfo returns image information for multiple services from compose files
+	GetMultipleImageInfo(serviceNames []string, composeFiles []string) (map[string]string, error)
 	// PullImageWithProgress pulls an image and reports progress
 	PullImageWithProgress(imageName string, progressChan chan<- ImagePullProgress, stopChan <-chan struct{}) error
 	// GetContainerStatus returns the status of a container
 	GetContainerStatus(containerName string) (string, error)
+	// GetAllContainerStatuses returns all current containers (including stopped ones) managed by compose
+	GetAllContainerStatuses() (map[string]string, error)
 }
 
 // Provider struct moved to types.go

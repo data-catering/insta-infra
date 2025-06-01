@@ -12,30 +12,27 @@ import (
 
 // AppTestMockRuntime for testing App
 type AppTestMockRuntime struct {
-	name                            string
-	composeUpCalled                 bool
-	composeDownCalled               bool
-	execCalled                      bool
-	composeFiles                    []string
-	services                        []string
-	lastContainer                   string
-	lastCmd                         string
-	portMappings                    map[string]map[string]string
-	dependencies                    map[string][]string
-	containerNames                  map[string]string
-	getContainerStatusFunc          func(containerName string) (string, error)
-	checkImageExistsFunc            func(imageName string) (bool, error)
-	pullImageWithProgressFunc       func(imageName string, progressChan chan<- container.ImagePullProgress, stopChan <-chan struct{}) error
-	getAllDependenciesRecursiveFunc func(serviceName string, composeFiles []string) ([]string, error)
-	getContainerLogsFunc            func(containerName string, tailLines int) ([]string, error)
-	streamContainerLogsFunc         func(containerName string, logChan chan<- string, stopChan <-chan struct{}) error
+	name                      string
+	composeUpCalled           bool
+	composeDownCalled         bool
+	execCalled                bool
+	composeFiles              []string
+	services                  []string
+	lastContainer             string
+	lastCmd                   string
+	portMappings              map[string]map[string]string
+	containerNames            map[string]string
+	getContainerStatusFunc    func(containerName string) (string, error)
+	checkImageExistsFunc      func(imageName string) (bool, error)
+	pullImageWithProgressFunc func(imageName string, progressChan chan<- container.ImagePullProgress, stopChan <-chan struct{}) error
+	getContainerLogsFunc      func(containerName string, tailLines int) ([]string, error)
+	streamContainerLogsFunc   func(containerName string, logChan chan<- string, stopChan <-chan struct{}) error
 }
 
 func NewAppTestMockRuntime() *AppTestMockRuntime {
 	return &AppTestMockRuntime{
 		name:           "mock-runtime",
 		portMappings:   make(map[string]map[string]string),
-		dependencies:   make(map[string][]string),
 		containerNames: make(map[string]string),
 	}
 }
@@ -76,13 +73,6 @@ func (m *AppTestMockRuntime) GetPortMappings(containerName string) (map[string]s
 	return map[string]string{}, nil
 }
 
-func (m *AppTestMockRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
-	if deps, ok := m.dependencies[service]; ok {
-		return deps, nil
-	}
-	return []string{}, nil
-}
-
 func (m *AppTestMockRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
 	if cn, ok := m.containerNames[serviceName]; ok && cn != "" {
 		return cn, nil
@@ -95,13 +85,6 @@ func (m *AppTestMockRuntime) GetContainerStatus(containerName string) (string, e
 		return m.getContainerStatusFunc(containerName)
 	}
 	return "running", nil
-}
-
-func (m *AppTestMockRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string) ([]string, error) {
-	if m.getAllDependenciesRecursiveFunc != nil {
-		return m.getAllDependenciesRecursiveFunc(serviceName, composeFiles)
-	}
-	return []string{}, nil
 }
 
 func (m *AppTestMockRuntime) CheckImageExists(imageName string) (bool, error) {
@@ -134,6 +117,44 @@ func (m *AppTestMockRuntime) StreamContainerLogs(containerName string, logChan c
 
 func (m *AppTestMockRuntime) GetImageInfo(serviceName string, composeFiles []string) (string, error) {
 	return fmt.Sprintf("%s:latest", serviceName), nil
+}
+
+// CheckMultipleImagesExist checks if multiple images exist locally in a single call
+func (m *AppTestMockRuntime) CheckMultipleImagesExist(imageNames []string) (map[string]bool, error) {
+	result := make(map[string]bool)
+	for _, imageName := range imageNames {
+		if m.checkImageExistsFunc != nil {
+			exists, err := m.checkImageExistsFunc(imageName)
+			if err != nil {
+				return nil, err
+			}
+			result[imageName] = exists
+		} else {
+			result[imageName] = true
+		}
+	}
+	return result, nil
+}
+
+// GetMultipleImageInfo returns image information for multiple services from compose files
+func (m *AppTestMockRuntime) GetMultipleImageInfo(serviceNames []string, composeFiles []string) (map[string]string, error) {
+	result := make(map[string]string)
+	for _, serviceName := range serviceNames {
+		result[serviceName] = fmt.Sprintf("%s:latest", serviceName)
+	}
+	return result, nil
+}
+
+// GetAllContainerStatuses returns all current containers managed by compose
+func (m *AppTestMockRuntime) GetAllContainerStatuses() (map[string]string, error) {
+	// Return empty map for mock
+	return map[string]string{}, nil
+}
+
+// GetAllDependenciesRecursive returns all dependencies recursively for a service from compose files
+func (m *AppTestMockRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string, isContainer bool) ([]string, error) {
+	// For testing, return empty dependencies by default
+	return []string{}, nil
 }
 
 func TestAppWithMockRuntime(t *testing.T) {

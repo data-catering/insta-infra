@@ -23,30 +23,36 @@ func NewConnectionHandler(runtime container.Runtime, instaDir string) *Connectio
 	}
 }
 
-// GetServiceConnectionInfo returns connection details for a specific service
+// GetServiceConnectionInfo returns connection information for a service
 func (h *ConnectionHandler) GetServiceConnectionInfo(serviceName string) (*models.ServiceConnectionInfo, error) {
-	// Get the service definition
+	// Check if service exists
 	service, exists := core.Services[serviceName]
 	if !exists {
 		return nil, fmt.Errorf("unknown service: %s", serviceName)
 	}
 
-	// Get compose files
-	composeFiles := h.getComposeFiles()
-
-	// Get all running containers first
-	runningContainers, err := h.getRunningContainers()
+	// Use the optimized approach: check if service is in running containers
+	currentContainers, err := h.getCurrentContainers()
 	if err != nil {
 		return &models.ServiceConnectionInfo{
 			ServiceName: serviceName,
 			Available:   false,
-			Error:       fmt.Sprintf("could not get running containers: %v", err),
+			Error:       fmt.Sprintf("could not check current containers: %v", err),
 		}, nil
 	}
 
-	// Check if service is running and get the actual container name
-	containerName, err := h.getActualRunningContainerName(serviceName, composeFiles, runningContainers)
-	if err != nil {
+	// Find the container name for this service from running containers
+	var containerName string
+	var isRunning bool
+
+	// Direct check: service name equals main container name (guaranteed by compose architecture)
+	if currentContainers[serviceName] == "running" {
+		containerName = serviceName
+		isRunning = true
+	}
+
+	// If not found in running containers, service is not running
+	if !isRunning {
 		return &models.ServiceConnectionInfo{
 			ServiceName: serviceName,
 			Available:   false,
@@ -54,13 +60,13 @@ func (h *ConnectionHandler) GetServiceConnectionInfo(serviceName string) (*model
 		}, nil
 	}
 
-	// Get port mappings
+	// Get port mappings for the running container
 	portMappings, err := h.Runtime().GetPortMappings(containerName)
 	if err != nil || len(portMappings) == 0 {
 		return &models.ServiceConnectionInfo{
 			ServiceName: serviceName,
 			Available:   false,
-			Error:       "service not running or no port mappings available",
+			Error:       "service running but no port mappings available",
 		}, nil
 	}
 
@@ -243,9 +249,5 @@ func (h *ConnectionHandler) openURL(url string) error {
 	execCmd := exec.Command(cmd, args...)
 	return execCmd.Start()
 }
-
-
-
-
 
 // fileExists checks if a file exists

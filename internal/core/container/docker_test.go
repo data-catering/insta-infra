@@ -115,72 +115,6 @@ func TestDockerRuntime_ParsePortMappings(t *testing.T) {
 	}
 }
 
-// Test the extractDependencies utility function directly
-func TestDockerRuntime_ExtractDependencies(t *testing.T) {
-	tests := []struct {
-		name         string
-		config       ComposeConfig
-		serviceName  string
-		expectedDeps []string
-	}{
-		{
-			name: "service with depends_on dependencies",
-			config: ComposeConfig{
-				Services: map[string]ComposeService{
-					"web": {
-						DependsOn: map[string]struct {
-							Condition string `json:"condition"`
-						}{
-							"db":    {Condition: "service_started"},
-							"redis": {Condition: "service_started"},
-						},
-					},
-				},
-			},
-			serviceName:  "web",
-			expectedDeps: []string{"db", "redis"},
-		},
-		{
-			name: "service with no dependencies",
-			config: ComposeConfig{
-				Services: map[string]ComposeService{
-					"db": {},
-				},
-			},
-			serviceName:  "db",
-			expectedDeps: []string{},
-		},
-		{
-			name:         "non-existent service",
-			config:       ComposeConfig{Services: map[string]ComposeService{}},
-			serviceName:  "nonexistent",
-			expectedDeps: []string{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractDependencies(tt.config, tt.serviceName)
-
-			if len(result) != len(tt.expectedDeps) {
-				t.Errorf("Expected %d dependencies, got %d", len(tt.expectedDeps), len(result))
-			}
-
-			// Convert to maps for easier comparison
-			expectedMap := make(map[string]bool)
-			for _, dep := range tt.expectedDeps {
-				expectedMap[dep] = true
-			}
-
-			for _, dep := range result {
-				if !expectedMap[dep] {
-					t.Errorf("Unexpected dependency: %s", dep)
-				}
-			}
-		})
-	}
-}
-
 // Test the getServiceNames utility function directly
 func TestDockerRuntime_GetServiceNames(t *testing.T) {
 	tests := []struct {
@@ -599,18 +533,6 @@ services:
 		_, err := docker.GetImageInfo("nonexistent-service", []string{composeFile})
 		if err == nil {
 			t.Error("Expected error for nonexistent service")
-		}
-	})
-
-	t.Run("GetDependencies with valid compose file", func(t *testing.T) {
-		deps, err := docker.GetDependencies("test-service", []string{composeFile})
-		if err != nil {
-			// This might fail if Docker daemon is not running, which is okay
-			t.Logf("GetDependencies failed (expected if Docker daemon not running): %v", err)
-			return
-		}
-		if len(deps) != 1 || deps[0] != "dependency" {
-			t.Errorf("Expected dependencies ['dependency'], got %v", deps)
 		}
 	})
 

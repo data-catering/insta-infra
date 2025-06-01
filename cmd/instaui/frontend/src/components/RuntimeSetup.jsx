@@ -26,7 +26,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
       setCustomDockerPath(dockerPath || '');
       setCustomPodmanPath(podmanPath || '');
     } catch (err) {
-      console.error('Failed to load custom paths:', err);
+              setError('Failed to load custom paths: ' + (err?.message || err));
     }
   };
 
@@ -35,7 +35,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
       const logs = await GetAppLogs();
       setAppLogs(logs);
     } catch (err) {
-      console.error('Failed to load app logs:', err);
+              setError('Failed to load application logs: ' + (err?.message || err));
     }
   };
 
@@ -46,7 +46,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
       const status = await GetRuntimeStatus();
       setRuntimeStatus(status);
     } catch (err) {
-      console.error('Failed to check runtime status:', err);
+              setError('Failed to check runtime status: ' + (err?.message || err));
       setError(`Failed to check runtime status: ${err.message || err}`);
     } finally {
       setIsLoading(false);
@@ -107,7 +107,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
         setStartupProgress('');
       }
     } catch (err) {
-      console.error(`Failed to start ${runtimeName}:`, err);
+              setError(`Failed to start ${runtimeName}: ` + (err?.message || err));
       setError(`Failed to start ${runtimeName}: ${err.message || err}`);
       setStartupProgress('');
     } finally {

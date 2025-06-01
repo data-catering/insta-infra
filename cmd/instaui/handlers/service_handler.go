@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/data-catering/insta-infra/v2/cmd/instaui/models"
@@ -50,7 +49,7 @@ func (h *ServiceHandler) ListServices() []models.ServiceInfo {
 	return serviceList
 }
 
-// GetAllServiceDetails fetches status and dependencies for all services concurrently
+// GetAllServiceDetails fetches status for all services concurrently
 func (h *ServiceHandler) GetAllServiceDetails() ([]models.ServiceDetailInfo, error) {
 	baseServices := h.ListServices()
 	detailsList := make([]models.ServiceDetailInfo, len(baseServices))
@@ -75,12 +74,6 @@ func (h *ServiceHandler) GetAllServiceDetails() ([]models.ServiceDetailInfo, err
 				detail.StatusError = statusErr.Error()
 			}
 
-			// Fetch Dependencies
-			deps, depsErr := h.getServiceDependenciesInternal(service.Name, composeFiles)
-			detail.Dependencies = deps
-			if depsErr != nil {
-				detail.DependenciesError = depsErr.Error()
-			}
 			resultsChan <- detail
 		}(sInfo)
 	}
@@ -108,12 +101,6 @@ func (h *ServiceHandler) GetAllServiceDetails() ([]models.ServiceDetailInfo, err
 func (h *ServiceHandler) GetServiceStatus(serviceName string) (string, error) {
 	composeFiles := h.getComposeFiles()
 	return h.getServiceStatusInternal(serviceName, composeFiles)
-}
-
-// GetServiceDependencies returns a list of dependencies for a given service
-func (h *ServiceHandler) GetServiceDependencies(serviceName string) ([]string, error) {
-	composeFiles := h.getComposeFiles()
-	return h.getServiceDependenciesInternal(serviceName, composeFiles)
 }
 
 // StartService starts a specific service with optional persistence
@@ -170,54 +157,32 @@ func (h *ServiceHandler) StartServiceWithStatusUpdate(serviceName string, persis
 	}
 
 	// Return optimized status update focusing on the started service
-	return h.getOptimizedStatusUpdate(serviceName), nil
+	statusMap, err := h.getOptimizedStatusUpdate(serviceName)
+	if err != nil {
+		return nil, err
+	}
+
+	return statusMap, nil
 }
 
 // getOptimizedStatusUpdate returns status for all services with optimized checking for the target service
-func (h *ServiceHandler) getOptimizedStatusUpdate(targetService string) map[string]models.ServiceStatus {
-	allServices := h.ListServices()
+func (h *ServiceHandler) getOptimizedStatusUpdate(targetService string) (map[string]models.ServiceStatus, error) {
+	// Get all current containers
+	currentContainers, err := h.getCurrentContainers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current containers: %w", err)
+	}
+
 	statusMap := make(map[string]models.ServiceStatus)
-	composeFiles := h.getComposeFiles()
 
-	for _, service := range allServices {
-		var status string
-		var err error
-
-		if service.Name == targetService {
-			// For the target service, get fresh status (it should be starting)
-			status, err = h.getServiceStatusInternal(service.Name, composeFiles)
-		} else {
-			// For other services, use efficient checking
-			if h.isServiceMarkedStopped(service.Name) {
-				status = "stopped"
-			} else if h.isServiceMarkedStarting(service.Name) {
-				status = "starting"
-			} else {
-				// Quick check if still running (only for non-target services)
-				runningContainers, containerErr := h.getRunningContainers()
-				if containerErr == nil && h.isServiceRunning(service.Name, composeFiles, runningContainers) {
-					status = "running"
-				} else {
-					status = "stopped"
-				}
-			}
-		}
-
-		statusMap[service.Name] = models.ServiceStatus{
-			ServiceName: service.Name,
+	for container, status := range currentContainers {
+		statusMap[container] = models.ServiceStatus{
+			ServiceName: container,
 			Status:      status,
-		}
-
-		if err != nil {
-			statusMap[service.Name] = models.ServiceStatus{
-				ServiceName: service.Name,
-				Status:      "error",
-				Error:       err.Error(),
-			}
 		}
 	}
 
-	return statusMap
+	return statusMap, nil
 }
 
 // StopService stops a specific service
@@ -277,131 +242,42 @@ func (h *ServiceHandler) getServiceStatusInternal(serviceName string, composeFil
 		return "stopped", nil
 	}
 
-	// Get all running containers first
-	runningContainers, err := h.getRunningContainers()
+	// Use getCurrentContainers for consistency with GetAllRunningServices
+	currentContainers, err := h.getCurrentContainers()
 	if err != nil {
-		return "stopped", fmt.Errorf("could not get running containers: %w", err)
+		// If we can't get current containers, assume stopped
+		return "stopped", nil
 	}
 
-	// Check if the main service is running
-	isMainServiceRunning := h.isServiceRunning(serviceName, composeFiles, runningContainers)
+	// Use direct service name as container name (guaranteed by compose architecture)
+	mainContainerName := serviceName
 
-	// If main service is running, check if any critical dependencies have failed
-	if isMainServiceRunning {
-		// Clear starting status since service is now running
+	// Check the status of the main container from the current containers map
+	containerStatus, exists := currentContainers[mainContainerName]
+	if !exists {
+		// Container doesn't exist
+		return "stopped", nil
+	}
+
+	// Clear starting status and return appropriate status based on container state
+	switch containerStatus {
+	case "running":
 		h.clearServiceStarting(serviceName)
-
-		// Check for dependency failures that should affect main service status
-		if hasCriticalDependencyFailures, err := h.checkCriticalDependencyFailures(serviceName, composeFiles); err == nil && hasCriticalDependencyFailures {
-			return "failed", nil
-		}
 		return "running", nil
-	}
-
-	// If main service is not running, check if it failed due to dependency failures
-	if hasCriticalDependencyFailures, err := h.checkCriticalDependencyFailures(serviceName, composeFiles); err == nil && hasCriticalDependencyFailures {
-		// Clear starting status since service failed
+	case "starting", "restarting":
+		return "starting", nil
+	case "completed":
+		h.clearServiceStarting(serviceName)
+		return "completed", nil
+	case "error", "exited", "dead":
 		h.clearServiceStarting(serviceName)
 		return "failed", nil
+	case "created":
+		h.clearServiceStarting(serviceName)
+		return "failed", nil
+	default:
+		return "stopped", nil
 	}
-
-	// Check if the main service container exists but is not running (failed to start)
-	containerName, err := h.Runtime().GetContainerName(serviceName, composeFiles)
-	if err == nil {
-		containerStatus, err := h.Runtime().GetContainerStatus(containerName)
-		if err == nil {
-			switch containerStatus {
-			case "error", "exited":
-				// Clear starting status since service failed
-				h.clearServiceStarting(serviceName)
-				return "failed", nil
-			case "created":
-				// Container was created but never started - likely dependency failure
-				h.clearServiceStarting(serviceName)
-				return "failed", nil
-			}
-		}
-	}
-
-	return "stopped", nil
-}
-
-// checkCriticalDependencyFailures checks if any critical dependencies have failed
-func (h *ServiceHandler) checkCriticalDependencyFailures(serviceName string, composeFiles []string) (bool, error) {
-	// Get all dependencies
-	deps, err := h.Runtime().GetAllDependenciesRecursive(serviceName, composeFiles)
-	if err != nil {
-		return false, err
-	}
-
-	// Check each dependency for failure
-	for _, depName := range deps {
-		// Get container name for dependency
-		containerName, err := h.Runtime().GetContainerName(depName, composeFiles)
-		if err != nil {
-			continue // Skip if we can't get container name
-		}
-
-		// Get container status
-		containerStatus, err := h.Runtime().GetContainerStatus(containerName)
-		if err != nil {
-			continue // Skip if we can't get status
-		}
-
-		// Check for critical failure patterns
-		if containerStatus == "error" || containerStatus == "dead" {
-			// Container failed or is in dead state
-			return true, nil
-		}
-
-		// For init containers, "completed" status is success, but "error" is failure
-		if strings.Contains(depName, "-init") || strings.Contains(depName, "-data") {
-			if containerStatus == "error" {
-				// Init container failed (exited with non-zero code)
-				return true, nil
-			}
-			// "completed" status means init container succeeded, so continue checking other deps
-		} else {
-			// For non-init containers, any exited or error state is a failure
-			if containerStatus == "exited" || containerStatus == "error" {
-				return true, nil
-			}
-		}
-	}
-
-	return false, nil
-}
-
-// getServiceDependenciesInternal is an internal helper for getting service dependencies
-func (h *ServiceHandler) getServiceDependenciesInternal(serviceName string, composeFiles []string) ([]string, error) {
-	deps, err := h.Runtime().GetAllDependenciesRecursive(serviceName, composeFiles)
-	if err != nil {
-		return nil, fmt.Errorf("could not get recursive dependencies for %s: %w", serviceName, err)
-	}
-	sort.Strings(deps) // Sort for consistent UI display
-	return deps, nil
-}
-
-// GetAllServiceDependencies efficiently gets dependencies for all services using runtime's cached methods
-// This leverages the runtime's built-in caching for compose config parsing
-func (h *ServiceHandler) GetAllServiceDependencies() (map[string][]string, error) {
-	// Get all services that we care about (from filtered list)
-	allServices := h.ListServices()
-	dependencyMap := make(map[string][]string)
-	composeFiles := h.getComposeFiles()
-
-	// Use the runtime's cached GetAllDependenciesRecursive method for each service
-	// The runtime caches the compose config parsing, so this is efficient
-	for _, service := range allServices {
-		dependencies, err := h.Runtime().GetAllDependenciesRecursive(service.Name, composeFiles)
-		if err != nil {
-			// If we can't get dependencies for a service, just use empty list
-			dependencies = []string{}
-		}
-		dependencyMap[service.Name] = dependencies
-	}
-
-	return dependencyMap, nil
 }
 
 // GetAllRunningServices uses docker/podman ps to quickly get all running services
@@ -419,48 +295,50 @@ func (h *ServiceHandler) GetAllRunningServices() (map[string]models.ServiceStatu
 		}
 	}
 
-	composeFiles := h.getComposeFiles()
-
-	// Match running containers to service names and detect failures
-	for _, service := range allServices {
-		// Check if service is marked as stopped first (immediate update)
-		if h.isServiceMarkedStopped(service.Name) {
-			// Keep as stopped (already set as default)
-			continue
-		}
-
-		// Use the improved status detection logic that can detect failures
-		status, err := h.getServiceStatusInternal(service.Name, composeFiles)
-		if err != nil {
-			statusMap[service.Name] = models.ServiceStatus{
-				ServiceName: service.Name,
+	// Get all current containers with single optimized call
+	currentContainers, err := h.getCurrentContainers()
+	if err != nil {
+		// If we can't get current containers, return all as stopped with error
+		for serviceName := range statusMap {
+			statusMap[serviceName] = models.ServiceStatus{
+				ServiceName: serviceName,
 				Status:      "error",
-				Error:       err.Error(),
+				Error:       fmt.Sprintf("could not get current containers: %v", err),
 			}
-		} else {
-			statusMap[service.Name] = models.ServiceStatus{
-				ServiceName: service.Name,
-				Status:      status,
-			}
+		}
+		return statusMap, nil
+	}
+
+	for container, status := range currentContainers {
+		statusMap[container] = models.ServiceStatus{
+			ServiceName: container,
+			Status:      status,
 		}
 	}
 
 	return statusMap, nil
 }
 
-// GetAllServicesWithStatusAndDependencies efficiently gets services, statuses, and dependencies in a single call
-// This combines the fast approaches for both statuses and dependencies
+// isServiceRunningFast checks if a service is running using direct container lookup
+// Uses the direct service name as container name (guaranteed by compose architecture)
+func (h *ServiceHandler) isServiceRunningFast(serviceName string, currentContainers map[string]string) bool {
+	// Direct check: service name equals main container name
+	// This is guaranteed by our compose file structure
+	return currentContainers[serviceName] == "running"
+}
+
+// GetAllServicesWithStatusAndDependencies efficiently gets services and statuses in a single call
 func (h *ServiceHandler) GetAllServicesWithStatusAndDependencies() ([]models.ServiceDetailInfo, error) {
 	// Get basic services list (filtered)
 	allServices := h.ListServices()
 
-	// Get all statuses efficiently with single docker ps call
-	statusMap, err := h.GetAllRunningServices()
+	// Get all current containers statuses
+	statusMap, err := h.getCurrentContainers()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get service statuses: %w", err)
+		return nil, fmt.Errorf("failed to get current containers statuses: %w", err)
 	}
 
-	// Get all dependencies efficiently with single compose config read (cached)
+	// Get all dependencies efficiently
 	dependencyMap, err := h.GetAllServiceDependencies()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service dependencies: %w", err)
@@ -477,11 +355,8 @@ func (h *ServiceHandler) GetAllServicesWithStatusAndDependencies() ([]models.Ser
 		}
 
 		// Get status from status map
-		if statusInfo, exists := statusMap[service.Name]; exists {
-			detail.Status = statusInfo.Status
-			if statusInfo.Error != "" {
-				detail.StatusError = statusInfo.Error
-			}
+		if status, exists := statusMap[service.Name]; exists {
+			detail.Status = status
 		}
 
 		// Get dependencies from dependency map
@@ -498,6 +373,83 @@ func (h *ServiceHandler) GetAllServicesWithStatusAndDependencies() ([]models.Ser
 	})
 
 	return detailsList, nil
+}
+
+// GetAllServicesStatuses gets all service statuses including stopped containers
+// This is different from GetAllRunningServices which only checks running containers
+func (h *ServiceHandler) GetAllServicesStatuses() (map[string]models.ServiceStatus, error) {
+	// Get all available services first (filtered list)
+	allServices := h.ListServices()
+
+	// Create result map with all services as "stopped" by default
+	statusMap := make(map[string]models.ServiceStatus)
+	for _, service := range allServices {
+		statusMap[service.Name] = models.ServiceStatus{
+			ServiceName: service.Name,
+			Status:      "stopped",
+		}
+	}
+
+	// Check each service's actual container status (including stopped containers)
+	for _, service := range allServices {
+		// Check if service is marked as stopped first (immediate update)
+		if h.isServiceMarkedStopped(service.Name) {
+			continue // Keep as stopped (already set as default)
+		}
+
+		// Check if service is marked as starting first (immediate update)
+		if h.isServiceMarkedStarting(service.Name) {
+			statusMap[service.Name] = models.ServiceStatus{
+				ServiceName: service.Name,
+				Status:      "starting",
+			}
+			continue
+		}
+
+		// Get actual container status (checks both running and stopped containers)
+		containerStatus, err := h.Runtime().GetContainerStatus(service.Name)
+		if err != nil {
+			// If there's an error getting status, keep as stopped but note the error
+			statusMap[service.Name] = models.ServiceStatus{
+				ServiceName: service.Name,
+				Status:      "stopped",
+				Error:       fmt.Sprintf("could not check container status: %v", err),
+			}
+			continue
+		}
+
+		// Map container status to service status
+		var serviceStatus string
+		switch containerStatus {
+		case "running":
+			serviceStatus = "running"
+			h.clearServiceStarting(service.Name) // Clear starting status since service is now running
+		case "starting", "restarting":
+			serviceStatus = "starting"
+		case "completed":
+			serviceStatus = "completed"
+			h.clearServiceStarting(service.Name)
+		case "error", "exited", "dead":
+			serviceStatus = "failed"
+			h.clearServiceStarting(service.Name)
+		case "created":
+			serviceStatus = "failed"
+			h.clearServiceStarting(service.Name)
+		case "stopped", "not_found":
+			serviceStatus = "stopped"
+		case "paused":
+			serviceStatus = "paused"
+		default:
+			serviceStatus = "stopped"
+		}
+
+		statusMap[service.Name] = models.ServiceStatus{
+			ServiceName: service.Name,
+			Status:      serviceStatus,
+		}
+	}
+
+	return statusMap, nil
 }
 
 // GetMultipleServiceStatuses fetches statuses for multiple services concurrently
@@ -654,8 +606,8 @@ func (h *ServiceHandler) StopServiceWithStatusUpdate(serviceName string) (map[st
 			// For other services, we need to check if they're still running
 			// But we can optimize this by only checking services that might be affected
 			composeFiles := h.getComposeFiles()
-			runningContainers, err := h.getRunningContainers()
-			if err == nil && h.isServiceRunning(service.Name, composeFiles, runningContainers) {
+			currentContainers, err := h.getCurrentContainers()
+			if err == nil && h.isServiceRunning(service.Name, composeFiles, currentContainers) {
 				status = "running"
 			}
 		}
@@ -679,7 +631,7 @@ func (h *ServiceHandler) StopAllServicesWithStatusUpdate() (map[string]models.Se
 	}
 
 	// Return updated status map with all services stopped
-	// This is very efficient since we know all services are now stopped
+	// This is very efficient since we know all services are now stopped otherwise error is thrown from above
 	allServices := h.ListServices()
 	statusMap := make(map[string]models.ServiceStatus)
 
@@ -745,4 +697,105 @@ func (h *ServiceHandler) CheckStartingServicesProgress() (map[string]models.Serv
 	}
 
 	return updatedStatuses, nil
+}
+
+// GetServiceDependencies returns the dependencies for a specific service (container names)
+func (h *ServiceHandler) GetServiceDependencies(serviceName string) ([]string, error) {
+	composeFiles := h.getComposeFiles()
+	return h.Runtime().GetAllDependenciesRecursive(serviceName, composeFiles, true)
+}
+
+// GetAllServiceDependencies returns dependencies for all services (container names)
+func (h *ServiceHandler) GetAllServiceDependencies() (map[string][]string, error) {
+	// Get all available services first (filtered list)
+	allServices := h.ListServices()
+
+	// Create result map
+	dependencyMap := make(map[string][]string)
+
+	// Get dependencies for each service
+	for _, service := range allServices {
+		dependencies, err := h.GetServiceDependencies(service.Name)
+		if err != nil {
+			// If we can't get dependencies, log the error but continue
+			// Set empty dependencies for this service
+			dependencyMap[service.Name] = []string{}
+		} else {
+			dependencyMap[service.Name] = dependencies
+		}
+	}
+
+	return dependencyMap, nil
+}
+
+// GetAllDependencyStatuses returns the statuses of all dependency containers (container names)
+// This is used by the frontend to show individual container statuses in dependency lists
+func (h *ServiceHandler) GetAllDependencyStatuses() (map[string]models.ServiceStatus, error) {
+	// Get all service dependencies first
+	dependencyMap, err := h.GetAllServiceDependencies()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service dependencies: %w", err)
+	}
+
+	// Collect all unique dependency container names
+	allDependencyContainers := make(map[string]bool)
+	for _, dependencies := range dependencyMap {
+		for _, dep := range dependencies {
+			allDependencyContainers[dep] = true
+		}
+	}
+
+	// Create result map
+	statusMap := make(map[string]models.ServiceStatus)
+
+	// Get status for each dependency container
+	for containerName := range allDependencyContainers {
+		// Get actual container status (checks both running and stopped containers)
+		containerStatus, err := h.Runtime().GetContainerStatus(containerName)
+		if err != nil {
+			statusMap[containerName] = models.ServiceStatus{
+				ServiceName: containerName,
+				Status:      "stopped",
+				Error:       fmt.Sprintf("could not check container status: %v", err),
+			}
+			continue
+		}
+
+		// Map container status to service status
+		var serviceStatus string
+		switch containerStatus {
+		case "running":
+			serviceStatus = "running"
+		case "starting", "restarting":
+			serviceStatus = "starting"
+		case "completed":
+			serviceStatus = "completed"
+		case "error", "exited", "dead":
+			serviceStatus = "failed"
+		case "created":
+			serviceStatus = "failed"
+		case "stopped", "not_found":
+			serviceStatus = "stopped"
+		case "paused":
+			serviceStatus = "paused"
+		default:
+			serviceStatus = "unknown"
+		}
+
+		statusMap[containerName] = models.ServiceStatus{
+			ServiceName: containerName,
+			Status:      serviceStatus,
+		}
+	}
+
+	return statusMap, nil
+}
+
+// getMainContainerForService determines the main container for a service
+// In our compose architecture, the main container always has container_name matching the service name
+func (h *ServiceHandler) getMainContainerForService(serviceName string, composeFiles []string) (string, error) {
+	// Direct mapping: service name equals main container name
+	// This is guaranteed by our compose file structure where each logical service
+	// has a corresponding container with container_name: <serviceName>
+	return serviceName, nil
 }

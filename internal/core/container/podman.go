@@ -209,231 +209,45 @@ func (p *PodmanRuntime) getOrParseComposeConfig(composeFiles []string) (*Compose
 	return p.parsedComposeConfig, nil
 }
 
-func (p *PodmanRuntime) GetDependencies(service string, composeFiles []string) ([]string, error) {
-	config, err := p.getOrParseComposeConfig(composeFiles)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get compose config for dependencies: %w", err)
-	}
-	return extractDependencies(*config, service), nil
-}
-
-func (p *PodmanRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string) ([]string, error) {
-	// `toProcessQueue` acts as a queue for services whose dependencies need to be fetched.
-	// Initialize with direct dependencies of serviceName, as serviceName is not its own dependency.
-	toProcessQueue, err := p.GetDependencies(serviceName, composeFiles)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get initial dependencies for %s: %w", serviceName, err)
-	}
-
-	// `allFoundDependencies` will store all unique dependencies discovered.
-	allFoundDependencies := make(map[string]bool)
-	// Add initial direct dependencies to the set and prepare the queue.
-	// We use a new slice for the queue to avoid modifying the original direct deps slice if it's from a cache.
-	queue := make([]string, 0, len(toProcessQueue))
-	for _, dep := range toProcessQueue {
-		if !allFoundDependencies[dep] { // Ensure initial deps are unique if GetDependencies somehow returns duplicates
-			allFoundDependencies[dep] = true
-			queue = append(queue, dep)
-		}
-	}
-
-	head := 0
-	for head < len(queue) {
-		currentServiceToExplore := queue[head]
-		head++
-
-		children, err := p.GetDependencies(currentServiceToExplore, composeFiles)
-		if err != nil {
-			// If fetching dependencies for a sub-service fails, we might have an incomplete list.
-			// For now, we'll propagate the error. Consider if partial results are acceptable.
-			return nil, fmt.Errorf("failed to get dependencies for intermediate service %s during recursive search: %w", currentServiceToExplore, err)
-		}
-
-		for _, child := range children {
-			if !allFoundDependencies[child] { // If this is a newly discovered dependency
-				allFoundDependencies[child] = true
-				queue = append(queue, child) // Add it to the queue to process its dependencies later.
-			}
-		}
-	}
-
-	result := make([]string, 0, len(allFoundDependencies))
-	for dep := range allFoundDependencies {
-		result = append(result, dep)
-	}
-	// Sorting is handled in app.go, so not strictly needed here.
-	return result, nil
-}
-
-func (p *PodmanRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
-	// For Podman, try different naming patterns similar to Docker
-	candidateNames := []string{
-		serviceName,                            // Direct service name (e.g., "airflow-init")
-		fmt.Sprintf("insta_%s_1", serviceName), // Default compose pattern
-		fmt.Sprintf("insta-%s-1", serviceName), // Alternative dash pattern
-	}
-
-	// Check which container actually exists
-	for _, candidateName := range candidateNames {
-		if p.containerExistsAnywhere(candidateName) {
-			return candidateName, nil
-		}
-	}
-
-	// If none exist, return the most likely candidate (service name itself)
-	return serviceName, nil
-}
-
-func (p *PodmanRuntime) GetContainerLogs(containerName string, tailLines int) ([]string, error) {
-	args := []string{"logs", "--tail", fmt.Sprintf("%d", tailLines), containerName}
-	cmd := exec.Command(p.getPodmanCommand(), args...)
-
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get logs for container %s: %w", containerName, err)
-	}
-
-	// Split output into individual log lines
-	logLines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(logLines) == 1 && logLines[0] == "" {
-		return []string{}, nil // Return empty slice for empty logs
-	}
-
-	return logLines, nil
-}
-
-func (p *PodmanRuntime) StreamContainerLogs(containerName string, logChan chan<- string, stopChan <-chan struct{}) error {
-	args := []string{"logs", "--follow", "--tail", "50", containerName}
-	cmd := exec.Command(p.getPodmanCommand(), args...)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdout pipe: %w", err)
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stderr pipe: %w", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start log streaming: %w", err)
-	}
-
-	// Channel to signal when command is done
-	doneChan := make(chan error, 1)
-
-	// Start goroutine to read from stdout
-	go func() {
-		defer func() {
-			stdout.Close()
-		}()
-
-		buf := make([]byte, 1024)
-		for {
-			n, err := stdout.Read(buf)
-			if n > 0 {
-				// Split by lines and send each line
-				lines := strings.Split(strings.TrimSpace(string(buf[:n])), "\n")
-				for _, line := range lines {
-					if line != "" {
-						select {
-						case logChan <- line:
-						case <-stopChan:
-							return
-						}
-					}
-				}
-			}
-			if err != nil {
-				return
-			}
-		}
-	}()
-
-	// Start goroutine to read from stderr
-	go func() {
-		defer func() {
-			stderr.Close()
-		}()
-
-		buf := make([]byte, 1024)
-		for {
-			n, err := stderr.Read(buf)
-			if n > 0 {
-				// Split by lines and send each line
-				lines := strings.Split(strings.TrimSpace(string(buf[:n])), "\n")
-				for _, line := range lines {
-					if line != "" {
-						select {
-						case logChan <- line:
-						case <-stopChan:
-							return
-						}
-					}
-				}
-			}
-			if err != nil {
-				return
-			}
-		}
-	}()
-
-	// Wait for stop signal or command completion
-	go func() {
-		doneChan <- cmd.Wait()
-	}()
-
-	select {
-	case <-stopChan:
-		// Kill the process
-		if cmd.Process != nil {
-			cmd.Process.Kill()
-		}
-		return nil
-	case err := <-doneChan:
-		return err
-	}
-}
-
-// containerExistsAnywhere checks if a container with the given name exists (running or stopped)
-func (p *PodmanRuntime) containerExistsAnywhere(containerName string) bool {
-	cmd := exec.Command(p.getPodmanCommand(), "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-
-	containerNames := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, name := range containerNames {
-		if strings.TrimSpace(name) == containerName {
-			return true
-		}
-	}
-	return false
-}
-
-func (p *PodmanRuntime) CheckImageExists(imageName string) (bool, error) {
-	cmd := exec.Command(p.getPodmanCommand(), "image", "inspect", imageName)
-	return cmd.Run() == nil, nil
-}
-
 func (p *PodmanRuntime) GetImageInfo(serviceName string, composeFiles []string) (string, error) {
 	config, err := p.getOrParseComposeConfig(composeFiles)
 	if err != nil {
-		return "", fmt.Errorf("failed to get compose config for image info: %w", err)
+		return "", fmt.Errorf("failed to get compose config: %w", err)
 	}
 
-	service, exists := config.Services[serviceName]
-	if !exists {
-		return "", fmt.Errorf("service %s not found in compose files", serviceName)
+	if service, exists := config.Services[serviceName]; exists {
+		return service.Image, nil
 	}
 
-	if service.Image == "" {
-		return "", fmt.Errorf("no image specified for service %s", serviceName)
+	return "", fmt.Errorf("service %s not found in compose configuration", serviceName)
+}
+
+// GetMultipleImageInfo returns image information for multiple services from compose files
+func (p *PodmanRuntime) GetMultipleImageInfo(serviceNames []string, composeFiles []string) (map[string]string, error) {
+	if len(serviceNames) == 0 {
+		return make(map[string]string), nil
 	}
 
-	return service.Image, nil
+	// Parse compose config once for all services
+	config, err := p.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compose config for image info: %w", err)
+	}
+
+	result := make(map[string]string)
+	for _, serviceName := range serviceNames {
+		service, exists := config.Services[serviceName]
+		if !exists {
+			// Skip services not found in compose files rather than erroring
+			continue
+		}
+
+		if service.Image != "" {
+			result[serviceName] = service.Image
+		}
+	}
+
+	return result, nil
 }
 
 func (p *PodmanRuntime) PullImageWithProgress(imageName string, progressChan chan<- ImagePullProgress, stopChan <-chan struct{}) error {
@@ -644,4 +458,239 @@ func (p *PodmanRuntime) getPodmanCommand() string {
 	}
 	// Fallback to "podman" if path not set (shouldn't happen after CheckAvailable)
 	return "podman"
+}
+
+// GetAllContainerStatuses returns all current containers (including stopped ones) managed by compose
+// Returns back the container names and statuses in a map
+func (p *PodmanRuntime) GetAllContainerStatuses() (map[string]string, error) {
+	// Use podman ps to get all running containers with compose labels
+	// This is much faster than checking each service individually
+	cmd := exec.Command(p.getPodmanCommand(), "ps", "-a",
+		"--filter", "label=com.docker.compose.project=insta",
+		"--format", "{{.Names}},{{.State}},{{.Status}}")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get running containers: %w", err)
+	}
+
+	containerStatuses := make(map[string]string)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		parts := strings.Split(line, ",")
+		if len(parts) > 1 {
+			state := parts[1]
+			status := parts[2] // This is the status of the container
+			if strings.Contains(state, "created") {
+				containerStatuses[parts[0]] = "created"
+			} else if strings.Contains(state, "running") && strings.Contains(status, "starting") {
+				containerStatuses[parts[0]] = "starting"
+			} else if strings.Contains(state, "running") && strings.Contains(status, "unhealthy") {
+				containerStatuses[parts[0]] = "error"
+			} else if strings.Contains(state, "running") {
+				containerStatuses[parts[0]] = "running"
+			} else if strings.Contains(state, "exited") {
+				containerStatuses[parts[0]] = "stopped"
+			} else if strings.Contains(state, "restarting") {
+				containerStatuses[parts[0]] = "restarting"
+			} else {
+				containerStatuses[parts[0]] = "stopped"
+			}
+		}
+	}
+
+	return containerStatuses, nil
+}
+
+func (p *PodmanRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
+	config, err := p.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return "", err
+	}
+
+	// First, check if there's an explicit container name in the compose config
+	if serviceConfig, ok := config.Services[serviceName]; ok {
+		if serviceConfig.ContainerName != "" {
+			return serviceConfig.ContainerName, nil
+		}
+	}
+
+	// For Podman, try different naming patterns similar to Docker
+	candidateNames := []string{
+		serviceName,                            // Direct service name (e.g., "airflow-init")
+		fmt.Sprintf("insta_%s_1", serviceName), // Default compose pattern
+		fmt.Sprintf("insta-%s-1", serviceName), // Alternative dash pattern
+	}
+
+	// Check which container actually exists
+	for _, candidateName := range candidateNames {
+		if p.containerExistsAnywhere(candidateName) {
+			return candidateName, nil
+		}
+	}
+
+	// If none exist, return the most likely candidate (service name itself)
+	return serviceName, nil
+}
+
+// GetAllDependenciesRecursive returns all dependencies recursively for a service from compose files
+// Returns container names (not service names) for UI display purposes
+func (p *PodmanRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string, isContainer bool) ([]string, error) {
+	config, err := p.getOrParseComposeConfig(composeFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compose config: %w", err)
+	}
+
+	visited := make(map[string]bool)
+	dependencyServices := collectDependenciesRecursive(serviceName, config, visited)
+
+	if !isContainer {
+		return dependencyServices, nil
+	}
+
+	// Convert service names to container names
+	var containerNames []string
+	for _, serviceName := range dependencyServices {
+		containerName, err := p.GetContainerName(serviceName, composeFiles)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get container name for service %s: %w", serviceName, err)
+		}
+		containerNames = append(containerNames, containerName)
+	}
+
+	return containerNames, nil
+}
+
+func (p *PodmanRuntime) GetContainerLogs(containerName string, tailLines int) ([]string, error) {
+	args := buildLogCommand(containerName, tailLines, false)
+	cmd := exec.Command(p.getPodmanCommand(), args...)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get logs for container %s: %w", containerName, err)
+	}
+
+	return parseLogOutput(output), nil
+}
+
+func (p *PodmanRuntime) StreamContainerLogs(containerName string, logChan chan<- string, stopChan <-chan struct{}) error {
+	args := buildLogCommand(containerName, 0, true)
+	cmd := exec.Command(p.getPodmanCommand(), args...)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start log streaming: %w", err)
+	}
+
+	// Channel to signal when command is done
+	doneChan := make(chan error, 1)
+
+	// Use shared log streaming utilities
+	streamLogsFromPipes(stdout, stderr, logChan, stopChan)
+
+	// Wait for stop signal or command completion
+	go func() {
+		doneChan <- cmd.Wait()
+	}()
+
+	select {
+	case <-stopChan:
+		// Kill the process
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		return nil
+	case err := <-doneChan:
+		return err
+	}
+}
+
+// containerExistsAnywhere checks if a container with the given name exists (running or stopped)
+func (p *PodmanRuntime) containerExistsAnywhere(containerName string) bool {
+	cmd := exec.Command(p.getPodmanCommand(), "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	containerNames := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, name := range containerNames {
+		if strings.TrimSpace(name) == containerName {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *PodmanRuntime) CheckImageExists(imageName string) (bool, error) {
+	cmd := exec.Command(p.getPodmanCommand(), "image", "inspect", imageName)
+	return cmd.Run() == nil, nil
+}
+
+// CheckMultipleImagesExist checks if multiple Podman images exist locally in a single call
+func (p *PodmanRuntime) CheckMultipleImagesExist(imageNames []string) (map[string]bool, error) {
+	if len(imageNames) == 0 {
+		return make(map[string]bool), nil
+	}
+
+	// Use podman images command to get all local images in one call
+	cmd := exec.Command(p.getPodmanCommand(), "images", "--format", "{{.Repository}}:{{.Tag}}")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list podman images: %w", err)
+	}
+
+	// Parse the output to create a set of existing images
+	existingImages := make(map[string]bool)
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && line != "<none>:<none>" {
+			existingImages[line] = true
+		}
+	}
+
+	// Check each requested image
+	result := make(map[string]bool)
+	for _, imageName := range imageNames {
+		// Handle different image name formats
+		exists := false
+
+		// Check exact match first
+		if existingImages[imageName] {
+			exists = true
+		} else {
+			// If no tag specified, check with :latest
+			if !strings.Contains(imageName, ":") {
+				if existingImages[imageName+":latest"] {
+					exists = true
+				}
+			}
+
+			// Also check without tag (some images might be listed differently)
+			if !exists && strings.Contains(imageName, ":") {
+				baseImage := strings.Split(imageName, ":")[0]
+				for existingImage := range existingImages {
+					if strings.HasPrefix(existingImage, baseImage+":") {
+						exists = true
+						break
+					}
+				}
+			}
+		}
+
+		result[imageName] = exists
+	}
+
+	return result, nil
 }
