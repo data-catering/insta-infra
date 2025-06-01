@@ -2,10 +2,29 @@ package main
 
 import (
 	"context"
+	"os"
 	"testing"
 )
 
+func setupTestEnv(t *testing.T) func() {
+	// Set a temporary home directory for testing
+	tempDir := t.TempDir()
+	originalHome := os.Getenv("HOME")
+	os.Setenv("HOME", tempDir)
+
+	return func() {
+		if originalHome != "" {
+			os.Setenv("HOME", originalHome)
+		} else {
+			os.Unsetenv("HOME")
+		}
+	}
+}
+
 func TestApp_GetRuntimeStatus(t *testing.T) {
+	cleanup := setupTestEnv(t)
+	defer cleanup()
+
 	app := NewApp()
 	app.startup(context.Background())
 
@@ -50,6 +69,9 @@ func TestApp_GetRuntimeStatus(t *testing.T) {
 }
 
 func TestApp_AttemptStartRuntime(t *testing.T) {
+	cleanup := setupTestEnv(t)
+	defer cleanup()
+
 	app := NewApp()
 	app.startup(context.Background())
 
@@ -75,6 +97,9 @@ func TestApp_AttemptStartRuntime(t *testing.T) {
 }
 
 func TestApp_WaitForRuntimeReady(t *testing.T) {
+	cleanup := setupTestEnv(t)
+	defer cleanup()
+
 	app := NewApp()
 	app.startup(context.Background())
 
@@ -95,6 +120,9 @@ func TestApp_WaitForRuntimeReady(t *testing.T) {
 }
 
 func TestApp_ReinitializeRuntime(t *testing.T) {
+	cleanup := setupTestEnv(t)
+	defer cleanup()
+
 	app := NewApp()
 	app.startup(context.Background())
 
