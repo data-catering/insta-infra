@@ -17,6 +17,25 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Cache Wails CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/wails
+          key: ${{ runner.os }}-wails-${{ hashFiles('**/go.mod') }}
+          restore-keys: |
+            ${{ runner.os }}-wails-
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -42,6 +61,26 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-upx-
+            ${{ runner.os }}-apt-
 
       - name: Install UPX
         run: |
@@ -85,6 +124,27 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Cache Wails CLI
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/bin/wails
+            ~/.wails
+          key: ${{ runner.os }}-wails-${{ hashFiles('**/go.mod') }}
+          restore-keys: |
+            ${{ runner.os }}-wails-
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -92,6 +152,41 @@ jobs:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: cmd/instaui/frontend/package-lock.json
+
+      - name: Cache apt packages (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-webkit-${{ hashFiles('.github/workflows/test-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-webkit-
+            ${{ runner.os }}-apt-
+
+      - name: Cache Homebrew (macOS)
+        if: startsWith(matrix.os, 'macos')
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /opt/homebrew/var/homebrew/locks
+            /opt/homebrew/var/homebrew/cache
+          key: ${{ runner.os }}-brew-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-brew-upx-
+            ${{ runner.os }}-brew-
+
+      - name: Cache Chocolatey (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\Temp\chocolatey
+            C:\ProgramData\chocolatey\cache
+          key: ${{ runner.os }}-choco-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-choco-upx-
+            ${{ runner.os }}-choco-
 
       - name: Install dependencies
         run: make deps
@@ -109,7 +204,7 @@ jobs:
           sudo apt-get install -y upx
 
       - name: Install UPX (macOS)
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos')
         run: |
           brew install upx
 
