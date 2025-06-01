@@ -139,7 +139,7 @@ jobs:
           echo "Building Wails UI application with bundled CLI (production)..."
           cd cmd/instaui && wails build -clean
           echo "Bundling CLI binary into app..."
-          powershell -ExecutionPolicy Bypass -File "scripts\bundle-cli.ps1"
+          powershell -ExecutionPolicy Bypass -File "..\..\scripts\bundle-cli.ps1"
           echo "Wails UI application with bundled CLI built. Binary available in cmd/instaui/build/bin/"
         env:
           CGO_ENABLED: 1
