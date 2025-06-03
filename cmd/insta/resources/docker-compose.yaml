@@ -1038,7 +1038,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:9600"]
       timeout: 5s
-    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-9.0.1}"
+    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-9.0.2}"
     ports:
       - "5044:5044"
       - "50000:50000/tcp"
