@@ -278,7 +278,7 @@ services:
       retries: 3
       test: [CMD, opa, eval, "true"]
       timeout: 3s
-    image: "openpolicyagent/opa:${OPA_VERSION:-1.5.0}"
+    image: "openpolicyagent/opa:${OPA_VERSION:-1.5.1}"
   cvat-server:
     command: init run server
     container_name: cvat-server
