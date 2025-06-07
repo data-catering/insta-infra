@@ -873,7 +873,7 @@ services:
       retries: 5
       test: [CMD-SHELL, kong health]
       timeout: 10s
-    image: "kong:${KONG_VERSION:-3.9.0}"
+    image: "kong:${KONG_VERSION:-3.9.1}"
     ports:
       - 8001:8001
       - 8000:8000
@@ -888,7 +888,7 @@ services:
       postgres:
         condition: service_completed_successfully
     env_file: ./data/kong/.env
-    image: "kong:${KONG_VERSION:-3.9.0}"
+    image: "kong:${KONG_VERSION:-3.9.1}"
   label-studio:
     container_name: label-studio
     image: heartexlabs/label-studio:${LABEL_STUDIO_VERSION:-1.18.0}
