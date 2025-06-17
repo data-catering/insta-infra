@@ -180,6 +180,17 @@ func (m *MockRuntime) GetAllContainerStatuses() (map[string]string, error) {
 	return m.runningContainers, m.runningContainersError
 }
 
+// ListAllImages returns a list of all available mock images
+func (m *MockRuntime) ListAllImages() ([]string, error) {
+	// Return a mock list of images for testing
+	return []string{
+		"postgres:14",
+		"redis:7",
+		"nginx:latest",
+		"ubuntu:20.04",
+	}, nil
+}
+
 // Test state accessors
 func (m *MockRuntime) WasComposeUpCalled() bool   { return m.composeUpError != nil }
 func (m *MockRuntime) WasComposeDownCalled() bool { return m.composeDownError != nil }

@@ -484,34 +484,66 @@ func (d *DockerRuntime) GetAllContainerStatuses() (map[string]string, error) {
 	//  ~ % docker ps -a --format "{{.Names}} {{.State}} {{.Status}}"
 	// postgres-data,exited,Exited (0) About an hour ago
 	// postgres,running,Up About an hour (healthy)
+	// jaeger,running,Up About an hour (health: starting)
+	// redis,running,Up About an hour
 
 	containerStatuses := make(map[string]string)
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		parts := strings.Split(line, ",")
-		if len(parts) > 1 {
+		if len(parts) >= 3 {
+			containerName := parts[0]
 			state := parts[1]
-			status := parts[2] // This is the status of the container
-			if strings.Contains(state, "created") {
-				containerStatuses[parts[0]] = "created"
-			} else if strings.Contains(state, "running") && strings.Contains(status, "starting") {
-				containerStatuses[parts[0]] = "starting"
-			} else if strings.Contains(state, "running") && strings.Contains(status, "unhealthy") {
-				containerStatuses[parts[0]] = "unhealthy"
-			} else if strings.Contains(state, "running") {
-				containerStatuses[parts[0]] = "running"
-			} else if strings.Contains(state, "exited") {
-				containerStatuses[parts[0]] = "stopped"
-			} else if strings.Contains(state, "restarting") {
-				containerStatuses[parts[0]] = "restarting"
-			} else {
-				containerStatuses[parts[0]] = "stopped"
-			}
+			status := parts[2] // This is the detailed status of the container
+
+			// Parse detailed health status from the status string
+			finalStatus := d.parseDetailedContainerStatus(state, status)
+			containerStatuses[containerName] = finalStatus
 		}
 	}
 
 	return containerStatuses, nil
+}
+
+// parseDetailedContainerStatus provides more granular status parsing including health checks
+func (d *DockerRuntime) parseDetailedContainerStatus(state, status string) string {
+	statusLower := strings.ToLower(status)
+	stateLower := strings.ToLower(state)
+
+	// Handle container states first
+	if strings.Contains(stateLower, "created") {
+		return "created"
+	} else if strings.Contains(stateLower, "exited") {
+		return "stopped"
+	} else if strings.Contains(stateLower, "restarting") {
+		return "restarting"
+	} else if strings.Contains(stateLower, "paused") {
+		return "paused"
+	} else if strings.Contains(stateLower, "dead") {
+		return "error"
+	}
+
+	// For running containers, check health status
+	if strings.Contains(stateLower, "running") {
+		// Check for health check states in the status
+		if strings.Contains(statusLower, "(healthy)") {
+			return "running-healthy"
+		} else if strings.Contains(statusLower, "(unhealthy)") {
+			return "running-unhealthy"
+		} else if strings.Contains(statusLower, "(health: starting)") || strings.Contains(statusLower, "health: starting") {
+			return "running-health-starting"
+		} else if strings.Contains(statusLower, "starting") {
+			// Container is starting up
+			return "starting"
+		} else {
+			// Running but no health check configured
+			return "running"
+		}
+	}
+
+	// Default fallback
+	return "unknown"
 }
 
 func (d *DockerRuntime) GetContainerName(serviceName string, composeFiles []string) (string, error) {
@@ -769,4 +801,24 @@ func (d *DockerRuntime) CheckMultipleImagesExist(imageNames []string) (map[strin
 	}
 
 	return result, nil
+}
+
+// ListAllImages returns a list of all available Docker images
+func (d *DockerRuntime) ListAllImages() ([]string, error) {
+	cmd := exec.Command(d.getDockerCommand(), "images", "--format", "{{.Repository}}:{{.Tag}}")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list docker images: %w", err)
+	}
+
+	var images []string
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && line != "<none>:<none>" {
+			images = append(images, line)
+		}
+	}
+
+	return images, nil
 }

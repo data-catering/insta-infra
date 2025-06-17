@@ -120,7 +120,7 @@ insta -v
 
 ## Web UI
 
-insta-infra also provides a modern graphical interface built with Wails for users who prefer visual service management.
+insta-infra also provides a modern web-based graphical interface for users who prefer visual service management.
 
 ![Web UI Screenshot](docs/img/web-ui-demo.png)
 
@@ -140,7 +140,7 @@ insta-infra also provides a modern graphical interface built with Wails for user
 
 In addition to the standard requirements, the Web UI requires:
 - **Node.js** (16+) and **npm**
-- **Wails CLI**: `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+
 
 #### Development Mode
 
@@ -152,8 +152,7 @@ git clone https://github.com/data-catering/insta-infra.git
 cd insta-infra
 
 # Start the development server
-cd cmd/instaui
-wails dev
+make dev-web
 ```
 
 This will:
@@ -170,11 +169,10 @@ To build a production version of the Web UI:
 make build-ui
 
 # Or build manually
-cd cmd/instaui
-wails build
+make build-web
 ```
 
-The built application will be available in the `cmd/instaui/build/bin/` directory.
+The built application will be available as `./insta` in the project root.
 
 ### Using the Web UI
 
@@ -184,7 +182,7 @@ The built application will be available in the `cmd/instaui/build/bin/` director
    ./insta-infra-ui
    
    # If you built manually
-   ./cmd/instaui/build/bin/instaui
+   ./insta
    ```
 
 2. **Service Management**:
@@ -216,7 +214,7 @@ The Web UI supports the same platforms as the CLI:
 **Application won't start**:
 - Ensure Docker/Podman is running
 - Check that required ports aren't already in use
-- Try running with `wails dev` for detailed error messages
+- Try running with `make dev-web` for detailed error messages
 
 **Services won't start**:
 - Verify container runtime is accessible
@@ -288,11 +286,11 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 │   │   │   └── *.yaml  # Docker compose files
 │   │   ├── models.go   # Service definitions
 │   │   └── main.go     # CLI entry point
-│   └── instaui/        # Web UI application (Wails)
+│   └── insta/          # Web UI application (Browser-based)
 │       ├── frontend/   # React frontend
 │       │   ├── src/    # React components and styles
 │       │   └── dist/   # Built frontend assets
-│       ├── app.go      # Wails backend methods
+│       ├── webserver.go # HTTP API server
 │       └── main.go     # Web UI entry point
 ├── internal/
 │   └── core/           # Shared business logic
@@ -317,13 +315,13 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 #### Web UI Development
 
 1. Clone the repository
-2. Install dependencies: `cd cmd/instaui && npm install`
-3. Start development mode: `wails dev`
+2. Install dependencies: `cd cmd/insta/frontend && npm install`
+3. Start development mode: `make dev-web`
 4. Make changes to:
-   - **Go backend**: `cmd/instaui/app.go`
-   - **React frontend**: `cmd/instaui/frontend/src/`
+   - **Go backend**: `cmd/insta/webserver.go`
+   - **React frontend**: `cmd/insta/frontend/src/`
    - **Shared logic**: `internal/core/`
-5. Build for production: `make build-ui`
+5. Build for production: `make build-web`
 
 #### Full Development Environment
 

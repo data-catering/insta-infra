@@ -1,4 +1,4 @@
-.PHONY: build test clean lint vet fmt help release install packages publish build-ui dev-ui deps build-all clean-ui build-frontend
+.PHONY: build test clean lint vet fmt help release install packages publish deps build-all build-frontend build-web dev-web clean-web
 
 BINARY_NAME=insta
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -12,19 +12,18 @@ help:
 	@echo ""
 	@echo "Usage:"
 	@echo "  make build       Build CLI binary"
-	@echo "  make build-ui    Build Web UI binary (production)"
-	@echo "  make build-ui-bundled Build Web UI with bundled CLI (recommended for distribution)"
+	@echo "  make build-web   Build browser-based Web UI binary (recommended)"
 	@echo "  make build-frontend Build frontend assets only (for embed)"
 	@echo "  make build-all   Build both CLI and Web UI"
-	@echo "  make dev-ui      Start Web UI in development mode"
-	@echo "  make deps        Install all dependencies (Go, Node.js, Wails)"
+	@echo "  make dev-web     Start browser-based Web UI in development mode"
+	@echo "  make deps        Install all dependencies (Go, Node.js)"
 	@echo "  make test        Run all tests (Go + Frontend)"
 	@echo "  make test-go     Run Go tests only"
 	@echo "  make test-go-coverage Run Go tests with coverage"
 	@echo "  make test-ui     Run frontend tests only"
 	@echo "  make test-ui-coverage Run frontend tests with coverage"
 	@echo "  make clean       Clean all build artifacts"
-	@echo "  make clean-ui    Clean Web UI build artifacts only"
+	@echo "  make clean-web   Clean browser-based Web UI build artifacts only"
 	@echo "  make lint        Run linter"
 	@echo "  make vet         Run go vet"
 	@echo "  make fmt         Run go fmt"
@@ -38,46 +37,11 @@ build:
 	@chmod +x scripts/build.sh
 	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=false ./scripts/build.sh
 
-build-ui:
-	@echo "Preparing UI resources..."
-	@chmod +x scripts/prepare-ui-resources.sh
-	@./scripts/prepare-ui-resources.sh
-	@echo "Building Wails UI application (production)..."
-	cd cmd/instaui && wails build -clean
-	@echo "Wails UI application built. Binary available in cmd/instaui/build/bin/"
 
-build-ui-bundled: build
-	@echo "Preparing UI resources..."
-	@chmod +x scripts/prepare-ui-resources.sh
-	@./scripts/prepare-ui-resources.sh
-	@echo "Building Wails UI application with bundled CLI (production)..."
-	@if [ -n "$(WAILS_BUILD_TAGS)" ]; then \
-		echo "Building with tags: $(WAILS_BUILD_TAGS)"; \
-		cd cmd/instaui && wails build -clean $(WAILS_BUILD_TAGS); \
-	else \
-		cd cmd/instaui && wails build -clean; \
-	fi
-	@echo "Bundling CLI binary into app..."
-	./scripts/bundle-cli.sh
-	@echo "Wails UI application with bundled CLI built. Binary available in cmd/instaui/build/bin/"
-
-dev-ui:
-	@echo "Starting Wails UI application (development mode)..."
-	cd cmd/instaui && wails dev
 
 test: test-go test-ui
 
 test-go:
-	@echo "Preparing UI resources for tests..."
-	@chmod +x scripts/prepare-ui-resources.sh
-	@./scripts/prepare-ui-resources.sh
-	@echo "Building frontend for tests..."
-	@if [ -d "cmd/instaui/frontend/node_modules" ]; then \
-		cd cmd/instaui/frontend && npm run build; \
-	else \
-		echo "Frontend dependencies not installed. Installing..."; \
-		cd cmd/instaui/frontend && npm install && npm run build; \
-	fi
 	@echo "Running Go tests..."
 	go test -v ./...
 
@@ -88,8 +52,8 @@ test-go-coverage:
 
 test-ui:
 	@echo "Running frontend tests..."
-	@if [ -d "cmd/instaui/frontend/node_modules" ]; then \
-		cd cmd/instaui/frontend && npm test; \
+	@if [ -d "cmd/insta/frontend/node_modules" ]; then \
+		cd cmd/insta/frontend && npm test; \
 	else \
 		echo "Frontend dependencies not installed. Run 'make deps' first."; \
 		exit 1; \
@@ -97,14 +61,14 @@ test-ui:
 
 test-ui-coverage:
 	@echo "Running frontend tests with coverage..."
-	@if [ -d "cmd/instaui/frontend/node_modules" ]; then \
-		cd cmd/instaui/frontend && npm run test:coverage; \
+	@if [ -d "cmd/insta/frontend/node_modules" ]; then \
+		cd cmd/insta/frontend && npm run test:coverage; \
 	else \
 		echo "Frontend dependencies not installed. Run 'make deps' first."; \
 		exit 1; \
 	fi
 
-clean: clean-ui
+clean: clean-web
 	rm -f $(BINARY_NAME)
 	rm -f $(BINARY_NAME)-*.tar.gz
 	rm -f $(BINARY_NAME)-*.zip
@@ -116,16 +80,13 @@ lint:
 	@which golint > /dev/null || go install golang.org/x/lint/golint@latest
 	golint ./...
 
-vet: build-frontend
-	@echo "Preparing UI resources for vet..."
-	@chmod +x scripts/prepare-ui-resources.sh
-	@./scripts/prepare-ui-resources.sh
+vet:
 	go vet ./...
 
 build-frontend:
 	@echo "Building frontend for embed..."
-	@if [ -d "cmd/instaui/frontend/node_modules" ]; then \
-		cd cmd/instaui/frontend && npm run build; \
+	@if [ -d "cmd/insta/frontend/node_modules" ]; then \
+		cd cmd/insta/frontend && npm run build; \
 	else \
 		echo "Frontend dependencies not installed. Run 'make deps' first."; \
 		exit 1; \
@@ -169,18 +130,30 @@ install: build
 deps:
 	@echo "Installing Go dependencies..."
 	@go mod download
-	@echo "Installing Wails CLI..."
-	@go install github.com/wailsapp/wails/v2/cmd/wails@latest
 	@echo "Installing Web UI dependencies..."
-	@cd cmd/instaui/frontend && npm install
+	@cd cmd/insta/frontend && npm install
 	@echo "All dependencies installed successfully!"
 
-build-all: build build-ui
-	@echo "Both CLI and Web UI built successfully!"
+build-web: clean-web
+	@echo "Building browser-based Web UI..."
+	@chmod +x scripts/build-web.sh
+	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) ./scripts/build-web.sh
 
-clean-ui:
-	@echo "Cleaning Web UI build artifacts..."
-	@rm -rf cmd/instaui/build
-	@rm -rf cmd/instaui/frontend/dist
+dev-web:
+	@echo "Starting browser-based Web UI in development mode..."
+	@echo "Building frontend..."
+	@cd cmd/insta/frontend && npm run build
+	@echo "Copying frontend to embed location..."
+	@cp -r cmd/insta/frontend/dist/* cmd/insta/ui/dist/
+	@echo "Starting web server..."
+	@cd cmd/insta && go run . --ui
 
-clean-all: clean clean-ui 
+clean-web:
+	@echo "Cleaning browser-based Web UI build artifacts..."
+	@rm -rf cmd/insta/frontend/dist
+	@rm -rf cmd/insta/ui/dist/*
+
+build-all: build build-web
+	@echo "Both CLI and browser-based Web UI built successfully!"
+
+clean-all: clean clean-web 

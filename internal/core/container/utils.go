@@ -6,8 +6,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 // setDefaultEnvVars sets default environment variables for container operations
@@ -48,15 +46,6 @@ func parsePortMappings(output string) map[string]string {
 		}
 	}
 	return portMappings
-}
-
-// parseComposeConfig parses a compose configuration from YAML content
-func parseComposeConfig(yamlContent []byte) (*ComposeConfig, error) {
-	var config ComposeConfig
-	if err := yaml.Unmarshal(yamlContent, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse compose config: %w", err)
-	}
-	return &config, nil
 }
 
 // executeCommand executes shell commands with robust error handling

@@ -151,6 +151,12 @@ func (m *AppTestMockRuntime) GetAllContainerStatuses() (map[string]string, error
 	return map[string]string{}, nil
 }
 
+// ListAllImages returns a list of all available mock images
+func (m *AppTestMockRuntime) ListAllImages() ([]string, error) {
+	// Return some mock image names for testing
+	return []string{"postgres:latest", "mysql:latest", "redis:latest"}, nil
+}
+
 // GetAllDependenciesRecursive returns all dependencies recursively for a service from compose files
 func (m *AppTestMockRuntime) GetAllDependenciesRecursive(serviceName string, composeFiles []string, isContainer bool) ([]string, error) {
 	// For testing, return empty dependencies by default

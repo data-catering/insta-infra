@@ -35,6 +35,8 @@ type Runtime interface {
 	CheckMultipleImagesExist(imageNames []string) (map[string]bool, error)
 	// GetMultipleImageInfo returns image information for multiple services from compose files
 	GetMultipleImageInfo(serviceNames []string, composeFiles []string) (map[string]string, error)
+	// ListAllImages returns a list of all available images in the format "repository:tag"
+	ListAllImages() ([]string, error)
 	// PullImageWithProgress pulls an image and reports progress
 	PullImageWithProgress(imageName string, progressChan chan<- ImagePullProgress, stopChan <-chan struct{}) error
 	// GetContainerStatus returns the status of a container

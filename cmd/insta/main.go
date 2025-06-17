@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/data-catering/insta-infra/v2/internal/core"
@@ -42,27 +43,23 @@ type App struct {
 func NewApp(runtimeName string) (*App, error) {
 	// Initialize container runtime
 	provider := container.NewProvider()
+	var selectedRuntime container.Runtime
+
+	// Try to detect runtime, but don't fail if none is found
 	if err := provider.DetectRuntime(); err != nil {
-		return nil, fmt.Errorf(`failed to detect container runtime: %w
+		// Log the runtime detection failure, but continue startup
+		fmt.Fprintf(os.Stderr, "%sWarning: No container runtime detected: %v%s\n", colorYellow, err, colorReset)
+		fmt.Fprintf(os.Stderr, "%sStarting UI to help you configure a container runtime...%s\n", colorYellow, colorReset)
+		selectedRuntime = nil // Will be handled gracefully by the API
+	} else {
+		selectedRuntime = provider.SelectedRuntime()
 
-Please ensure one of the following is available:
-1. Docker (20.10+) with Docker Compose plugin
-2. Podman (3.0+) with Podman Compose plugin or podman-compose
-
-For Docker:
-  - Install Docker Desktop or Docker Engine
-  - Install Docker Compose plugin
-
-For Podman:
-  - Install Podman
-  - Install Podman Compose plugin or podman-compose
-  - On macOS, ensure podman machine is running (podman machine start)`, err)
-	}
-
-	// If runtime is explicitly specified, try to use it
-	if runtimeName != "" {
-		if err := provider.SetRuntime(runtimeName); err != nil {
-			return nil, fmt.Errorf("failed to set runtime to %s: %w", runtimeName, err)
+		// If runtime is explicitly specified, try to use it
+		if runtimeName != "" {
+			if err := provider.SetRuntime(runtimeName); err != nil {
+				return nil, fmt.Errorf("failed to set runtime to %s: %w", runtimeName, err)
+			}
+			selectedRuntime = provider.SelectedRuntime()
 		}
 	}
 
@@ -142,7 +139,7 @@ For Podman:
 	return &App{
 		dataDir:  dataDir,
 		instaDir: instaDir,
-		runtime:  provider.SelectedRuntime(),
+		runtime:  selectedRuntime,
 	}, nil
 }
 
@@ -428,18 +425,98 @@ func (a *App) connectToService(serviceName string) error {
 	return a.runtime.ExecInContainer(serviceName, cmd, true)
 }
 
+// WebUIFlags holds parsed web UI configuration flags
+type WebUIFlags struct {
+	Port      int
+	NoBrowser bool
+	Host      string
+	Runtime   string
+}
+
+// parseWebUIFlags extracts web UI flags from command line arguments
+// Returns parsed flags and remaining arguments for further processing
+func parseWebUIFlags(args []string) (WebUIFlags, []string) {
+	flags := WebUIFlags{
+		Port:      0, // 0 = auto-detect
+		NoBrowser: false,
+		Host:      "localhost",
+		Runtime:   "",
+	}
+
+	var remaining []string
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+
+		switch {
+		case arg == "--port" && i+1 < len(args):
+			// Parse port number
+			if port, err := strconv.Atoi(args[i+1]); err == nil {
+				flags.Port = port
+				i++ // Skip next argument
+			} else {
+				// Invalid port, include both in remaining args
+				remaining = append(remaining, arg, args[i+1])
+				i++
+			}
+		case arg == "--no-browser":
+			flags.NoBrowser = true
+		case arg == "--host" && i+1 < len(args):
+			flags.Host = args[i+1]
+			i++ // Skip next argument
+		case arg == "-r" && i+1 < len(args), arg == "--runtime" && i+1 < len(args):
+			flags.Runtime = args[i+1]
+			i++ // Skip next argument
+		default:
+			remaining = append(remaining, arg)
+		}
+	}
+
+	return flags, remaining
+}
+
+// startWebUIWithFlags starts the web UI with the specified configuration flags
+func startWebUIWithFlags(server *APIServer, flags WebUIFlags) error {
+	if flags.NoBrowser {
+		// Start server without opening browser
+		if flags.Port > 0 {
+			return server.StartOnPort(flags.Port)
+		}
+		return server.Start()
+	} else {
+		// Start server and open browser (default behavior)
+		if flags.Port > 0 {
+			return server.StartOnPort(flags.Port)
+		}
+		return server.StartWithBrowser()
+	}
+}
+
 func usage() {
 	fmt.Printf(`insta-infra %s (built: %s)
 Usage: %s [options...] [services...]
 
+    (no args)                 Launch web UI (default)
+    --ui, ui                  Launch web UI with browser
+    --web-server              Start web server without opening browser
+    --port <port>             Specify port for web server (default: auto-detect 9310-9320)
+    --no-browser              Start web server without opening browser
+    --host <host>             Host interface to bind to (default: localhost)
     <services>                Name of services to run
     -c, connect [service]     Connect to service
     -d, down [services...]    Shutdown services (if empty, shutdown all services)
     -h, help                  Show this help message
+    -l, list                  List supported services
     -r, runtime [name]        Specify container runtime (docker or podman)
     -v, version               Show version information
 
 Examples:
+    %s                      Launch web UI (default)
+    %s --ui                 Launch web UI with browser
+    %s --web-server         Start web server on available port
+    %s --port 9310          Start web UI on specific port
+    %s --no-browser         Start web server without opening browser
+    %s --port 9311 --no-browser  Start server on port 9311 without browser
     %s -l                   List supported services
     %s postgres             Spin up Postgres
     %s -c postgres          Connect to Postgres
@@ -447,23 +524,37 @@ Examples:
     %s -p postgres          Run Postgres with persisted data
     %s -r docker postgres   Run Postgres using Docker
     %s -r podman postgres   Run Postgres using Podman
-`, version, buildTime, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+`, version, buildTime, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 func main() {
+	// Parse command-line arguments manually to support both web UI flags and service commands
+	webUIFlags, remainingArgs := parseWebUIFlags(os.Args[1:])
+
 	// Define flags
 	connectCmd := flag.NewFlagSet("connect", flag.ExitOnError)
 	downCmd := flag.NewFlagSet("down", flag.ExitOnError)
 
-	// Add update and runtime flags
-	runtime := flag.String("runtime", "", "Explicitly set container runtime (docker/podman)")
+	// Add runtime flag
+	runtime := flag.String("runtime", webUIFlags.Runtime, "Explicitly set container runtime (docker/podman)")
 
-	if len(os.Args) < 2 {
-		usage()
-		os.Exit(0)
+	if len(remainingArgs) < 1 {
+		// Default behavior: launch UI mode
+		app, err := NewApp(*runtime)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+
+		server := NewAPIServer(app)
+		if err := startWebUIWithFlags(server, webUIFlags); err != nil {
+			fmt.Fprintf(os.Stderr, "%sError starting web UI: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+		return
 	}
 
-	switch os.Args[1] {
+	switch remainingArgs[0] {
 	case "-h", "--help", "help":
 		usage()
 		return
@@ -484,6 +575,32 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "--web-server":
+		app, err := NewApp(*runtime)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+
+		server := NewAPIServer(app)
+		if err := server.Start(); err != nil {
+			fmt.Fprintf(os.Stderr, "%sError starting web server: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+
+	case "--ui", "ui":
+		app, err := NewApp(*runtime)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+
+		server := NewAPIServer(app)
+		if err := startWebUIWithFlags(server, webUIFlags); err != nil {
+			fmt.Fprintf(os.Stderr, "%sError starting web UI: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+
 	case "-c", "connect":
 		app, err := NewApp(*runtime)
 		if err != nil {
@@ -491,7 +608,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		connectCmd.Parse(os.Args[2:])
+		connectCmd.Parse(remainingArgs[1:])
 		if connectCmd.NArg() < 1 {
 			fmt.Fprintf(os.Stderr, "%sError: No service specified%s\n", colorRed, colorReset)
 			os.Exit(1)
@@ -508,7 +625,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		downCmd.Parse(os.Args[2:])
+		downCmd.Parse(remainingArgs[1:])
 		if err := app.stopServices(downCmd.Args()); err != nil {
 			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
 			os.Exit(1)
@@ -522,7 +639,7 @@ func main() {
 		}
 
 		// Check for persist flag
-		startArgs := os.Args[1:]
+		startArgs := remainingArgs
 		persistIndex := -1
 		for i, arg := range startArgs {
 			if arg == "-p" {

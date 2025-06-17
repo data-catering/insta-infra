@@ -17,9 +17,9 @@ Thumbs.db
 # Go build artifacts
 build/
 /insta
-/instaui
-cmd/instaui/instaui
+
 cmd/insta/insta
+cmd/insta/insta-test
 release/
 *.exe
 *.exe~
@@ -39,35 +39,29 @@ coverage/
 # Data persistence
 cmd/insta/resources/data/*/persist/
 
-# Wails UI embedded resources (duplicated from cmd/insta/resources)
-cmd/instaui/resources/
-
 # Frontend build artifacts
-cmd/instaui/frontend/dist/
-cmd/instaui/frontend/build/
-cmd/instaui/frontend/node_modules/
-cmd/instaui/frontend/*.md5
-cmd/instaui/frontend/coverage/
-cmd/instaui/frontend/.nyc_output/
-cmd/instaui/frontend/test-results/
-cmd/instaui/frontend/.cache/
-cmd/instaui/frontend/.parcel-cache/
-cmd/instaui/frontend/.vite/
+cmd/insta/frontend/dist/
+cmd/insta/frontend/build/
+cmd/insta/frontend/node_modules/
+cmd/insta/frontend/*.md5
+cmd/insta/frontend/coverage/
+cmd/insta/frontend/.nyc_output/
+cmd/insta/frontend/test-results/
+cmd/insta/frontend/.cache/
+cmd/insta/frontend/.parcel-cache/
+cmd/insta/frontend/.vite/
+cmd/insta/ui/dist
 
 # Playwright test artifacts
-cmd/instaui/frontend/playwright-report/
-cmd/instaui/frontend/test-results-playwright/
+cmd/insta/frontend/playwright-report/
+cmd/insta/frontend/test-results-playwright/
 **/e2e/**/*-snapshots/
 **/*test-results*/
 
-# Wails build artifacts
+# Build artifacts
 app.syso
+/instaui
 
-# Legacy UI paths (if they exist)
-cmd/instaui/ui/dist/
-cmd/instaui/ui/node_modules/
-cmd/instaui/ui/package.json
-cmd/instaui/ui/package-lock.json
 
 # Node.js dependencies and artifacts
 node_modules/
@@ -119,6 +113,11 @@ junit.xml
 **/*-snapshots/
 **/*.spec.js-snapshots/
 **/*.test.js-snapshots/
+
+# Test screenshots and artifacts
+**/*.png
+**/*.webm
+**/error-context.md
 
 # Backup files
 *.bak

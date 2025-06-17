@@ -640,24 +640,23 @@ exit 1
 	err := os.WriteFile(dockerPath, []byte(dockerScript), 0755)
 	require.NoError(t, err)
 
-	// Test the path detection logic directly
-	commonPaths := []string{
-		"/usr/local/bin/docker",
-		"/opt/homebrew/bin/docker",
-		"/Applications/Docker.app/Contents/Resources/bin/docker",
-		dockerPath, // Our test path
+	// Test the path detection logic using only our test paths
+	// This avoids conflicts with real Docker installations
+	testPaths := []string{
+		"/nonexistent/path/docker", // This won't exist
+		dockerPath,                 // Our test path
 	}
 
 	var foundPath string
-	for _, path := range commonPaths {
+	for _, path := range testPaths {
 		if _, err := os.Stat(path); err == nil {
 			foundPath = path
 			break
 		}
 	}
 
-	// Should find some docker binary (either real or our test one)
-	assert.NotEmpty(t, foundPath)
+	// Should find our test docker binary
+	assert.Equal(t, dockerPath, foundPath)
 
 	// Test that the found docker binary works
 	cmd := exec.Command(foundPath, "info")

@@ -1,4 +1,4 @@
-name: Test and build
+name: Test and Build
 
 on:
   push:
@@ -29,20 +29,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Cache Wails CLI
-        uses: actions/cache@v4
-        with:
-          path: ~/go/bin/wails
-          key: ${{ runner.os }}-wails-${{ hashFiles('**/go.mod') }}
-          restore-keys: |
-            ${{ runner.os }}-wails-
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: cmd/instaui/frontend/package-lock.json
+          cache-dependency-path: cmd/insta/frontend/package-lock.json
 
       - name: Install dependencies
         run: make deps
@@ -50,72 +42,25 @@ jobs:
       - name: Run tests
         run: make test
 
-  build-cli:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache: true
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-upx-
-            ${{ runner.os }}-apt-
-
-      - name: Install UPX
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y upx
-
-      - name: Build CLI
-        run: make build
-
-      - name: Upload CLI artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: insta-cli-linux
-          path: insta
-
-  build-ui:
+  build:
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             platform: linux/amd64
-            artifact-name: instaui-linux-amd64
+            artifact-name: insta-linux-amd64
           - os: macos-13
             platform: darwin/amd64
-            artifact-name: instaui-darwin-amd64
+            artifact-name: insta-darwin-amd64
           - os: macos-latest
             platform: darwin/arm64
-            artifact-name: instaui-darwin-arm64
+            artifact-name: insta-darwin-arm64
           - os: windows-latest
             platform: windows/amd64
-            artifact-name: instaui-windows-amd64
+            artifact-name: insta-windows-amd64
     runs-on: ${{ matrix.os }}
     needs: test
-    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -136,31 +81,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Cache Wails CLI
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/bin/wails
-            ~/.wails
-          key: ${{ runner.os }}-wails-${{ hashFiles('**/go.mod') }}
-          restore-keys: |
-            ${{ runner.os }}-wails-
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: cmd/instaui/frontend/package-lock.json
+          cache-dependency-path: cmd/insta/frontend/package-lock.json
 
       - name: Cache apt packages (Linux)
         if: matrix.os == 'ubuntu-latest'
         uses: actions/cache@v4
         with:
           path: /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-webkit-${{ hashFiles('.github/workflows/test-build.yml') }}
+          key: ${{ runner.os }}-apt-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
           restore-keys: |
-            ${{ runner.os }}-apt-webkit-
+            ${{ runner.os }}-apt-upx-
             ${{ runner.os }}-apt-
 
       - name: Cache Homebrew (macOS)
@@ -191,244 +126,66 @@ jobs:
       - name: Install dependencies
         run: make deps
 
-      - name: Install Linux dependencies (Ubuntu only)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-
-      - name: Install UPX (for CLI compression)
+      - name: Install UPX (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y upx
+
+      - name: Install UPX (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install upx
 
       - name: Install UPX (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           choco install upx
 
-      - name: Build bundled UI application (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            WAILS_BUILD_TAGS="-tags webkit2_41" make build-ui-bundled
-          else
-            make build-ui-bundled
-          fi
+      - name: Build unified binary (CLI + Web UI)
+        run: make build-web
         env:
-          CGO_ENABLED: 1
-          
-      - name: Build bundled UI application (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          echo "Building CLI binary first..."
-          make build
-          echo "Preparing UI resources..."
-          bash scripts/prepare-ui-resources.sh
-          echo "Building Wails UI application with bundled CLI (production)..."
-          cd cmd/instaui && wails build -clean
-          echo "Bundling CLI binary into app..."
-          powershell -ExecutionPolicy Bypass -File "..\..\scripts\bundle-cli.ps1"
-          echo "Wails UI application with bundled CLI built. Binary available in cmd/instaui/build/bin/"
-        env:
-          CGO_ENABLED: 1
+          CGO_ENABLED: 0
 
-      - name: Upload UI artifact
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: cmd/instaui/build/bin/
+          path: insta*
 
-  test-ui-integration:
+  release:
     runs-on: ubuntu-latest
-    needs: [build-ui]
-    if: always()
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download UI artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: instaui-linux-amd64
-          path: ./ui-artifacts
-        continue-on-error: true
-
-      - name: Test UI binary
-        run: |
-          if [ -f "ui-artifacts/instaui" ]; then
-            echo "Testing bundled UI binary..."
-            chmod +x ui-artifacts/instaui
-            ls -la ui-artifacts/
-            file ui-artifacts/instaui
-            
-            # Test help command
-            timeout 10s ./ui-artifacts/instaui --help || echo "Help command test completed (timeout or exit)"
-            
-            # Test version command if available
-            timeout 10s ./ui-artifacts/instaui --version || echo "Version command test completed (timeout or exit)"
-            
-            echo "Bundled UI binary integration test completed successfully"
-          else
-            echo "UI binary not found - Linux AMD64 build may have failed"
-            echo "Available files:"
-            find ui-artifacts -type f 2>/dev/null || echo "No files found"
-            echo "Skipping integration test"
-          fi
-
-  build-summary:
-    runs-on: ubuntu-latest
-    needs: [build-cli, build-ui, test-ui-integration]
-    if: always()
-    steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
-        with:
-          path: artifacts
 
-      - name: Create artifact README
+      - name: Display structure of downloaded files
+        run: ls -la
+
+      - name: Create release info
         run: |
-          cat > artifacts/README.md << 'EOF'
-          # Insta-Infra Build Artifacts
-          
-          This directory contains the built binaries for insta-infra.
-          
-          ## CLI Tool (insta)
-          - `insta-cli-linux/insta` - Command-line interface for Linux AMD64
-          
-          ## UI Applications (instaui) - Bundled with CLI
-          The UI applications provide a graphical interface for managing services and include the CLI bundled within:
-          
-          ### Linux
-          - `instaui-linux-amd64/instaui` - Linux AMD64 binary (bundled with CLI)
-          
-          **Note**: Linux ARM64 builds are not currently available due to cross-compilation limitations with Wails.
-          
-          ### macOS
-          - `instaui-darwin-amd64/Insta-Infra UI.app` - macOS Intel (x86_64) application bundle
-          - `instaui-darwin-arm64/Insta-Infra UI.app` - macOS Apple Silicon (ARM64) application bundle
-          
-          **⚠️ macOS Security Notice**: These apps are not code-signed. If macOS blocks the app:
-          1. Right-click the app and select 'Open'
-          2. Click 'Open' in the security dialog
-          3. Or run: `xattr -cr "Insta-Infra UI.app"` then open the app
-          
-          ### Windows
-          - `instaui-windows-amd64/instaui.exe` - Windows AMD64 executable (bundled with CLI)
-          
-          ## Usage
-          
-          ### CLI Tool
-          ```bash
-          chmod +x insta
-          ./insta --help
-          ```
-          
-          ### UI Applications
-          
-          **Linux:**
-          ```bash
-          chmod +x instaui
-          ./instaui
-          ```
-          
-          **macOS:**
-          Double-click the `Insta-Infra UI.app` bundle or run from terminal:
-          ```bash
-          open "Insta-Infra UI.app"
-          ```
-          
-          **Windows:**
-          ```cmd
-          instaui.exe
-          ```
-          
-          ## Features
-          - **Bundled CLI**: UI applications include the CLI binary, so no separate installation needed
-          - **Native Apps**: Platform-specific application bundles for better OS integration
-          - **Container Runtime Support**: Works with Docker or Podman
-          
-          ## Requirements
-          - Docker or Podman installed and running
-          - For UI applications: Modern operating system with GUI support
-          
-          ## More Information
-          Visit the [insta-infra repository](https://github.com/data-catering/insta-infra) for documentation and source code.
-          EOF
+          echo "## Build Information" > release-info.md
+          echo "- **Commit:** ${{ github.sha }}" >> release-info.md
+          echo "- **Date:** $(date -u)" >> release-info.md
+          echo "- **Unified Binaries:** insta-* (includes both CLI and Web UI)" >> release-info.md
+          echo "  - Linux AMD64: insta-linux-amd64" >> release-info.md
+          echo "  - macOS Intel: insta-darwin-amd64" >> release-info.md  
+          echo "  - macOS Apple Silicon: insta-darwin-arm64" >> release-info.md
+          echo "  - Windows AMD64: insta-windows-amd64" >> release-info.md
+          echo "" >> release-info.md
+          echo "### Usage" >> release-info.md
+          echo "Each binary provides both CLI and Web UI functionality:" >> release-info.md
+          echo "- **CLI Mode:** \`./insta -l\` (list services)" >> release-info.md
+          echo "- **Web UI Mode:** \`./insta\` (opens browser automatically)" >> release-info.md
+          echo "- **Web Server Mode:** \`./insta --port 9310 --no-browser\`" >> release-info.md
 
-      - name: Display build summary
-        run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Built Artifacts:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # List all artifacts with sizes
-          if find artifacts -name "insta*" -type f 2>/dev/null | grep -q .; then
-            find artifacts -name "insta*" -type f -exec ls -lh {} \; | while read line; do
-              echo "- $line" >> $GITHUB_STEP_SUMMARY
-            done
-          else
-            echo "- No artifacts found" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Also list .app bundles for macOS
-          if find artifacts -name "*.app" -type d 2>/dev/null | grep -q .; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### macOS Application Bundles:" >> $GITHUB_STEP_SUMMARY
-            find artifacts -name "*.app" -type d -exec du -sh {} \; | while read line; do
-              echo "- $line" >> $GITHUB_STEP_SUMMARY
-            done
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Platform Build Status:" >> $GITHUB_STEP_SUMMARY
-          
-          # Check which artifacts exist to determine build status
-          if [ -f "artifacts/insta-cli-linux/insta" ]; then
-            echo "- ✅ CLI: Linux AMD64" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ CLI: Linux AMD64" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -f "artifacts/instaui-linux-amd64/instaui" ]; then
-            echo "- ✅ UI (Bundled): Linux AMD64" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ UI (Bundled): Linux AMD64" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-
-          
-          if [ -d "artifacts/instaui-darwin-amd64/Insta-Infra UI.app" ]; then
-            echo "- ✅ UI (Native App): macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ UI (Native App): macOS AMD64 (Intel)" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -d "artifacts/instaui-darwin-arm64/Insta-Infra UI.app" ]; then
-            echo "- ✅ UI (Native App): macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ UI (Native App): macOS ARM64 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          if [ -f "artifacts/instaui-windows-amd64/instaui.exe" ]; then
-            echo "- ✅ UI (Bundled): Windows AMD64" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ UI (Bundled): Windows AMD64" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Download Instructions:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Go to the 'Summary' tab of this workflow run" >> $GITHUB_STEP_SUMMARY
-          echo "2. Scroll down to 'Artifacts' section" >> $GITHUB_STEP_SUMMARY
-          echo "3. Click on the artifact for your platform to download (only successful builds will be available)" >> $GITHUB_STEP_SUMMARY
-          echo "4. Extract and run the binary/app (see README.md in artifacts for details)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note**: UI applications include the CLI bundled within, providing a complete standalone solution." >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload README
+      - name: Upload release info
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-readme
-          path: artifacts/README.md
+          name: release-info
+          path: release-info.md
