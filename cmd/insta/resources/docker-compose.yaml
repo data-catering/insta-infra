@@ -26,7 +26,7 @@ services:
       start_period: 30s
       test: [CMD, curl, --fail, "http://localhost:8080/api/v2/monitor/health"]
       timeout: 10s
-    image: "apache/airflow:${AIRFLOW_VERSION:-3.0.1}"
+    image: "apache/airflow:${AIRFLOW_VERSION:-3.0.2}"
     ports:
       - "8081:8080"
     restart: always
@@ -42,7 +42,7 @@ services:
         condition: service_completed_successfully
     entrypoint: /bin/bash
     env_file: ./data/airflow/.env
-    image: "apache/airflow:${AIRFLOW_VERSION:-3.0.1}"
+    image: "apache/airflow:${AIRFLOW_VERSION:-3.0.2}"
     user: "0:0"
     volumes:
       - "./data/airflow/init.sh:/tmp/scripts/init.sh"
@@ -179,7 +179,7 @@ services:
       clickhouse-server:
         condition: service_healthy
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.4.5}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.5.2}"
     user: "101:101"
     volumes:
       - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
@@ -195,7 +195,7 @@ services:
       test: "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"
       timeout: 5s
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.4.5}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.5.2}"
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -206,7 +206,7 @@ services:
     depends_on:
       cockroachdb-server:
         condition: service_healthy
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.6}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.2.1}"
     volumes:
       - "./data/cockroachdb/init.sh:/tmp/scripts/init.sh"
       - "${COCKROACHDB_DATA:-./data/cockroachdb/data}:/tmp/data"
@@ -218,7 +218,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "curl --fail http://localhost:8080/ || exit 1"]
       timeout: 5s
-    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.1.6}"
+    image: "cockroachdb/cockroach:${COCKROACHDB_VERSION:-v25.2.1}"
     ports:
       - "26257:26257"
       - "8080:8080"
@@ -267,7 +267,7 @@ services:
       - "CVAT_USER=${CVAT_USER:-admin}"
       - "CVAT_PASSWORD=${CVAT_PASSWORD:-admin}"
       - "CVAT_EMAIL=${CVAT_EMAIL:-admin@example.com}"
-    image: "cvat/server:${CVAT_VERSION:-v2.37.0}"
+    image: "cvat/server:${CVAT_VERSION:-v2.39.0}"
     volumes:
       - "./data/cvat/init.sh:/tmp/scripts/init.sh"
   cvat-opa:
@@ -278,7 +278,7 @@ services:
       retries: 3
       test: [CMD, opa, eval, "true"]
       timeout: 3s
-    image: "openpolicyagent/opa:${OPA_VERSION:-1.4.2}"
+    image: "openpolicyagent/opa:${OPA_VERSION:-1.5.1}"
   cvat-server:
     command: init run server
     container_name: cvat-server
@@ -296,7 +296,7 @@ services:
       start_period: 10s # Give time for DB migrations and startup
       test: [CMD-SHELL, python manage.py health_check]
       timeout: 3s
-    image: "cvat/server:${CVAT_VERSION:-v2.37.0}"
+    image: "cvat/server:${CVAT_VERSION:-v2.39.0}"
     labels:
       traefik.enable: "true"
       traefik.http.routers.cvat.entrypoints: web
@@ -318,7 +318,7 @@ services:
       retries: 3
       test: [CMD, nginx, -t]
       timeout: 5s
-    image: "cvat/ui:${CVAT_VERSION:-v2.37.0}"
+    image: "cvat/ui:${CVAT_VERSION:-v2.39.0}"
     labels:
       traefik.enable: "true"
       traefik.http.routers.cvat-ui.entrypoints: web
@@ -336,7 +336,7 @@ services:
       - "DAGSTER_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}"
       - DAGSTER_POSTGRES_DB=dagster
       - DAGSTER_HOME=/opt/dagster/dagster_home/
-    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.15}"
+    image: "dagster/dagster-k8s:${DAGSTER_VERSION:-1.10.20}"
     ports:
       - "3000:3000"
     volumes:
@@ -348,7 +348,7 @@ services:
         condition: service_completed_successfully
     environment:
       - DEPLOY_MODE=standalone
-    image: "datacatering/data-caterer:${DATA_CATERER_VERSION:-0.15.4}"
+    image: "datacatering/data-caterer:${DATA_CATERER_VERSION:-0.16.1}"
     ports:
       - "9898:9898"
     volumes:
@@ -410,7 +410,7 @@ services:
     entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
     environment:
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-MetadataAuditEvent_v4,MetadataChangeEvent_v4,FailedMetadataChangeEvent_v4,MetadataChangeLog_Versioned_v1,MetadataChangeLog_Timeseries_v1,MetadataChangeProposal_v1,FailedMetadataChangeProposal_v1,PlatformEvent_v1,DataHubUpgradeHistory_v1}"
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.9.1}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.0}"
     volumes:
       - "./data/kafka/init.sh:/tmp/scripts/init.sh"
   datahub-upgrade:
@@ -628,7 +628,7 @@ services:
       postgres:
         condition: service_completed_successfully
     entrypoint: [tail, -F, anything]
-    image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.2.2}"
+    image: "datacatering/duckdb:${DUCKDB_VERSION:-v1.3.1}"
     volumes:
       - "./data/duckdb:/opt/data"
   elasticsearch:
@@ -638,7 +638,7 @@ services:
         condition: service_healthy
     entrypoint: /tmp/entrypoint.sh
     env_file: ./data/elasticsearch/.env
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.0.1}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.0.2}"
     volumes:
       - "./data/elasticsearch/data/entrypoint.sh:/tmp/entrypoint.sh"
       - "./data/elasticsearch/data/lib.sh:/tmp/lib.sh"
@@ -651,7 +651,7 @@ services:
       retries: 5
       test: "curl -sS --fail http://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=0s"
       timeout: 5s
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.0.1}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.0.2}"
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -735,7 +735,7 @@ services:
       retries: 3
       test: [CMD-SHELL, "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       timeout: 5s
-    image: "grafana/grafana:${GRAFANA_VERSION:-12.0.0}"
+    image: "grafana/grafana:${GRAFANA_VERSION:-12.0.1}"
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
     volumes:
@@ -807,7 +807,7 @@ services:
     entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
     environment:
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-accounts,transactions}"
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.9.1}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.0}"
     volumes:
       - "./data/kafka/init.sh:/tmp/scripts/init.sh"
   kafka-server:
@@ -824,7 +824,7 @@ services:
       retries: 5
       test: [CMD-SHELL, /bin/sh, -c, kafka-topics, --bootstrap-server, "kafka:29092", --list]
       timeout: 5s
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-7.9.1}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.0}"
     ports:
       - "9092:9092"
   keycloak:
@@ -834,7 +834,7 @@ services:
       postgres:
         condition: service_completed_successfully
     env_file: ./data/keycloak/.env
-    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.2.4}"
+    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.2.5}"
     ports:
       - "8082:8080"
     restart: unless-stopped
@@ -854,7 +854,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:5601/api/status"]
       timeout: 5s
-    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-9.0.1}"
+    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-9.0.2}"
     ports:
       - "5601:5601"
     restart: always
@@ -873,7 +873,7 @@ services:
       retries: 5
       test: [CMD-SHELL, kong health]
       timeout: 10s
-    image: "kong:${KONG_VERSION:-3.9.0}"
+    image: "kong:${KONG_VERSION:-3.9.1}"
     ports:
       - 8001:8001
       - 8000:8000
@@ -888,7 +888,7 @@ services:
       postgres:
         condition: service_completed_successfully
     env_file: ./data/kong/.env
-    image: "kong:${KONG_VERSION:-3.9.0}"
+    image: "kong:${KONG_VERSION:-3.9.1}"
   label-studio:
     container_name: label-studio
     image: heartexlabs/label-studio:${LABEL_STUDIO_VERSION:-1.18.0}
@@ -1038,7 +1038,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:9600"]
       timeout: 5s
-    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-9.0.1}"
+    image: "docker.elastic.co/logstash/logstash:${LOGSTASH_VERSION:-9.0.2}"
     ports:
       - "5044:5044"
       - "50000:50000/tcp"
@@ -1056,7 +1056,7 @@ services:
       retries: 3
       test: [CMD-SHELL, "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
       timeout: 5s
-    image: "grafana/loki:${LOKI_VERSION:-3.5.0}"
+    image: "grafana/loki:${LOKI_VERSION:-3.5.1}"
     ports:
       - "${LOKI_PORT:-3100}:3100"
     volumes:
@@ -1088,7 +1088,7 @@ services:
       - "MARIADB_PASSWORD=${MARIADB_PASSWORD:-password}"
       - MARIADB_ROOT_PASSWORD=root
       - MARIADB_DATABASE=customer
-    image: "mariadb:${MARIADB_VERSION:-11.7.2}"
+    image: "mariadb:${MARIADB_VERSION:-11.8.2}"
     ports:
       - "3306:3306"
     restart: always
@@ -1143,7 +1143,7 @@ services:
       retries: 5
       test: [CMD-SHELL, curl, --fail, -I, http://localhost:3000/api/health || exit 1]
       timeout: 5s
-    image: "metabase/metabase:${METABASE_VERSION:-v0.54.9}"
+    image: "metabase/metabase:${METABASE_VERSION:-v0.55.3}"
     ports:
       - "3000:3000"
     volumes:
@@ -1159,7 +1159,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:9091/healthz"]
       timeout: 10s
-    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.5.12}"
+    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.5.13}"
     ports:
       - "${MILVUS_PORT:-19530}:19530"
       - "9091:9091"
@@ -1191,7 +1191,7 @@ services:
       retries: 3
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       timeout: 5s
-    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.22.0}"
+    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v3.1.0}"
     ports:
       - "${MLFLOW_PORT:-5000}:5000"
   mlflow-serve:
@@ -1207,7 +1207,7 @@ services:
       retries: 3
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       timeout: 5s
-    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v2.22.0}"
+    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v3.1.0}"
     ports:
       - "${MLFLOW_SERVE_PORT:-5001}:5001"
   mongodb:
@@ -1217,7 +1217,7 @@ services:
       - mongodb-server
     environment:
       - "CONN_STR=mongodb://${MONGODB_USER:-user}:${MONGODB_PASSWORD:-password}@mongodb-server"
-    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.9-ubi8}"
+    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.0.10-ubi8}"
     volumes:
       - "./data/mongodb:/opt/app"
   mongodb-server:
@@ -1225,7 +1225,7 @@ services:
     environment:
       - "MONGO_INITDB_ROOT_USERNAME=${MONGODB_USER:-user}"
       - "MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD:-password}"
-    image: "mongo:${MONGODB_VERSION:-8.0.9}"
+    image: "mongo:${MONGODB_VERSION:-8.0.10}"
     ports:
       - "27017:27017"
   mssql:
@@ -1275,7 +1275,7 @@ services:
       retries: 3
       test: [CMD, /bin/sh, -c, "curl -f http://localhost:8222/healthz"]
       timeout: 5s
-    image: "nats:${NATS_VERSION:-2.11.3}"
+    image: "nats:${NATS_VERSION:-2.11.4}"
     ports:
       - "${NATS_PORT:-4222}:4222"
       - "8222:8222"
@@ -1288,7 +1288,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
       timeout: 10s
-    image: "neo4j:${NEO4J_VERSION:-2025.04.0}"
+    image: "neo4j:${NEO4J_VERSION:-2025.05.0}"
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -1310,7 +1310,7 @@ services:
       start_period: 30s
       test: [CMD, curl, --fail, "http://localhost:8080/health"]
       timeout: 10s
-    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.7.0}"
+    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.7.4}"
     ports:
       - "8080:8080"
   openmetadata-server:
@@ -1329,7 +1329,7 @@ services:
       retries: 5
       test: [CMD, wget, -q, --spider,  "http://localhost:8586/healthcheck"]
       timeout: 5s
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.7.0}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.7.4}"
     ports:
       - "8585:8585"
       - "8586:8586"
@@ -1348,7 +1348,7 @@ services:
       - "DB_USER_PASSWORD=${MYSQL_PASSWORD:-root}"
       - "ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}"
       - "ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elasticsearch}"
-    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.7.0}"
+    image: "docker.getcollate.io/openmetadata/server:${OPENMETADATA_VERSION:-1.7.4}"
   opensearch:
     container_name: opensearch
     environment:
@@ -1459,7 +1459,7 @@ services:
     entrypoint: [/opt/prefect/app/start_flows.sh]
     environment:
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.4.2-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.4.6-python3.11}"
     volumes:
       - "./data/prefect/flows:/root/flows"
       - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
@@ -1475,7 +1475,7 @@ services:
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
       - PREFECT_SERVER_API_HOST=0.0.0.0
       - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/prefect"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.4.2-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.4.6-python3.11}"
     ports:
       - "4200:4200"
     restart: always
@@ -1496,7 +1496,7 @@ services:
       retries: 3
       test: [CMD, wget, --no-verbose, --tries=1, --spider, "http://localhost:9090/-/healthy"]
       timeout: 5s
-    image: "prom/prometheus:${PROMETHEUS_VERSION:-v3.4.0}"
+    image: "prom/prometheus:${PROMETHEUS_VERSION:-v3.4.1}"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
@@ -1509,7 +1509,7 @@ services:
       retries: 3
       test: [CMD, bin/pulsar-admin, brokers, healthcheck]
       timeout: 10s
-    image: "apachepulsar/pulsar:${PULSAR_VERSION:-4.0.4}"
+    image: "apachepulsar/pulsar:${PULSAR_VERSION:-4.0.5}"
     ports:
       - "${PULSAR_PORT:-6650}:6650"
       - "8080:8080"
@@ -1524,7 +1524,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:6333/health"]
       timeout: 5s
-    image: "qdrant/qdrant:${QDRANT_VERSION:-v1.14.0}"
+    image: "qdrant/qdrant:${QDRANT_VERSION:-v1.14.1}"
     ports:
       - "${QDRANT_PORT:-6333}:6333"
       - "6334:6334"
@@ -1539,7 +1539,7 @@ services:
       test: rabbitmq-diagnostics -q ping
       timeout: 30s
     hostname: my-rabbit
-    image: "rabbitmq:${RABBITMQ_VERSION:-4.1.0-management}"
+    image: "rabbitmq:${RABBITMQ_VERSION:-4.1.1-management}"
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -1557,7 +1557,7 @@ services:
       retries: 3
       test: [CMD, ray, status]
       timeout: 10s
-    image: "rayproject/ray:${RAY_VERSION:-2.46.0-aarch64}"
+    image: "rayproject/ray:${RAY_VERSION:-2.47.0-aarch64}"
     ports:
       - "${RAY_PORT:-8265}:8265"
       - "6379:6379"
@@ -1612,7 +1612,7 @@ services:
       retries: 3
       test: [CMD, redis-cli, --raw, incr, ping]
       timeout: 5s
-    image: "redis:${REDIS_VERSION:-8.0.1}"
+    image: "redis:${REDIS_VERSION:-8.0.2}"
     ports:
       - "6379:6379"
   solace:
@@ -1670,7 +1670,7 @@ services:
   sqlite:
     command: [tail, -f, /dev/null]
     container_name: sqlite
-    image: "keinos/sqlite3:${SQLITE_VERSION:-3.49.2}"
+    image: "keinos/sqlite3:${SQLITE_VERSION:-3.50.1}"
     volumes:
       - "./data/sqlite:/opt/data"
   superset:
@@ -1736,7 +1736,7 @@ services:
     depends_on:
       postgres:
         condition: service_completed_successfully
-    image: "trinodb/trino:${TRINO_VERSION:-475}"
+    image: "trinodb/trino:${TRINO_VERSION:-476}"
     ports:
       - "8084:8080"
     volumes:
@@ -1774,7 +1774,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:8080/v1/.well-known/ready"]
       timeout: 5s
-    image: "semitechnologies/weaviate:${WEAVIATE_VERSION:-1.30.3}"
+    image: "semitechnologies/weaviate:${WEAVIATE_VERSION:-1.31.1}"
     ports:
       - "${WEAVIATE_PORT:-8080}:8080"
   zookeeper:
