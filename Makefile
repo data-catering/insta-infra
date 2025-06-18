@@ -39,7 +39,7 @@ build:
 
 
 
-test: test-go test-ui
+test: build-web test-go test-ui
 
 test-go:
 	@echo "Running Go tests..."
