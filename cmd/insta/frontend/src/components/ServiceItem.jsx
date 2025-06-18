@@ -65,7 +65,6 @@ export const ImageStatusProvider = ({ children, services }) => {
 
       setImageNames(namesMap);
       setImageStatuses(statusMap);
-      logDebug('Image statuses loaded efficiently:', statusMap);
       
     } catch (error) {
       console.error('ImageStatusProvider: Error loading image statuses:', error);
@@ -303,8 +302,6 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
 
     // Subscribe to service status updates for this specific service
     const statusCallback = wsClient.subscribeToServiceStatus(name, (payload) => {
-      logDebug(`WebSocket status update for ${name}:`, payload);
-      
       const { status, error } = payload;
       if (status) {
         // For WebSocket updates, notify parent instead of managing local state
@@ -548,11 +545,8 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
     setLocalStatusError(null);
     
     try {
-      logDebug(`Starting service ${name} with persist=${persistData}`);
-      
       // Check if image exists before starting
       const imageExists = await checkImageExists(name);
-      logDebug(`Image exists for ${name}:`, imageExists);
       
       if (!imageExists) {
         // Image doesn't exist, need to download it
@@ -560,8 +554,6 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
         setShowProgressModal(true);
         
         try {
-          logDebug('Starting image pull for', name);
-          
           // Start image pull
           await startImagePull(name);
           
@@ -576,18 +568,11 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
                 await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500 milliseconds
                 attempts++;
                 
-                try {
-                  const exists = await checkImageExists(name);
-                  if (exists && !isResolved) {
-                    logDebug('Image download completed for', name, '(attempt', attempts, ') - resolving promise');
-                    isResolved = true;
-                    resolve();
-                    return;
-                  } else {
-                    logDebug('Image still downloading for', name, '(attempt', attempts, 'of', maxAttempts, ')');
-                  }
-                } catch (pollError) {
-                  logDebug('Error polling for image', name, ':', pollError);
+                const exists = await checkImageExists(name);
+                if (exists && !isResolved) {
+                  isResolved = true;
+                  resolve();
+                  return;
                 }
               }
               
@@ -601,7 +586,6 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
             pollForCompletion();
           });
           
-          logDebug('Image pull completed successfully for', name, '- proceeding to start service');
           updateImageStatus(name, 'ready');
            
          } catch (downloadError) {
@@ -612,11 +596,8 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
          }
       }
       
-      logDebug('Starting service', name);
       // Start the service - backend will handle status broadcasts
       await startService(name, persistData);
-      
-      logDebug('Service started successfully:', name);
       
       // Update image status to ready if needed
       if (imageStatus !== 'ready') {
