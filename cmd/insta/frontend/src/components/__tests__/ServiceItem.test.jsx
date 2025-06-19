@@ -8,7 +8,7 @@ vi.mock('../../api/client', () => ({
   startService: vi.fn(),
   stopService: vi.fn(),
   checkImageExists: vi.fn(() => Promise.resolve(true)),
-  getEnhancedServiceConnection: vi.fn(),
+  getServiceConnection: vi.fn(),
   wsClient: {
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
@@ -108,7 +108,8 @@ describe('ServiceItem Component - User Interactions', () => {
       
       expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: /stop/i })).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /logs/i })).toBeInTheDocument()
+      // Logs button should NOT be shown for stopped services
+      expect(screen.queryByRole('button', { name: /logs/i })).not.toBeInTheDocument()
     })
   })
 
@@ -206,8 +207,8 @@ describe('ServiceItem Component - User Interactions', () => {
 
   describe('Connection Information Modal', () => {
     it('should open connection modal when connect button is clicked', async () => {
-      const { getEnhancedServiceConnection } = await import('../../api/client')
-      getEnhancedServiceConnection.mockResolvedValue({
+      const { getServiceConnection } = await import('../../api/client')
+      getServiceConnection.mockResolvedValue({
         connection: {
           host: 'localhost',
           port: '5432',
@@ -223,13 +224,13 @@ describe('ServiceItem Component - User Interactions', () => {
       await user.click(connectButton)
       
       await waitFor(() => {
-        expect(getEnhancedServiceConnection).toHaveBeenCalledWith('postgres')
+        expect(getServiceConnection).toHaveBeenCalledWith('postgres')
       })
     })
 
     it('should close connection modal when close button is clicked', async () => {
-      const { getEnhancedServiceConnection } = await import('../../api/client')
-      getEnhancedServiceConnection.mockResolvedValue({
+      const { getServiceConnection } = await import('../../api/client')
+      getServiceConnection.mockResolvedValue({
         connection: {
           host: 'localhost',
           port: '5432'
@@ -249,8 +250,8 @@ describe('ServiceItem Component - User Interactions', () => {
     })
 
     it('should handle connection info when service has proper connection data', async () => {
-      const { getEnhancedServiceConnection } = await import('../../api/client')
-      getEnhancedServiceConnection.mockResolvedValue({
+      const { getServiceConnection } = await import('../../api/client')
+      getServiceConnection.mockResolvedValue({
         connection: {
           serviceName: 'postgres',
           available: true,
@@ -269,7 +270,7 @@ describe('ServiceItem Component - User Interactions', () => {
       
       await waitFor(() => {
         // Check that the connection modal opened successfully
-        expect(getEnhancedServiceConnection).toHaveBeenCalledWith('postgres')
+        expect(getServiceConnection).toHaveBeenCalledWith('postgres')
         // Just verify the modal is open and API was called, not the specific content
         expect(screen.getByText(/connection info/i)).toBeInTheDocument()
       })
@@ -277,8 +278,10 @@ describe('ServiceItem Component - User Interactions', () => {
   })
 
   describe('Logs Functionality', () => {
-    it('should open logs modal when logs button is clicked', async () => {
-      renderWithProvider(<ServiceItem {...defaultProps} />, [mockService])
+    it('should open logs modal when logs button is clicked for running service', async () => {
+      // Use a running service so the logs button appears
+      const runningService = { ...mockService, status: 'running' }
+      renderWithProvider(<ServiceItem {...defaultProps} service={runningService} statuses={{ postgres: 'running' }} />, [runningService])
       
       const logsButton = screen.getByRole('button', { name: /logs/i })
       await user.click(logsButton)
@@ -287,6 +290,28 @@ describe('ServiceItem Component - User Interactions', () => {
         // Look for the modal title specifically
         expect(screen.getByText(/logs - postgres/i)).toBeInTheDocument()
       })
+    })
+
+    it('should show logs button for failed service', async () => {
+      // Use a failed service so the logs button appears
+      const failedService = { ...mockService, status: 'failed' }
+      renderWithProvider(<ServiceItem {...defaultProps} service={failedService} statuses={{ postgres: 'failed' }} />, [failedService])
+      
+      expect(screen.getByRole('button', { name: /logs/i })).toBeInTheDocument()
+    })
+
+    it('should not show logs button for stopped service', async () => {
+      renderWithProvider(<ServiceItem {...defaultProps} />, [mockService])
+      
+      expect(screen.queryByRole('button', { name: /logs/i })).not.toBeInTheDocument()
+    })
+
+    it('should show logs button for service with status error', async () => {
+      // Use a service with status error so the logs button appears
+      const serviceWithError = { ...mockService, statusError: 'Connection failed' }
+      renderWithProvider(<ServiceItem {...defaultProps} service={serviceWithError} />, [serviceWithError])
+      
+      expect(screen.getByRole('button', { name: /logs/i })).toBeInTheDocument()
     })
   })
 

@@ -155,7 +155,7 @@ func TestAirflowDependencies(t *testing.T) {
 	t.Run("GetAllRunningServicesIncludesDependencies", func(t *testing.T) {
 		// Set airflow and its dependencies as running
 		mockRuntime.containers["airflow"] = "running"
-		mockRuntime.containers["postgres-data"] = "running" // postgres service container
+		mockRuntime.containers["postgres"] = "running" // postgres service container
 
 		runningServices, err := sm.GetAllRunningServices()
 		if err != nil {
@@ -164,8 +164,8 @@ func TestAirflowDependencies(t *testing.T) {
 
 		// Should be indexed by container name now
 		// Note: airflow-init is not a service in models.go, so it won't appear in GetAllRunningServices
-		// postgres service uses postgres-data as container name
-		expectedRunningContainers := []string{"airflow", "postgres-data"}
+		// postgres service uses postgres as container name (mapped from postgres-server compose service)
+		expectedRunningContainers := []string{"airflow", "postgres"}
 
 		for _, containerName := range expectedRunningContainers {
 			if _, exists := runningServices[containerName]; !exists {

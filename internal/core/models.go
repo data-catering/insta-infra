@@ -34,7 +34,7 @@ type Service struct {
 	Ports            []ServicePort `json:"ports"` // Known ports for this service
 }
 
-// Services defines all supported services and their connection details
+// Services defines all supported services and their connection details by container name
 var Services = map[string]Service{
 	"activemq": {
 		Name:             "activemq",

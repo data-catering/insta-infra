@@ -60,12 +60,12 @@ CGO_ENABLED=0 go build -ldflags "${LDFLAGS}" -o "${OUTPUT_DIR}/${BINARY_NAME}" .
 
 # Apply UPX compression if available and supported
 if command -v upx >/dev/null 2>&1; then
-    # Skip UPX on macOS ARM64
-    if [ "$GOOS" != "darwin" ] || [ "$GOARCH" != "arm64" ]; then
+    # Skip UPX on macOS
+    if [ "$GOOS" != "darwin" ]; then
         echo "Compressing with UPX..."
         upx -q --best --lzma "${OUTPUT_DIR}/${BINARY_NAME}"
     else
-        echo "Skipping UPX compression on macOS ARM64"
+        echo "Skipping UPX compression on macOS"
     fi
 else
     echo "UPX not found, skipping compression"

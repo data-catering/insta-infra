@@ -35,103 +35,18 @@ func NewConnectionHandler(runtime container.Runtime, instaDir string, logger Log
 	}
 }
 
-// GetServiceConnectionInfo returns connection information for a service
-func (h *ConnectionHandler) GetServiceConnectionInfo(serviceName string) (*models.ServiceConnectionInfo, error) {
-	h.logger.Log(fmt.Sprintf("Getting connection info for service: %s", serviceName))
-
-	// Get enhanced service data
-	enhancedService, exists := h.serviceManager.GetService(serviceName)
-	if !exists {
-		return nil, fmt.Errorf("service %s not found", serviceName)
-	}
-
-	// Get traditional service data from core
-	coreService, coreExists := core.Services[serviceName]
-	if !coreExists {
-		return nil, fmt.Errorf("core service definition for %s not found", serviceName)
-	}
-
-	// Check if service is available by checking container status
-	currentContainers, err := h.getCurrentContainers()
-	if err != nil {
-		return &models.ServiceConnectionInfo{
-			ServiceName: serviceName,
-			Available:   false,
-			Error:       fmt.Sprintf("could not check current containers: %v", err),
-		}, nil
-	}
-
-	// Check if any containers for this service are running
-	available := false
-	for _, container := range enhancedService.AllContainers {
-		if _, found := currentContainers[container]; found {
-			available = true
-			break
-		}
-	}
-
-	// Build connection info with enhanced data
-	connectionInfo := &models.ServiceConnectionInfo{
-		ServiceName:       serviceName,
-		Available:         available,
-		Username:          enhancedService.DefaultUser,
-		Password:          enhancedService.DefaultPassword,
-		ConnectionCommand: enhancedService.ConnectionCmd,
-	}
-
-	// Set web UI information if available
-	if len(enhancedService.WebUrls) > 0 {
-		connectionInfo.HasWebUI = true
-		connectionInfo.WebURL = enhancedService.WebUrls[0].URL
-	} else {
-		connectionInfo.HasWebUI = false
-	}
-
-	// Set port information from enhanced service
-	if len(enhancedService.ExposedPorts) > 0 {
-		// Find the primary port (first one, or DATABASE type if available)
-		var primaryPort *models.PortMapping
-		for _, port := range enhancedService.ExposedPorts {
-			if primaryPort == nil || port.Type == core.PortTypeDatabase {
-				primaryPort = &port
-				if port.Type == core.PortTypeDatabase {
-					break
-				}
-			}
-		}
-
-		if primaryPort != nil {
-			connectionInfo.HostPort = primaryPort.HostPort
-			connectionInfo.ContainerPort = primaryPort.ContainerPort
-		}
-	}
-
-	// Build connection string if service supports it
-	if connectionInfo.HostPort != "" {
-		connectionInfo.ConnectionString = h.buildConnectionString(serviceName, coreService, connectionInfo.HostPort)
-	}
-
-	h.logger.Log(fmt.Sprintf("Retrieved connection info for service: %s (available: %v)", serviceName, available))
-	return connectionInfo, nil
-}
-
 // OpenServiceInBrowser opens the service's web interface in the browser
 func (h *ConnectionHandler) OpenServiceInBrowser(serviceName string) (*models.EnhancedServiceConnectionInfo, error) {
 	h.logger.Log(fmt.Sprintf("Getting web URL for service %s to open in browser", serviceName))
 
 	// Get enhanced service data
-	enhancedService, exists := h.serviceManager.GetService(serviceName)
+	enhancedService, exists := h.serviceManager.GetServiceByContainerName(serviceName)
 	if !exists {
 		return nil, fmt.Errorf("service %s not found", serviceName)
 	}
 
 	// Update service status to ensure we have current availability
 	h.serviceManager.UpdateServiceStatus(serviceName)
-
-	// Check if service is running
-	if enhancedService.Status != "running" {
-		return nil, fmt.Errorf("service %s is not currently running (status: %s)", serviceName, enhancedService.Status)
-	}
 
 	// Check if service has web UI
 	if len(enhancedService.WebUrls) == 0 {
@@ -190,16 +105,10 @@ func (h *ConnectionHandler) GetEnhancedServiceConnectionInfo(serviceName string)
 		return nil, fmt.Errorf("service %s not found", serviceName)
 	}
 
-	// Update service status to get current availability
-	h.serviceManager.UpdateServiceStatus(serviceName)
-
-	// Check if service is available by checking container status
-	available := enhancedService.Status == "running"
-
 	// Build enhanced connection info
 	enhancedConnectionInfo := &models.EnhancedServiceConnectionInfo{
 		ServiceName:           serviceName,
-		Available:             available,
+		Available:             true,
 		Status:                enhancedService.Status,
 		ContainerName:         enhancedService.ContainerName,
 		ImageName:             enhancedService.ImageName,
@@ -219,11 +128,7 @@ func (h *ConnectionHandler) GetEnhancedServiceConnectionInfo(serviceName string)
 	enhancedConnectionInfo.ConnectionStrings = h.buildConnectionStrings(serviceName, enhancedService)
 	enhancedConnectionInfo.Credentials = h.buildCredentials(serviceName, enhancedService)
 
-	if !available {
-		enhancedConnectionInfo.Error = "Service is not currently running"
-	}
-
-	h.logger.Log(fmt.Sprintf("Retrieved enhanced connection info for service: %s (available: %v)", serviceName, available))
+	h.logger.Log(fmt.Sprintf("Retrieved enhanced connection info for service: %s", serviceName))
 	return enhancedConnectionInfo, nil
 }
 
@@ -352,6 +257,18 @@ func (h *ConnectionHandler) buildConnectionStrings(serviceName string, enhancedS
 	coreService, exists := core.Services[serviceName]
 	if !exists {
 		return connectionStrings
+	}
+
+	// Get runtime name for exec commands
+	runtimeName := h.runtime.Name()
+
+	// Add container exec command for database services
+	if coreService.Type == "Database" && coreService.ConnectionCmd != "" {
+		connectionStrings = append(connectionStrings, models.ConnectionString{
+			Description:      "Container Connection",
+			ConnectionString: fmt.Sprintf("%s exec -it %s sh -c \"%s\"", runtimeName, enhancedService.ContainerName, coreService.ConnectionCmd),
+			Note:             "Run this command in your terminal to connect directly to the container",
+		})
 	}
 
 	// Build connection strings for each exposed port

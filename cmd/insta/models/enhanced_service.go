@@ -328,6 +328,12 @@ type RuntimeInfo interface {
 	GetAllContainerStatuses() (map[string]string, error)
 }
 
+// RuntimeInfoWithName extends RuntimeInfo to provide runtime name detection
+type RuntimeInfoWithName interface {
+	RuntimeInfo
+	GetRuntimeName() string
+}
+
 // NewServiceManager creates a new service manager instance
 func NewServiceManager(instaDir string, runtimeInfo RuntimeInfo, logger Logger) *ServiceManager {
 	return &ServiceManager{
@@ -538,8 +544,15 @@ func (p *ComposeFileParser) GetAllServiceConfigs() map[string]*ComposeServiceCon
 
 // LoadServices initializes all enhanced services by combining static definitions and compose file data
 func (sm *ServiceManager) LoadServices() error {
-	// Start with static service definitions from internal/core
-	for name, coreService := range core.Services {
+
+	// First: Parse compose files to get enhancement data
+	err := sm.parser.LoadComposeFiles(sm.instaDir)
+	if err != nil {
+		return err
+	}
+
+	// Second: Create services from core.Services (authoritative source)
+	for serviceName, coreService := range core.Services {
 		enhanced := &EnhancedService{
 			Name:                  coreService.Name,
 			Type:                  coreService.Type,
@@ -549,42 +562,56 @@ func (sm *ServiceManager) LoadServices() error {
 			RequiresPassword:      coreService.RequiresPassword,
 			Status:                "stopped", // Default status
 			LastUpdated:           time.Now(),
-			AllContainers:         []string{},      // Will be populated from compose files
-			DirectDependencies:    []string{},      // Initialize empty dependency lists
-			RecursiveDependencies: []string{},      // Will be populated from compose files
-			DependsOnMe:           []string{},      // Will be populated from compose files
-			ExposedPorts:          []PortMapping{}, // Initialize empty port lists
-			InternalPorts:         []PortMapping{}, // Initialize empty port lists
-			WebUrls:               []WebURL{},      // Initialize empty URL list
-			Environment:           []string{},      // Initialize empty environment list
-			Volumes:               []string{},      // Initialize empty volume list
-			Networks:              []string{},      // Initialize empty network list
+			ContainerName:         serviceName,           // Default container name same as service name
+			AllContainers:         []string{serviceName}, // Default to service name
+			DirectDependencies:    []string{},            // Initialize empty dependency lists
+			RecursiveDependencies: []string{serviceName}, // Include self as per architecture
+			DependsOnMe:           []string{},            // Initialize empty
+			ExposedPorts:          []PortMapping{},       // Initialize empty port lists
+			InternalPorts:         []PortMapping{},       // Initialize empty port lists
+			WebUrls:               []WebURL{},            // Initialize empty URL list
+			Environment:           []string{},            // Initialize empty environment list
+			Volumes:               []string{},            // Initialize empty volume list
+			Networks:              []string{},            // Initialize empty network list
 		}
 
-		sm.services[name] = enhanced
+		sm.services[serviceName] = enhanced
 	}
 
-	// Parse compose files and enhance services with container information
-	err := sm.parser.LoadComposeFiles(sm.instaDir)
-	if err != nil {
-		return err
-	}
-
-	// Enhance services with compose file data
+	// Third: Enhance all services with compose file data
 	for serviceName, service := range sm.services {
 		sm.enhanceServiceWithComposeData(serviceName, service)
 	}
 
-	// Resolve dependencies after all services are loaded
+	// Fourth: Resolve dependencies after all services are loaded
 	sm.resolveDependencies()
 
 	return nil
 }
 
+// getComposeServiceName returns the correct compose service name for a core service name
+// This handles cases where the core service name doesn't match the compose service name
+func (sm *ServiceManager) getComposeServiceName(coreServiceName string) string {
+	// Special mappings for services where core name != compose service name
+	serviceNameMapping := map[string]string{
+		"postgres": "postgres-server", // postgres core service maps to postgres-server compose service
+	}
+
+	if composeServiceName, exists := serviceNameMapping[coreServiceName]; exists {
+		return composeServiceName
+	}
+
+	// Default: core service name = compose service name
+	return coreServiceName
+}
+
 // enhanceServiceWithComposeData adds compose file information to a service
 func (sm *ServiceManager) enhanceServiceWithComposeData(serviceName string, service *EnhancedService) {
-	// Get parsed compose configuration
-	config, exists := sm.parser.GetServiceConfig(serviceName)
+	// Get the correct compose service name (may be different from core service name)
+	composeServiceName := sm.getComposeServiceName(serviceName)
+
+	// Get parsed compose configuration using the mapped service name
+	config, exists := sm.parser.GetServiceConfig(composeServiceName)
 	if !exists {
 		// Service not found in compose files, set defaults
 		service.ContainerName = serviceName
@@ -621,7 +648,7 @@ func (sm *ServiceManager) enhanceServiceWithComposeData(serviceName string, serv
 	// Find all containers for this service (services with same prefix or related containers)
 	allContainers := []string{service.ContainerName}
 	for otherServiceName, otherConfig := range sm.parser.GetAllServiceConfigs() {
-		if otherServiceName != serviceName {
+		if otherServiceName != serviceName && otherServiceName != composeServiceName {
 			// Check if this is a related container (e.g., postgres-data for postgres)
 			if sm.isRelatedContainer(serviceName, otherServiceName) {
 				if otherConfig.ContainerName != "" {
@@ -1040,6 +1067,18 @@ func (sm *ServiceManager) GetService(name string) (*EnhancedService, bool) {
 	return service, exists
 }
 
+// GetServiceByContainerName return an enhanced service by container name
+func (sm *ServiceManager) GetServiceByContainerName(containerName string) (*EnhancedService, bool) {
+	for _, service := range sm.services {
+		//log container name
+		sm.logger.Log(fmt.Sprintf("Checking container name: %s", service.ContainerName))
+		if service.ContainerName == containerName {
+			return service, true
+		}
+	}
+	return nil, false
+}
+
 // GetAllServices returns a map of all enhanced services
 func (sm *ServiceManager) GetAllServices() map[string]*EnhancedService {
 	return sm.services
@@ -1167,29 +1206,6 @@ func (sm *ServiceManager) UpdateAllServiceStatuses() (map[string]string, error) 
 // ===========================================
 // ServiceHandlerInterface Implementation
 // ===========================================
-
-// GetServiceStatus returns the current status of a service
-func (sm *ServiceManager) GetServiceStatus(serviceName string) (string, error) {
-	if sm.logger != nil {
-		sm.logger.Log(fmt.Sprintf("Getting status for service: %s", serviceName))
-	}
-
-	_, exists := sm.services[serviceName]
-	if !exists {
-		return "not_found", fmt.Errorf("service %s not found", serviceName)
-	}
-
-	// Update status from runtime
-	status, err := sm.UpdateServiceStatus(serviceName)
-	if err != nil {
-		if sm.logger != nil {
-			sm.logger.Log(fmt.Sprintf("Failed to get status for service %s: %v", serviceName, err))
-		}
-		return "error", err
-	}
-
-	return status, nil
-}
 
 // GetServiceDependencies returns the dependency information for a service
 func (sm *ServiceManager) GetServiceDependencies(serviceName string) ([]string, error) {

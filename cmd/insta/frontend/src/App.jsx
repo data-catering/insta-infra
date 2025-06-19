@@ -18,6 +18,8 @@ import {
   listServices,
   openURL,
   getAppLogs,
+  restartRuntime,
+  shutdownApplication,
   wsClient,
   WS_MSG_TYPES
 } from "./api/client";
@@ -42,6 +44,8 @@ function App() {
   const [showRuntimeSetup, setShowRuntimeSetup] = useState(false);
   const [currentRuntime, setCurrentRuntime] = useState('');
   const [showLogsPanel, setShowLogsPanel] = useState(false);
+  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
+  const [isShuttingDown, setIsShuttingDown] = useState(false);
   
   // Auto-clear copy feedback after 2 seconds
   useEffect(() => {
@@ -164,6 +168,20 @@ function App() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showActionsDropdown && 
+          !event.target.closest('.actions-dropdown') && 
+          !event.target.closest('.dropdown-menu')) {
+        setShowActionsDropdown(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showActionsDropdown]);
 
   const checkRuntimeStatus = async () => {
     try {
@@ -505,6 +523,39 @@ function App() {
     }
   };
 
+  const handleRestartRuntime = async () => {
+    if (!currentRuntime) return;
+    
+    try {
+      setIsLoading(true);
+      await restartRuntime(currentRuntime);
+      // Give runtime a moment to restart then refresh everything
+      setTimeout(() => {
+        checkRuntimeStatus();
+        loadServicesAndStatuses();
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to restart runtime:', err);
+      setError(`Failed to restart ${currentRuntime}: ${err.message}`);
+      setIsLoading(false);
+    }
+  };
+
+  const handleShutdownApplication = async () => {
+    if (window.confirm('Are you sure you want to shut down the application? This will stop all running services and close insta-infra.')) {
+      try {
+        setIsShuttingDown(true);
+        setShowActionsDropdown(false);
+        await shutdownApplication();
+        // The application will shut down, so no need to handle response
+      } catch (error) {
+        console.error('Failed to shutdown application:', error);
+        setIsShuttingDown(false);
+        alert(`Failed to shutdown application: ${error.message || error}`);
+      }
+    }
+  };
+
   // Handle runtime becoming ready
   const handleRuntimeReady = () => {
       setShowRuntimeSetup(false);
@@ -543,6 +594,24 @@ function App() {
   // Show runtime setup if needed
   if (showRuntimeSetup) {
     return <RuntimeSetup onRuntimeReady={handleRuntimeReady} />;
+  }
+
+  // Show shutdown page if shutting down
+  if (isShuttingDown) {
+    return (
+      <div className="shutdown-container">
+        <div className="shutdown-content">
+          <div className="shutdown-icon-container">
+            <svg width="48" height="48" className="shutdown-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18.36 6.64C19.6184 7.8988 20.4753 9.50246 20.8223 11.2482C21.1693 12.994 20.9909 14.8034 20.3096 16.4478C19.6284 18.0921 18.4748 19.4976 16.9948 20.4864C15.5148 21.4752 13.7749 22.0029 11.995 22.0029C10.2151 22.0029 8.47515 21.4752 6.99517 20.4864C5.51519 19.4976 4.36164 18.0921 3.68036 16.4478C2.99909 14.8034 2.82069 12.994 3.16772 11.2482C3.51475 9.50246 4.37162 7.8988 5.63 6.64L12 2L18.36 6.64Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 8V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <h1 className="shutdown-title">Application Shutdown</h1>
+          <p className="shutdown-message">insta-infra has been shut down successfully.</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -590,18 +659,6 @@ function App() {
                 </>
               )}
             </div>
-            
-            {/* About button */}
-            <button 
-              onClick={() => setShowAbout(true)}
-              className="button button-primary"
-              title="About insta-infra"
-            >
-              <svg width="16" height="16" className="button-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13 16H12V12H11M12 8H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="sr-only md-visible">About</span>
-            </button>
 
             {/* Stop All button - only show if there are running services */}
             {hasRunningServices() && (
@@ -629,6 +686,69 @@ function App() {
                 )}
               </button>
             )}
+
+            {/* Actions Dropdown */}
+            <div className="actions-dropdown">
+              <button 
+                onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+                className="button button-primary"
+                title="More actions"
+              >
+                <svg width="16" height="16" className="button-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 13C12.5523 13 13 12.5523 13 12C13 11.4477 12.5523 11 12 11C11.4477 11 11 11.4477 11 12C11 12.5523 11.4477 13 12 13Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 6C12.5523 6 13 5.55228 13 5C13 4.44772 12.5523 4 12 4C11.4477 4 11 4.44772 11 5C11 5.55228 11.4477 6 12 6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 20C12.5523 20 13 19.5523 13 19C13 18.4477 12.5523 18 12 18C11.4477 18 11 18.4477 11 19C11 19.5523 11.4477 20 12 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className="sr-only md-visible">Actions</span>
+              </button>
+              
+              {showActionsDropdown && (
+                <div className="dropdown-menu">
+                  <button 
+                    onClick={() => {
+                      setShowAbout(true);
+                      setShowActionsDropdown(false);
+                    }}
+                    className="dropdown-item"
+                  >
+                    <svg width="16" height="16" className="dropdown-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M13 16H12V12H11M12 8H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    About
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      handleRestartRuntime();
+                      setShowActionsDropdown(false);
+                    }}
+                    disabled={isLoading || !currentRuntime}
+                    className="dropdown-item"
+                  >
+                    <svg width="16" height="16" className="dropdown-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 4V9H4.58152M19.9381 11C19.446 7.05369 16.0796 4 12 4C8.64262 4 5.76829 6.06817 4.58152 9M4.58152 9H9M20 20V15H19.4185M19.4185 15C18.2317 17.9318 15.3574 20 12 20C7.92038 20 4.55399 16.9463 4.06189 13M19.4185 15H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Restart
+                  </button>
+                  
+                  <div className="dropdown-separator"></div>
+                  
+                  <button 
+                    onClick={() => {
+                      handleShutdownApplication();
+                      setShowActionsDropdown(false);
+                    }}
+                    className="dropdown-item dropdown-item-danger"
+                  >
+                    <svg width="16" height="16" className="dropdown-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M18.36 6.64C19.6184 7.8988 20.4753 9.50246 20.8223 11.2482C21.1693 12.994 20.9909 14.8034 20.3096 16.4478C19.6284 18.0921 18.4748 19.4976 16.9948 20.4864C15.5148 21.4752 13.7749 22.0029 11.995 22.0029C10.2151 22.0029 8.47515 21.4752 6.99517 20.4864C5.51519 19.4976 4.36164 18.0921 3.68036 16.4478C2.99909 14.8034 2.82069 12.994 3.16772 11.2482C3.51475 9.50246 4.37162 7.8988 5.63 6.64L12 2L18.36 6.64Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 8V16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Shutdown
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>

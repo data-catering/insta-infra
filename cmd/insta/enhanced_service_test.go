@@ -187,23 +187,6 @@ func TestServiceManagerStatusOperations(t *testing.T) {
 	sm := models.NewServiceManager("/tmp/test", mockRuntime, mockLogger)
 	sm.LoadServices()
 
-	t.Run("GetServiceStatus", func(t *testing.T) {
-		// Test with existing service
-		status, err := sm.GetServiceStatus("postgres")
-		if err != nil {
-			t.Errorf("GetServiceStatus failed: %v", err)
-		}
-		if status != "stopped" {
-			t.Errorf("Expected status 'stopped', got %s", status)
-		}
-
-		// Test with non-existent service
-		_, err = sm.GetServiceStatus("non-existent")
-		if err == nil {
-			t.Error("Expected error for non-existent service")
-		}
-	})
-
 	t.Run("GetAllRunningServices", func(t *testing.T) {
 		// Initially no services should be running
 		running, err := sm.GetAllRunningServices()
@@ -412,13 +395,7 @@ func TestServiceManagerErrorHandling(t *testing.T) {
 		// Enable error mode
 		mockRuntime.errorMode = true
 
-		// Test operations should handle errors gracefully
-		_, err := sm.GetServiceStatus("postgres")
-		if err == nil {
-			t.Error("Expected error when runtime is in error mode")
-		}
-
-		err = sm.StartService("postgres", false)
+		err := sm.StartService("postgres", false)
 		if err == nil {
 			t.Error("Expected error when runtime is in error mode")
 		}
@@ -517,7 +494,6 @@ func TestServiceManagerLogging(t *testing.T) {
 	sm.LoadServices()
 
 	// Perform operations that should generate logs
-	sm.GetServiceStatus("postgres")
 	sm.StartService("postgres", false)
 	sm.StopService("postgres")
 	sm.GetAllRunningServices()
@@ -531,7 +507,7 @@ func TestServiceManagerLogging(t *testing.T) {
 	// Check for specific log patterns
 	found := false
 	for _, log := range mockLogger.logs {
-		if log == "Getting status for service: postgres" {
+		if log == "Refreshing status from containers" {
 			found = true
 			break
 		}

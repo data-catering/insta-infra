@@ -1,6 +1,55 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Copy, ExternalLink, Database, Server, Globe, Activity, Monitor } from 'lucide-react';
+import { X, Copy, ExternalLink, Database, Server, Globe, Activity, Monitor, Eye, EyeOff } from 'lucide-react';
+
+// CredentialItem component for handling password masking
+const CredentialItem = ({ credential, isPassword, onCopyToClipboard }) => {
+  const [showPassword, setShowPassword] = useState(false);
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const displayValue = isPassword && !showPassword ? '••••••••' : credential.value;
+
+  return (
+    <div className="connection-item">
+      <div className="connection-label">{credential.description || 'Credential'}</div>
+      <div className="connection-value-row">
+        <div className="connection-value">{displayValue}</div>
+        <div className="connection-actions">
+          {isPassword && (
+            <button
+              className="password-toggle-button"
+              onClick={togglePasswordVisibility}
+              title={showPassword ? "Hide password" : "Show password"}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                color: '#6b7280',
+                marginRight: '4px'
+              }}
+            >
+              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          )}
+          <button
+            className="copy-button"
+            onClick={() => onCopyToClipboard(credential.value)}
+            title="Copy credential"
+          >
+            <Copy size={14} />
+          </button>
+        </div>
+      </div>
+      {credential.note && <div className="connection-note">{credential.note}</div>}
+    </div>
+  );
+};
 
 const ConnectionModal = ({ 
   isOpen, 
@@ -11,8 +60,7 @@ const ConnectionModal = ({
 }) => {
   if (!isOpen || !connectionInfo) return null;
 
-  // Handle both old and new connection info formats
-  const isEnhanced = connectionInfo.webUrls || connectionInfo.exposedPorts || connectionInfo.connectionStrings;
+  // All connection info is now in enhanced format
 
   // Browser-based URL opening function
   const openUrl = (url) => {
@@ -88,13 +136,14 @@ const ConnectionModal = ({
     if (internalPorts) {
       internalPorts.forEach(port => {
         const isAlreadyExposed = exposedPorts?.some(ep => 
-          ep.containerPort === port.containerPort
+          (ep.container_port || ep.containerPort) === (port.container_port || port.containerPort)
         );
         if (!isAlreadyExposed) {
           allPorts.push({
             ...port,
             type: 'internal',
             accessible: false,
+            host_port: '-',
             hostPort: '-'
           });
         }
@@ -122,10 +171,10 @@ const ConnectionModal = ({
           <tbody>
             {allPorts.map((port, index) => (
               <tr key={index}>
-                <td>{port.containerPort}</td>
+                <td>{port.container_port || port.containerPort}</td>
                 <td>
-                  {port.hostPort !== '-' ? (
-                    <span className="connection-value">{port.hostPort}</span>
+                  {(port.host_port || port.hostPort) !== '-' ? (
+                    <span className="connection-value">{port.host_port || port.hostPort}</span>
                   ) : (
                     <span style={{ color: '#9ca3af' }}>-</span>
                   )}
@@ -186,22 +235,17 @@ const ConnectionModal = ({
           Credentials
         </h4>
         <div className="connection-section-content">
-          {credentials.map((cred, index) => (
-            <div key={index} className="connection-item">
-              <div className="connection-label">{cred.description || 'Credential'}</div>
-              <div className="connection-value-row">
-                <div className="connection-value">{cred.value}</div>
-                <button
-                  className="copy-button"
-                  onClick={() => onCopyToClipboard(cred.value)}
-                  title="Copy credential"
-                >
-                  <Copy size={14} />
-                </button>
-              </div>
-              {cred.note && <div className="connection-note">{cred.note}</div>}
-            </div>
-          ))}
+          {credentials.map((cred, index) => {
+            const isPassword = cred.description && cred.description.toLowerCase().includes('password');
+            return (
+              <CredentialItem 
+                key={index} 
+                credential={cred} 
+                isPassword={isPassword}
+                onCopyToClipboard={onCopyToClipboard}
+              />
+            );
+          })}
         </div>
       </div>
     );
@@ -236,182 +280,13 @@ const ConnectionModal = ({
               {connectionInfo.error && (
                 <div className="error-detail">{connectionInfo.error}</div>
               )}
-              <div className="status-info">
-                Service Status: <span className={`status-badge status-${connectionInfo.status?.toLowerCase() || 'unknown'}`}>
-                  {connectionInfo.status || 'Unknown'}
-                </span>
-              </div>
             </div>
           ) : (
             <div className="connection-details">
-              {/* Status Information */}
-              <div className="status-info">
-                Service Status: <span className={`status-badge status-${connectionInfo.status?.toLowerCase() || 'running'}`}>
-                  {connectionInfo.status || 'Running'}
-                </span>
-              </div>
-
-              {/* Enhanced format with tables */}
-              {isEnhanced ? (
-                <>
                   {renderWebUrlsTable(connectionInfo.webUrls)}
                   {renderPortMappingsTable(connectionInfo.exposedPorts, connectionInfo.internalPorts)}
                   {renderConnectionStrings(connectionInfo.connectionStrings)}
                   {renderCredentials(connectionInfo.credentials)}
-                </>
-              ) : (
-                /* Legacy format */
-                <>
-                  {connectionInfo.hasWebUI && connectionInfo.webURL && (
-                    <div className="connection-section">
-                      <h4 className="connection-section-title">
-                        <Globe size={16} />
-                        Web Interface
-                      </h4>
-                      <div className="connection-item">
-                        <div className="connection-label">URL</div>
-                        <div className="connection-value-row">
-                          <a 
-                            href="#" 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              openUrl(connectionInfo.webURL);
-                            }}
-                            className="connection-link"
-                          >
-                            {connectionInfo.webURL}
-                            <ExternalLink size={14} />
-                          </a>
-                          <button
-                            className="copy-button"
-                            onClick={() => onCopyToClipboard(connectionInfo.webURL)}
-                            title="Copy URL"
-                          >
-                            <Copy size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {(connectionInfo.hostPort || connectionInfo.containerPort) && (
-                    <div className="connection-section">
-                      <h4 className="connection-section-title">
-                        <Monitor size={16} />
-                        Port Information
-                      </h4>
-                      {connectionInfo.hostPort && (
-                        <div className="connection-item">
-                          <div className="connection-label">Host Port</div>
-                          <div className="connection-value-row">
-                            <div className="connection-value">{connectionInfo.hostPort}</div>
-                            <button
-                              className="copy-button"
-                              onClick={() => onCopyToClipboard(connectionInfo.hostPort)}
-                              title="Copy host port"
-                            >
-                              <Copy size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {connectionInfo.containerPort && (
-                        <div className="connection-item">
-                          <div className="connection-label">Container Port</div>
-                          <div className="connection-value-row">
-                            <div className="connection-value">{connectionInfo.containerPort}</div>
-                            <button
-                              className="copy-button"
-                              onClick={() => onCopyToClipboard(connectionInfo.containerPort)}
-                              title="Copy container port"
-                            >
-                              <Copy size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {(connectionInfo.username || connectionInfo.password) && (
-                    <div className="connection-credentials">
-                      <h4 className="credentials-title">Default Credentials</h4>
-                      {connectionInfo.username && (
-                        <div className="connection-item">
-                          <div className="connection-label">Username</div>
-                          <div className="connection-value-row">
-                            <div className="connection-value">{connectionInfo.username}</div>
-                            <button
-                              className="copy-button"
-                              onClick={() => onCopyToClipboard(connectionInfo.username)}
-                              title="Copy username"
-                            >
-                              <Copy size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {connectionInfo.password && (
-                        <div className="connection-item">
-                          <div className="connection-label">Password</div>
-                          <div className="connection-value-row">
-                            <div className="connection-value">{connectionInfo.password}</div>
-                            <button
-                              className="copy-button"
-                              onClick={() => onCopyToClipboard(connectionInfo.password)}
-                              title="Copy password"
-                            >
-                              <Copy size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {connectionInfo.connectionString && (
-                    <div className="connection-section">
-                      <h4 className="connection-section-title">
-                        <Database size={16} />
-                        Connection String
-                      </h4>
-                      <div className="connection-item">
-                        <div className="connection-value-row">
-                          <div className="connection-value connection-command">{connectionInfo.connectionString}</div>
-                          <button
-                            className="copy-button"
-                            onClick={() => onCopyToClipboard(connectionInfo.connectionString)}
-                            title="Copy connection string"
-                          >
-                            <Copy size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {connectionInfo.connectionCommand && (
-                    <div className="connection-section">
-                      <h4 className="connection-section-title">
-                        <Activity size={16} />
-                        Connection Command
-                      </h4>
-                      <div className="connection-item">
-                        <div className="connection-value-row">
-                          <div className="connection-value connection-command">{connectionInfo.connectionCommand}</div>
-                          <button
-                            className="copy-button"
-                            onClick={() => onCopyToClipboard(connectionInfo.connectionCommand)}
-                            title="Copy command"
-                          >
-                            <Copy size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
           )}
         </div>

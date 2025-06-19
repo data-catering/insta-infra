@@ -13,11 +13,38 @@ describe('ConnectionModal', () => {
   const mockConnectionInfo = {
     serviceName: 'postgres',
     available: true,
-    hasWebUI: true,
-    webURL: 'http://localhost:8080',
-    username: 'postgres',
-    password: 'password',
-    connectionCommand: 'psql -h localhost -p 5432 -U postgres'
+    webUrls: [
+      {
+        name: 'Web Interface',
+        url: 'http://localhost:8080',
+        description: 'Web Interface'
+      }
+    ],
+    credentials: [
+      {
+        description: 'Username',
+        value: 'postgres'
+      },
+      {
+        description: 'Password',
+        value: 'password'
+      }
+    ],
+    connectionStrings: [
+      {
+        description: 'Connection Command',
+        connectionString: 'psql -h localhost -p 5432 -U postgres'
+      }
+    ],
+    exposedPorts: [
+      {
+        host_port: '5432',
+        container_port: '5432',
+        protocol: 'tcp',
+        type: 'DATABASE',
+        description: 'PostgreSQL database port'
+      }
+    ]
   }
 
   const defaultProps = {
@@ -82,25 +109,54 @@ describe('ConnectionModal', () => {
   test('displays web URL when available', () => {
     render(<ConnectionModal {...defaultProps} />)
     
-    expect(screen.getByText('URL')).toBeInTheDocument()
+    expect(screen.getByText('Web URLs')).toBeInTheDocument()
     expect(screen.getByText('http://localhost:8080')).toBeInTheDocument()
   })
 
   test('displays credentials when available', () => {
     render(<ConnectionModal {...defaultProps} />)
     
-    expect(screen.getByText('Default Credentials')).toBeInTheDocument()
+    expect(screen.getByText('Credentials')).toBeInTheDocument()
     expect(screen.getByText('Username')).toBeInTheDocument()
     expect(screen.getByText('postgres')).toBeInTheDocument()
     expect(screen.getByText('Password')).toBeInTheDocument()
-    // Password should be shown as 'password' in this test
+    // Password should be masked by default
+    expect(screen.getByText('••••••••')).toBeInTheDocument()
+  })
+
+  test('toggles password visibility when eye button is clicked', async () => {
+    const user = userEvent.setup()
+    
+    render(<ConnectionModal {...defaultProps} />)
+    
+    // Initially password should be masked
+    expect(screen.getByText('••••••••')).toBeInTheDocument()
+    expect(screen.queryByText('password')).not.toBeInTheDocument()
+    
+    // Find and click the eye button
+    const eyeButton = screen.getByTitle('Show password')
+    await user.click(eyeButton)
+    
+    // Password should now be visible
     expect(screen.getByText('password')).toBeInTheDocument()
+    expect(screen.queryByText('••••••••')).not.toBeInTheDocument()
+    
+    // Button should now show "Hide password"
+    expect(screen.getByTitle('Hide password')).toBeInTheDocument()
+    
+    // Click again to hide
+    const hideButton = screen.getByTitle('Hide password')
+    await user.click(hideButton)
+    
+    // Password should be masked again
+    expect(screen.getByText('••••••••')).toBeInTheDocument()
+    expect(screen.queryByText('password')).not.toBeInTheDocument()
   })
 
   test('displays connection command when available', () => {
     render(<ConnectionModal {...defaultProps} />)
     
-    expect(screen.getByText('Connection Command')).toBeInTheDocument()
+    expect(screen.getByText('Connection Strings')).toBeInTheDocument()
     expect(screen.getByText('psql -h localhost -p 5432 -U postgres')).toBeInTheDocument()
   })
 
@@ -140,35 +196,87 @@ describe('ConnectionModal', () => {
   test('does not display web URL section when not available', () => {
     const noWebConnectionInfo = {
       ...mockConnectionInfo,
-      hasWebUI: false,
-      webURL: null
+      webUrls: []
     }
     
     render(<ConnectionModal {...defaultProps} connectionInfo={noWebConnectionInfo} />)
     
-    expect(screen.queryByText('Web Interface')).not.toBeInTheDocument()
+    expect(screen.queryByText('Web URLs')).not.toBeInTheDocument()
   })
 
   test('does not display credentials section when not available', () => {
     const noCredsConnectionInfo = {
       ...mockConnectionInfo,
-      username: null,
-      password: null
+      credentials: []
     }
     
     render(<ConnectionModal {...defaultProps} connectionInfo={noCredsConnectionInfo} />)
     
-    expect(screen.queryByText('Default Credentials')).not.toBeInTheDocument()
+    expect(screen.queryByText('Credentials')).not.toBeInTheDocument()
   })
 
   test('does not display connection command when not available', () => {
     const noCommandConnectionInfo = {
       ...mockConnectionInfo,
-      connectionCommand: null
+      connectionStrings: []
     }
     
     render(<ConnectionModal {...defaultProps} connectionInfo={noCommandConnectionInfo} />)
     
-    expect(screen.queryByText('Connection Command')).not.toBeInTheDocument()
+    expect(screen.queryByText('Connection Strings')).not.toBeInTheDocument()
+  })
+
+  test('displays port mappings with enhanced format', () => {
+    const enhancedConnectionInfo = {
+      serviceName: 'postgres',
+      available: true,
+      exposedPorts: [
+        {
+          host_port: '5432',
+          container_port: '5432',
+          protocol: 'tcp',
+          type: 'DATABASE',
+          description: 'PostgreSQL database port'
+        }
+      ],
+      connectionStrings: [
+        {
+          description: 'Container Connection',
+          connectionString: 'docker exec -it postgres sh -c "PGPASSWORD=postgres psql -Upostgres"',
+          note: 'Run this command in your terminal'
+        }
+      ],
+      credentials: [
+        {
+          description: 'Default Username',
+          value: 'postgres',
+          note: 'Default username for authentication'
+        },
+        {
+          description: 'Default Password',
+          value: 'postgres',
+          note: 'Default password for authentication'
+        }
+      ]
+    }
+    
+    render(<ConnectionModal {...defaultProps} connectionInfo={enhancedConnectionInfo} />)
+    
+         // Check port mappings table
+     expect(screen.getByText('Port Mappings')).toBeInTheDocument()
+     expect(screen.getByText('Container Port')).toBeInTheDocument()
+     expect(screen.getByText('Host Port')).toBeInTheDocument()
+     expect(screen.getAllByText('5432')).toHaveLength(2) // Should appear twice (container and host port)
+     expect(screen.getByText('PostgreSQL database port')).toBeInTheDocument()
+    
+    // Check connection strings
+    expect(screen.getByText('Connection Strings')).toBeInTheDocument()
+    expect(screen.getByText('Container Connection')).toBeInTheDocument()
+    
+    // Check credentials with masking
+    expect(screen.getByText('Default Username')).toBeInTheDocument()
+    expect(screen.getByText('Default Password')).toBeInTheDocument()
+    expect(screen.getAllByText('postgres')).toHaveLength(1) // Username should be visible
+    expect(screen.getByText('••••••••')).toBeInTheDocument() // Password should be masked
   })
 }) 

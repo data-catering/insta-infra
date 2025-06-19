@@ -220,11 +220,9 @@ func (s *APIServer) setupRoutes() {
 	services := v1.Group("/services")
 	{
 		services.GET("", s.listServices)
-		services.GET("/:name/status", s.getServiceStatus)
 		services.POST("/:name/start", s.startService)
 		services.POST("/:name/stop", s.stopService)
-		services.GET("/:name/connection", s.getServiceConnection)
-		services.GET("/:name/connection/enhanced", s.getEnhancedServiceConnection)
+		services.GET("/:name/connection", s.getEnhancedServiceConnection)
 		services.POST("/:name/open", s.openServiceConnection)
 		services.GET("/:name/logs", s.getServiceLogs)
 	}
@@ -244,7 +242,6 @@ func (s *APIServer) setupRoutes() {
 		images.POST("/:name/pull", s.startImagePull)
 		images.DELETE("/:name/pull", s.stopImagePull)
 		images.GET("/:name/progress", s.getImagePullProgress)
-		images.GET("/:name/info", s.getImageInfo)
 	}
 
 	// Logging endpoints
@@ -261,11 +258,18 @@ func (s *APIServer) setupRoutes() {
 		runtime.GET("/status", s.getRuntimeStatus)
 		runtime.GET("/current", s.getCurrentRuntime)
 		runtime.POST("/start", s.startRuntime)
+		runtime.POST("/restart", s.restartRuntime)
 		runtime.POST("/reinitialize", s.reinitializeRuntime)
 		runtime.PUT("/docker-path", s.setCustomDockerPath)
 		runtime.PUT("/podman-path", s.setCustomPodmanPath)
 		runtime.GET("/docker-path", s.getCustomDockerPath)
 		runtime.GET("/podman-path", s.getCustomPodmanPath)
+	}
+
+	// Application Management endpoints
+	app := v1.Group("/app")
+	{
+		app.POST("/shutdown", s.shutdownApplication)
 	}
 
 	// WebSocket endpoint for real-time updates
@@ -505,31 +509,6 @@ func (s *APIServer) listServices(c *gin.Context) {
 	c.JSON(http.StatusOK, services)
 }
 
-func (s *APIServer) getServiceStatus(c *gin.Context) {
-	serviceName := c.Param("name")
-	if serviceName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "service name is required"})
-		return
-	}
-
-	serviceHandler := s.handlerManager.GetServiceHandler()
-	if serviceHandler == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "service handler not available"})
-		return
-	}
-
-	status, err := serviceHandler.GetServiceStatus(serviceName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"service_name": serviceName,
-		"status":       status,
-	})
-}
-
 func (s *APIServer) startService(c *gin.Context) {
 	serviceName := c.Param("name")
 	if serviceName == "" {
@@ -604,31 +583,6 @@ func (s *APIServer) stopService(c *gin.Context) {
 		"service_name": serviceName,
 		"action":       "stop",
 		"status":       "stopping",
-	})
-}
-
-func (s *APIServer) getServiceConnection(c *gin.Context) {
-	serviceName := c.Param("name")
-	if serviceName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "service name is required"})
-		return
-	}
-
-	connectionHandler := s.handlerManager.GetConnectionHandler()
-	if connectionHandler == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "connection handler not available"})
-		return
-	}
-
-	connection, err := connectionHandler.GetServiceConnectionInfo(serviceName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"service_name": serviceName,
-		"connection":   connection,
 	})
 }
 
@@ -1036,31 +990,6 @@ func (s *APIServer) getImagePullProgress(c *gin.Context) {
 	})
 }
 
-func (s *APIServer) getImageInfo(c *gin.Context) {
-	imageName := c.Param("name")
-	if imageName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "image name is required"})
-		return
-	}
-
-	imageHandler := s.handlerManager.GetImageHandler()
-	if imageHandler == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "image handler not available"})
-		return
-	}
-
-	imageInfo, err := imageHandler.GetImageInfo(imageName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"image_name": imageName,
-		"info":       imageInfo,
-	})
-}
-
 func (s *APIServer) getAppLogs(c *gin.Context) {
 	logs := s.logger.GetLogs()
 	c.JSON(http.StatusOK, gin.H{
@@ -1163,6 +1092,62 @@ func (s *APIServer) startRuntime(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"runtime":                reqBody.Runtime,
 			"action":                 "start",
+			"status":                 "failed",
+			"error":                  result.Error,
+			"requires_manual_action": result.RequiresManualAction,
+		})
+	}
+}
+
+func (s *APIServer) restartRuntime(c *gin.Context) {
+	var reqBody struct {
+		Runtime string `json:"runtime"`
+	}
+
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	if reqBody.Runtime == "" {
+		if s.app.runtime != nil {
+			reqBody.Runtime = s.app.runtime.Name() // Use current runtime if not specified and available
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "runtime must be specified when no runtime is currently selected"})
+			return
+		}
+	}
+
+	// Broadcast that runtime is restarting
+	s.BroadcastAppLogs(fmt.Sprintf("Restarting %s runtime to resolve container issues...", reqBody.Runtime), "info")
+
+	// Use runtime manager to attempt restarting the runtime
+	runtimeManager := &container.RuntimeManager{}
+	result := runtimeManager.RestartRuntime(reqBody.Runtime)
+
+	if result.Success {
+		s.BroadcastAppLogs(fmt.Sprintf("Successfully restarted %s runtime", reqBody.Runtime), "info")
+
+		// After successful restart, reinitialize the handler manager
+		s.BroadcastAppLogs("Reinitializing handlers after runtime restart...", "info")
+		err := s.handlerManager.ReinitializeRuntime(s.app.instaDir, s.ctx)
+		if err != nil {
+			s.BroadcastAppLogs(fmt.Sprintf("Warning: Failed to reinitialize handlers: %v", err), "warning")
+		} else {
+			s.BroadcastAppLogs("Handlers reinitialized successfully", "info")
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"runtime": reqBody.Runtime,
+			"action":  "restart",
+			"status":  "success",
+			"message": result.Message,
+		})
+	} else {
+		s.BroadcastAppLogs(fmt.Sprintf("Failed to restart %s runtime: %s", reqBody.Runtime, result.Error), "error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"runtime":                reqBody.Runtime,
+			"action":                 "restart",
 			"status":                 "failed",
 			"error":                  result.Error,
 			"requires_manual_action": result.RequiresManualAction,
@@ -1399,4 +1384,44 @@ func (s *APIServer) BroadcastImagePullProgress(serviceName, imageName string, pr
 func (s *APIServer) BroadcastAppLogs(message string, level string) {
 	// Delegate to WebSocket broadcaster
 	s.wsBroadcaster.BroadcastAppLogs(message, level)
+}
+
+// shutdownApplication gracefully shuts down the application
+func (s *APIServer) shutdownApplication(c *gin.Context) {
+	s.logger.Log("Shutdown request received from web interface")
+
+	// Broadcast shutdown notification to all connected clients
+	s.BroadcastAppLogs("Application shutdown initiated", "info")
+
+	// Respond to the client first
+	c.JSON(http.StatusOK, gin.H{
+		"action":  "shutdown",
+		"status":  "success",
+		"message": "Application is shutting down",
+	})
+
+	// Gracefully shutdown in a goroutine to allow the response to be sent
+	go func() {
+		// Small delay to ensure response is sent
+		time.Sleep(100 * time.Millisecond)
+
+		// Stop all services first
+		serviceHandler := s.handlerManager.GetServiceHandler()
+		if serviceHandler != nil {
+			s.logger.Log("Stopping all services before shutdown...")
+			if err := serviceHandler.StopAllServices(); err != nil {
+				s.logger.Log(fmt.Sprintf("Error stopping services during shutdown: %v", err))
+			}
+		}
+
+		// Stop WebSocket broadcaster
+		if s.wsBroadcaster != nil {
+			s.wsBroadcaster.Stop()
+		}
+
+		s.logger.Log("Application shutdown complete")
+
+		// Exit the application
+		os.Exit(0)
+	}()
 }

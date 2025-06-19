@@ -311,9 +311,9 @@ type ServiceImageInfo struct {
 	Error       string `json:"error,omitempty"`
 }
 
-// Legacy API compatibility methods
+// Service-based image management methods
 
-// CheckImageExists checks if an image exists for a service (legacy compatibility)
+// CheckImageExists checks if an image exists for a service
 func (h *ImageHandler) CheckImageExists(serviceName string) (bool, error) {
 	status, err := h.GetImageStatus(serviceName)
 	if err != nil {
@@ -322,12 +322,12 @@ func (h *ImageHandler) CheckImageExists(serviceName string) (bool, error) {
 	return status.Status == "available", nil
 }
 
-// GetAllImages returns all available images (legacy compatibility)
+// GetAllImages returns all available images
 func (h *ImageHandler) GetAllImages() ([]string, error) {
 	return h.ListAllImages()
 }
 
-// StartImagePull starts pulling an image for a service (legacy compatibility)
+// StartImagePull starts pulling an image for a service
 func (h *ImageHandler) StartImagePull(serviceName string) error {
 	// Create a progress channel to receive updates
 	progressChan := make(chan container.ImagePullProgress, 10)
@@ -361,15 +361,15 @@ func (h *ImageHandler) StartImagePull(serviceName string) error {
 	return nil
 }
 
-// StopImagePull stops image pull (legacy compatibility - simplified)
+// StopImagePull stops image pull for a service
 func (h *ImageHandler) StopImagePull(serviceName string) error {
 	// In simplified implementation, we don't track individual pulls
-	// Just return success for compatibility
+	// Just return success
 	h.logger.Log(fmt.Sprintf("Stop image pull requested for service: %s", serviceName))
 	return nil
 }
 
-// GetImagePullProgress returns image pull progress (legacy compatibility)
+// GetImagePullProgress returns image pull progress for a service
 func (h *ImageHandler) GetImagePullProgress(serviceName string) (*models.ImagePullProgress, error) {
 	// In simplified implementation, just return current status
 	status, err := h.GetImageStatus(serviceName)
@@ -396,20 +396,6 @@ func (h *ImageHandler) GetImagePullProgress(serviceName string) (*models.ImagePu
 		Status:      progressStatus,
 		ServiceName: serviceName,
 	}, nil
-}
-
-// GetImageInfo returns image name for a service (legacy compatibility)
-func (h *ImageHandler) GetImageInfo(serviceName string) (string, error) {
-	service, exists := h.serviceManager.GetService(serviceName)
-	if !exists {
-		return "", fmt.Errorf("service %s not found", serviceName)
-	}
-
-	if service.ImageName == "" {
-		return "", fmt.Errorf("service %s has no image defined", serviceName)
-	}
-
-	return service.ImageName, nil
 }
 
 // updateServiceImageStatus updates the image status for a service after successful operations

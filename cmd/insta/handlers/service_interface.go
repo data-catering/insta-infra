@@ -6,7 +6,6 @@ import "github.com/data-catering/insta-infra/v2/cmd/insta/models"
 type ServiceHandlerInterface interface {
 	// Basic service operations
 	ListServices() []*models.EnhancedService
-	GetServiceStatus(serviceName string) (string, error)
 	GetServiceDependencies(serviceName string) ([]string, error)
 	StartService(serviceName string, persist bool) error
 	StopService(serviceName string) error

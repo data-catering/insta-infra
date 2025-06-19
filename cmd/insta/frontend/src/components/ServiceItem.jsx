@@ -1,20 +1,18 @@
-import React, { useState, useEffect, useContext, createContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { 
   startService, 
   stopService, 
   getServiceConnection,
-  getEnhancedServiceConnection,
   openServiceConnection,
   openURL, 
   checkImageExists,
   getAllImageStatuses, 
   startImagePull, 
-  getImageInfo, 
-  getServiceStatus,
   wsClient,
-  WS_MSG_TYPES
+  WS_MSG_TYPES,
+  restartRuntime
 } from "../api/client";
-import { ChevronDown, ChevronUp, ExternalLink, Database, Server, Eye, Play, Square, Copy, ScrollText, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { ScrollText, Download, CheckCircle, AlertCircle, RotateCcw, X } from 'lucide-react';
 import ProgressModal from './ProgressModal';
 import LogsModal from './LogsModal';
 import ConnectionModal from './ConnectionModal';
@@ -230,6 +228,52 @@ const DependencyItem = ({ serviceName, globalStatuses = {}, serviceStatuses = {}
   );
 };
 
+// StuckContainerWarning component for showing runtime restart warnings
+const StuckContainerWarning = ({ containerName, runtimeName, onRestart, onDismiss }) => {
+  const [isRestarting, setIsRestarting] = useState(false);
+
+  const handleRestart = async () => {
+    setIsRestarting(true);
+    try {
+      await onRestart();
+    } finally {
+      setIsRestarting(false);
+    }
+  };
+
+  return (
+    <div className="stuck-container-warning">
+      <div className="warning-content">
+        <div className="warning-icon">
+          <AlertCircle size={20} />
+        </div>
+        <div className="warning-message">
+          <strong>Container Stuck</strong>
+          <p>The container '{containerName}' is stuck in 'created' status. This usually indicates {runtimeName} needs to be restarted.</p>
+        </div>
+        <div className="warning-actions">
+          <button 
+            onClick={handleRestart}
+            disabled={isRestarting}
+            className="button-warning restart-button"
+            title={`Restart ${runtimeName} runtime`}
+          >
+            <RotateCcw size={16} />
+            {isRestarting ? 'Restarting...' : 'Restart'}
+          </button>
+          <button 
+            onClick={onDismiss}
+            className="button-secondary dismiss-button"
+            title="Dismiss warning"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Placeholder ServiceItem component
 // This will be expanded to show service details and actions
 function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyStatuses = {}, serviceStatuses = {} }) {
@@ -261,6 +305,7 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
   const [persistData, setPersistData] = useState(false);
   const [showConnectionInfo, setShowConnectionInfo] = useState(false);
   const [isLoadingConnectionInfo, setIsLoadingConnectionInfo] = useState(false);
+  const [stuckContainerWarning, setStuckContainerWarning] = useState(null); // { containerName, runtimeName }
   
   // Use image status context instead of local state
   const { imageStatuses, imageNames, updateImageStatus } = useImageStatus();
@@ -274,7 +319,7 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
   // Get effective status - prioritize external status from props when available
   const externalStatus = statuses[name];
   const effectiveStatus = externalStatus || localStatus || 'stopped';
-  const effectiveStatusError = localStatusError;
+  const effectiveStatusError = localStatusError || service.statusError;
   
 
   
@@ -527,6 +572,7 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
   
   const showOpenButton = isRunningVariant && hasWebUI;
   const showConnectButton = isRunningVariant;
+  const showLogsButton = isRunningVariant || safeStatus === 'failed' || safeStatusError;
 
   // Handle card click to expand/collapse
   const toggleExpanded = () => {
@@ -568,11 +614,11 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
                 await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500 milliseconds
                 attempts++;
                 
-                const exists = await checkImageExists(name);
-                if (exists && !isResolved) {
-                  isResolved = true;
-                  resolve();
-                  return;
+                  const exists = await checkImageExists(name);
+                  if (exists && !isResolved) {
+                    isResolved = true;
+                    resolve();
+                    return;
                 }
               }
               
@@ -626,11 +672,30 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
         updateImageStatus(name, 'missing');
       }
       
+      // Check if this is a stuck container error
+      if (errorMessage.startsWith('STUCK_CONTAINER:')) {
+        // Parse the structured error: STUCK_CONTAINER:containerName:message
+        const parts = errorMessage.split(':');
+        if (parts.length >= 3) {
+          const containerName = parts[1];
+          const message = parts.slice(2).join(':'); // Rejoin in case message contains colons
+          // Extract runtime name from the message
+          const runtimeMatch = message.match(/indicates (\w+) needs to be restarted/);
+          const runtimeName = runtimeMatch ? runtimeMatch[1] : 'Docker/Podman';
+          
+          // Show the stuck container warning instead of alert
+          setStuckContainerWarning({ containerName, runtimeName });
+        } else {
+          // Fallback if parsing fails
+          alert(`Failed to start ${name}: ${errorMessage}`);
+        }
+      } else {
       // Show different error messages based on the type of failure
       if (errorMessage.includes('download image') || errorMessage.includes('Image pull')) {
         alert(`Failed to download required image for ${name}: ${error.message || error}\n\nPlease check your internet connection and Docker/Podman status.`);
       } else {
         alert(`Failed to start ${name}: ${error.message || error}`);
+        }
       }
     } finally {
       setIsInTransition(false);
@@ -696,14 +761,8 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
         // Open the primary web URL in a new tab
         const primaryUrl = response.connection.webUrls[0].url;
         window.open(primaryUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        // Fallback to legacy webURL format
-        const legacyUrl = response.connection?.webURL;
-        if (legacyUrl) {
-          window.open(legacyUrl, '_blank', 'noopener,noreferrer');
         } else {
           alert(`Service ${name} does not have a web interface available`);
-        }
       }
     } catch (error) {
       console.error(`Failed to open ${name} in browser:`, error);
@@ -717,7 +776,7 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
     setIsLoadingConnectionInfo(true);
     setShowConnectionInfo(true);
     try {
-      const response = await getEnhancedServiceConnection(name);
+      const response = await getServiceConnection(name);
       setConnectionInfo(response.connection);
     } catch (error) {
       console.error(`Failed to get connection info for ${name}:`, error);
@@ -735,6 +794,26 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
 
   const handleCloseLogsModal = () => {
     setShowLogsModal(false);
+  };
+
+  // Handle runtime restart from stuck container warning
+  const handleRestartRuntime = async () => {
+    try {
+      await restartRuntime();
+      // After restart, dismiss the warning and refresh statuses
+      setStuckContainerWarning(null);
+      if (onServiceStateChange) {
+        onServiceStateChange();
+      }
+    } catch (error) {
+      console.error('Failed to restart runtime:', error);
+      alert(`Failed to restart runtime: ${error.message || error}`);
+    }
+  };
+
+  // Handle dismissing the stuck container warning
+  const handleDismissStuckContainerWarning = () => {
+    setStuckContainerWarning(null);
   };
 
   // Handle copying text to clipboard
@@ -947,6 +1026,16 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
         </div>
       </div>
       
+      {/* Stuck Container Warning */}
+      {stuckContainerWarning && (
+        <StuckContainerWarning
+          containerName={stuckContainerWarning.containerName}
+          runtimeName={stuckContainerWarning.runtimeName}
+          onRestart={handleRestartRuntime}
+          onDismiss={handleDismissStuckContainerWarning}
+        />
+      )}
+      
       {/* Action Buttons */}
       <div className="service-actions">
         {/* Start Service button with inline persist checkbox button */}
@@ -1055,6 +1144,8 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
           </button>
         )}
 
+        {/* Logs button - only show for running services or failed services */}
+        {showLogsButton && (
         <button 
           className="action-button logs-button" 
           onClick={handleShowLogs}
@@ -1063,6 +1154,7 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
           <ScrollText size={10} className="action-icon" />
           Logs
         </button>
+        )}
       </div>
 
       {/* Connection Info Modal */}

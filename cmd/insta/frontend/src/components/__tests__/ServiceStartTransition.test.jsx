@@ -8,7 +8,7 @@ vi.mock('../../api/client', () => ({
   startService: vi.fn(),
   stopService: vi.fn(),
   checkImageExists: vi.fn(() => Promise.resolve(true)),
-  getEnhancedServiceConnection: vi.fn(),
+  getServiceConnection: vi.fn(),
   wsClient: {
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),

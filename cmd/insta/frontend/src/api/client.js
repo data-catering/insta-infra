@@ -38,10 +38,6 @@ export async function listServices() {
   return apiRequest('/services');
 }
 
-export async function getServiceStatus(serviceName) {
-  return apiRequest(`/services/${serviceName}/status`);
-}
-
 export async function getAllServiceStatuses() {
   return apiRequest('/services/all/status');
 }
@@ -78,10 +74,6 @@ export async function getServiceConnection(serviceName) {
   return apiRequest(`/services/${serviceName}/connection`);
 }
 
-export async function getEnhancedServiceConnection(serviceName) {
-  return apiRequest(`/services/${serviceName}/connection/enhanced`);
-}
-
 export async function openServiceConnection(serviceName) {
   return apiRequest(`/services/${serviceName}/open`, {
     method: 'POST',
@@ -114,10 +106,6 @@ export async function getImagePullProgress(imageName) {
   return apiRequest(`/images/${imageName}/progress`);
 }
 
-export async function getImageInfo(imageName) {
-  return apiRequest(`/images/${imageName}/info`);
-}
-
 // ==================== LOGGING ====================
 
 export async function getServiceLogs(serviceName) {
@@ -148,6 +136,13 @@ export async function getCurrentRuntime() {
 
 export async function startRuntime(runtime) {
   return apiRequest('/runtime/start', {
+    method: 'POST',
+    body: JSON.stringify({ runtime }),
+  });
+}
+
+export async function restartRuntime(runtime) {
+  return apiRequest('/runtime/restart', {
     method: 'POST',
     body: JSON.stringify({ runtime }),
   });
@@ -189,6 +184,12 @@ export async function getHealth() {
 
 export async function getApiInfo() {
   return apiRequest('/info');
+}
+
+export async function shutdownApplication() {
+  return apiRequest('/app/shutdown', {
+    method: 'POST',
+  });
 }
 
 // ==================== WEBSOCKET SUPPORT ====================
