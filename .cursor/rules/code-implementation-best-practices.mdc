@@ -1,0 +1,141 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# insta-infra Code Implementation Best Practices (When Executing a Plan)
+
+## 1. Introduction and Purpose
+
+This rule guides your actions when you are implementing code changes based on an approved implementation plan (e.g., `docs/implementation/wails-ui-plan.md`). The goal is to ensure that all code you write or modify for `insta-infra` is simple, readable, clean, testable, and aligns with both the plan and existing project standards. This applies to both Go backend development and Web UI/React frontend development.
+
+**CRITICAL:** This code serves end users directly. Every change must maintain system stability and pass all integration tests.
+
+## 2. Code Change Strategy and Quality Assurance
+
+*   **Batch File Edits Efficiently:**
+    *   When you have multiple small edits to make on a single file (and the file is not excessively large), **combine all edits into a single operation** to minimize disruption and ensure consistency.
+    *   For files under ~500 lines, batch all related changes together using a single `edit_file` or `search_replace` call.
+    *   For larger files or complex changes spanning multiple areas, break into logical groups but minimize the number of edit operations.
+*   **Pre-Change Validation:**
+    *   Before making ANY code change, understand the existing logic thoroughly by reading the relevant code sections.
+    *   Identify all potential impact points: functions that call the code you're changing, dependencies, and related components.
+    *   **Never break existing logic** - this code is extremely important and serves real end users.
+*   **Post-Change Verification:**
+    *   After EVERY code change, **immediately run the relevant tests** to ensure nothing is broken.
+    *   **Integration tests MUST always pass** - this is non-negotiable for end-user facing code.
+    *   If any test fails, fix the issue immediately before proceeding with other changes.
+*   **Incremental Safety:**
+    *   Make changes incrementally when dealing with complex modifications.
+    *   Test after each logical group of changes to catch issues early.
+    *   If you're unsure about the impact of a change, ask for guidance rather than risk breaking functionality.
+
+## 3. Plan Adherence and Communication
+
+*   **State Current Task:** Before starting work on a task from the plan, explicitly state: "Now working on: [Task Description from Plan]".
+*   **Follow the Plan:**
+    *   Strictly adhere to the tasks, sub-tasks, and implementation details specified in the active implementation plan.
+    *   Do not deviate significantly without confirming with the user.
+*   **Verify Each Step:**
+    *   After implementing a task (or a significant sub-task), **immediately execute the corresponding testing step** as defined in the plan.
+    *   Report the outcome: "Testing for '[Task Description]': [Command Executed (e.g., `go test ./cmd/insta/...`, `make test`, `npm test --prefix ui` if UI tests exist, or manual UI check)] -> [Pass/Fail] - [Brief observation or output snippet]".
+    *   If a test fails, attempt to debug and fix the implementation. If the fix requires a deviation from the plan or takes significant effort, inform the user.
+*   **Communication is Key:**
+    *   If you encounter ambiguities in the plan, blockers, or realize a task needs to be changed, communicate this to the user *before* proceeding with a modified approach.
+    *   Request clarification if any part of the plan or existing codebase is unclear.
+    *   Upon completion of all tasks, state: "Implementation plan fully executed."
+
+## 4. Core Coding Principles
+
+*   **Simplicity (KISS - Keep It Simple, Stupid):**
+    *   Opt for the most straightforward solution that meets the requirements.
+    *   Avoid unnecessary complexity, abstractions, or over-engineering.
+*   **Readability:**
+    *   Use clear, descriptive, and consistent names for variables, functions, classes, methods, and Go struct fields.
+    *   Format code neatly and consistently. For Go, adhere to `gofmt`/`goimports`. For React/TypeScript, use Prettier (if configured, or maintain consistent formatting).
+    *   Write code that is as self-documenting as possible.
+*   **Clean Code:**
+    *   **DRY (Don't Repeat Yourself):** Consolidate and reuse code where appropriate. Avoid duplicated logic.
+    *   **SRP (Single Responsibility Principle):** Functions/methods/classes/Go packages should ideally do one thing well. Keep them focused and concise.
+    *   Minimize side effects in functions where possible.
+    *   Properly manage resources (e.g., close file handles, release locks, manage database connections).
+*   **Testability:**
+    *   Write code in a way that is easy to unit test. For Go, this means well-defined packages and functions. For React, this means creating testable components and using libraries like React Testing Library (if adopted).
+    *   **Action:** If the project has an existing test suite (e.g., Go tests in `tests/` or under specific packages like `cmd/insta/container`, React tests potentially in `ui/src/__tests__/`), and the task involves adding or significantly modifying a feature, make a reasonable effort to add or update relevant unit tests for the code you've changed/added. Announce if you are adding/modifying tests. For UI components, this might involve snapshot tests or interaction tests.
+
+## 5. Adherence to Project Context and Conventions (`insta-infra`)
+
+*   **Analyze Existing Code:** Before writing new Go code, examine `cmd/insta/` and its subdirectories (like `container/`, `resources/`) to understand existing patterns, style, and architectural choices. Refer to `cmd/insta/models.go` for service definitions. Before writing new React components, look at other components in the `cmd/insta/frontend/src/components/` directory.
+*   **Follow Conventions:**
+    *   Adhere to Go best practices (e.g., effective Go, error handling) and `insta-infra`'s existing CLI structure, service management logic (e.g., in `cmd/insta/models.go`), and resource embedding patterns.
+    *   For the Web UI/React frontend, follow React best practices (e.g., hooks, component composition) and ensure proper integration with the Go backend via HTTP API and WebSocket connections.
+*   **Comments:**
+    *   Add comments to explain *why* certain complex or non-obvious code exists, not just *what* it does.
+    *   Use Go doc comments for exported Go functions, types, and variables.
+    *   Avoid commenting obvious code.
+    *   Ensure comments are kept up-to-date if the code changes.
+
+## 6. Code Modification Strategy
+
+*   When modifying existing code, strive to understand the context and potential impact of your changes on other parts of the system (e.g., other services, CLI commands).
+*   Aim for minimal, targeted changes that achieve the task's goal, unless a broader refactoring is explicitly part of the plan.
+*   If you believe a significant refactor (not specified in the plan) is beneficial or necessary, propose this to the user with your reasoning before proceeding.
+
+## 7. Error Handling and Resilience
+
+*   **Go Backend:**
+    *   Handle errors explicitly by checking error return values. Use `errors.Is` and `errors.As` where appropriate.
+    *   Avoid panics for recoverable errors; use them only for truly exceptional, unrecoverable situations.
+    *   Provide context to errors when returning them up the call stack (e.g., `fmt.Errorf("operation X failed: %w", err)`).
+*   **React Frontend:**
+    *   Use error boundaries for component-level error handling to prevent the entire UI from crashing.
+    *   Provide clear user feedback for failed operations (e.g., API calls to the Go backend failing).
+    *   Validate props and state where necessary.
+*   Consider edge cases and potential failure modes for the code you are implementing.
+*   Ensure the application can handle errors gracefully without crashing, if possible.
+
+## 8. Security Considerations (If Applicable to the Task)
+
+*   Be mindful of common security best practices relevant to the code you are writing (e.g., input validation for CLI arguments or UI inputs, output encoding if displaying user-provided content).
+*   If handling sensitive data (though less common for `insta-infra`'s core logic), ensure it's treated appropriately.
+*   When interacting with external systems (Docker/Podman), ensure commands are constructed safely.
+
+## 9. UI Specific Best Practices (Web UI/React)
+
+*   **Component Design:**
+    *   Create reusable, well-defined React components with clear props and responsibilities. Store these in `cmd/insta/frontend/src/components/` and consider subdirectories for features or shared elements (e.g., `cmd/insta/frontend/src/components/shared/`, `cmd/insta/frontend/src/components/services/`).
+    *   Prefer functional components with hooks.
+*   **State Management:**
+    *   Use `useState` and `useReducer` for local component state.
+    *   For more complex global state (e.g., list of services, running statuses), consider React Context API. Evaluate the need before introducing more complex state management libraries.
+*   **Props:**
+    *   Define clear `interface` or `type` for component props using TypeScript.
+    *   Use descriptive prop names.
+*   **API Integration:**
+    *   Use the HTTP API client (`cmd/insta/frontend/src/api/client.js`) for backend communication.
+    *   Handle WebSocket connections properly for real-time updates.
+    *   Keep data transfer between Go and JS minimal and efficient. Handle data transformation on the appropriate side (Go or JS).
+*   **Styling:**
+    *   Prefer using Tailwind CSS for styling to maintain consistency and a utility-first approach.
+    *   Organize global styles and Tailwind configuration appropriately in the `cmd/insta/frontend` directory.
+*   **Accessibility (a11y):**
+    *   Strive to make UI components accessible (e.g., proper ARIA attributes, keyboard navigation, color contrast).
+*   **User Feedback:**
+    *   Provide visual feedback for user actions (e.g., loading states, success/error messages, toast notifications).
+
+## 10. Integration Testing and End-User Focus
+
+*   **Integration Test Priority:**
+    *   **ALL integration tests MUST pass** after every code change - this is absolutely critical for end-user facing software.
+    *   Run `make test` or equivalent after every significant change to ensure system integrity.
+    *   If integration tests fail, **stop everything** and fix the issue before continuing.
+*   **End-User Impact Awareness:**
+    *   Remember that this code directly serves end users who depend on `insta-infra` for their development workflows.
+    *   Any breaking change or regression affects real users and their productivity.
+    *   Prioritize stability and reliability over new features when there's a conflict.
+*   **Regression Prevention:**
+    *   When fixing bugs, add or update tests to prevent the same issue from recurring.
+    *   Consider edge cases that end users might encounter in real-world usage.
+    *   Test both happy path and error scenarios thoroughly.
+
+By following these guidelines, you will help ensure that the code implemented as part of any plan for `insta-infra` is robust, maintainable, and of high quality, for both its Go core and its Web UI frontend, while maintaining the stability that end users depend on.
