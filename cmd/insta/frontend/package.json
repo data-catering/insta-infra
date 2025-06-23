@@ -20,7 +20,10 @@
     "test:all": "npm run test && npm run test:e2e",
     "test:ci": "npm run test:coverage && npm run test:e2e",
     "playwright:install": "playwright install",
-    "playwright:install-deps": "playwright install-deps"
+    "playwright:install-deps": "playwright install-deps",
+    "css:analyze": "node scripts/css-analyzer.cjs analyze",
+    "css:consolidate": "node scripts/css-analyzer.cjs consolidate",
+    "css:clean": "node scripts/css-analyzer.cjs clean"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",

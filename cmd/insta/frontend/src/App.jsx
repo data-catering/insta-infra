@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import './App.css';
-import './styles.css'; // Import our new CSS
 import ServiceList from './components/ServiceList';
 import RunningServices from './components/RunningServices';
 import { ImageStatusProvider, ImageLoader } from './components/ServiceItem';
@@ -9,6 +7,7 @@ import ConnectionModal from './components/ConnectionModal';
 import LogsModal from './components/LogsModal';
 import LogsPanel from './components/LogsPanel';
 import RuntimeSetup from './components/RuntimeSetup';
+import ErrorMessage, { useErrorHandler } from './components/ErrorMessage';
 import { 
   getAllServiceStatuses,
   getRunningServices,
@@ -25,6 +24,9 @@ import {
 } from "./api/client";
 
 function App() {
+  // Error handling
+  const { errors, addError, removeError, clearAllErrors } = useErrorHandler();
+  
   // Simple state management
   const [services, setServices] = useState([]);
   const [statuses, setStatuses] = useState({});
@@ -71,6 +73,62 @@ function App() {
       }
     };
   }, []);
+
+  // Robust runtime availability monitoring - proactive approach
+  useEffect(() => {
+    let runtimeMonitorInterval;
+    
+    // Only start monitoring if we're not in setup mode
+    // We don't need to check currentRuntime because the API will tell us if runtime is available
+    if (!showRuntimeSetup) {
+      console.log('Starting runtime availability monitoring...');
+      
+      runtimeMonitorInterval = setInterval(async () => {
+        console.log('Runtime monitor: Checking runtime status...');
+        try {
+          const status = await getRuntimeStatus();
+          console.log('Runtime monitor: Got status', status);
+          
+          // If runtime becomes unavailable, transition to setup immediately
+          if (!status.canProceed) {
+            console.log('Runtime monitor detected unavailable runtime, transitioning to setup screen');
+            setRuntimeStatus(status);
+            setShowRuntimeSetup(true);
+            // Clear all data to prevent stale state
+            setServices([]);
+            setRunningServices([]);
+            setStatuses({});
+            setDependencyStatuses({});
+            setError(null);
+            setIsLoading(false);
+            setIsAnimating(false);
+          } else {
+            console.log('Runtime monitor: Runtime is available, continuing normal operation');
+          }
+        } catch (error) {
+          console.warn('Runtime monitor check failed, assuming runtime unavailable:', error);
+          // If runtime check fails completely, assume runtime is unavailable
+          setShowRuntimeSetup(true);
+          setServices([]);
+          setRunningServices([]);  
+          setStatuses({});
+          setDependencyStatuses({});
+          setError(null);
+          setIsLoading(false);
+          setIsAnimating(false);
+        }
+      }, 3000); // Check every 3 seconds for responsive detection
+    } else {
+      console.log('Runtime monitor: Not starting monitoring because in setup mode');
+    }
+    
+    return () => {
+      if (runtimeMonitorInterval) {
+        console.log('Stopping runtime availability monitoring');
+        clearInterval(runtimeMonitorInterval);
+      }
+    };
+  }, [showRuntimeSetup]); // Only depend on showRuntimeSetup
 
   // Initialize WebSocket client and set up real-time event handlers
   const initializeWebSocket = () => {
@@ -234,8 +292,10 @@ function App() {
       let runningServicesData = {};
       try {
         runningServicesData = await getRunningServices();
-      } catch (error) {
-        console.warn('Failed to get running services data:', error);
+      } catch (runningServicesError) {
+        console.warn('Failed to get running services data:', runningServicesError);
+        // Don't handle runtime errors here - let the runtime monitor handle them
+        // Just continue with empty running services data
       }
       
       // Convert services to the expected format
@@ -368,8 +428,11 @@ function App() {
         setIsAnimating(false);
       }, 300);
       
-    } catch (error) {
+        } catch (error) {
       console.error("Error loading services:", error);
+      
+      // Don't parse error messages - let the runtime monitor handle runtime issues
+      // Just show the error and let periodic monitoring detect runtime problems
       setError(error.message || "Failed to load services");
       setServices([]);
       setRunningServices([]);
@@ -515,7 +578,30 @@ function App() {
       // Refresh service statuses
       fetchAllServices();
     } catch (error) {
-      alert(`Failed to stop all services: ${error.message || error}`);
+      addError({
+        type: 'error',
+        title: 'Failed to stop all services',
+        message: 'Unable to stop all services. Some services may still be running.',
+        details: error.message || error.toString(),
+        actions: [
+          {
+            label: 'Retry',
+            onClick: () => {
+              removeError(errors[errors.length - 1]?.id);
+              handleStopAllServices();
+            },
+            variant: 'primary'
+          },
+          {
+            label: 'Refresh Status',
+            onClick: () => {
+              removeError(errors[errors.length - 1]?.id);
+              fetchAllServices();
+            },
+            variant: 'secondary'
+          }
+        ]
+      });
       // Fallback to full refresh on error
       fetchAllServices();
     } finally {
@@ -551,7 +637,22 @@ function App() {
       } catch (error) {
         console.error('Failed to shutdown application:', error);
         setIsShuttingDown(false);
-        alert(`Failed to shutdown application: ${error.message || error}`);
+        addError({
+          type: 'error',
+          title: 'Failed to shutdown application',
+          message: 'Unable to shutdown the application properly.',
+          details: error.message || error.toString(),
+          actions: [
+            {
+              label: 'Try Again',
+              onClick: () => {
+                removeError(errors[errors.length - 1]?.id);
+                handleShutdownApplication();
+              },
+              variant: 'primary'
+            }
+          ]
+        });
       }
     }
   };
@@ -840,6 +941,24 @@ function App() {
           </ImageStatusProvider>
         )}
       </main>
+
+      {/* Global Error Messages */}
+      <div className="global-errors">
+        {errors.map((error) => (
+          <ErrorMessage
+            key={error.id}
+            type={error.type || 'error'}
+            title={error.title}
+            message={error.message}
+            details={error.details}
+            actions={error.actions}
+            onDismiss={() => removeError(error.id)}
+            autoHide={error.type === 'success' || error.type === 'info'}
+            autoHideDelay={error.type === 'success' ? 3000 : 5000}
+            className="app-error-message"
+          />
+        ))}
+      </div>
 
       {/* Footer */}
       <footer className="footer">

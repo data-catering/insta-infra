@@ -16,6 +16,7 @@ import { ScrollText, Download, CheckCircle, AlertCircle, RotateCcw, X } from 'lu
 import ProgressModal from './ProgressModal';
 import LogsModal from './LogsModal';
 import ConnectionModal from './ConnectionModal';
+import ErrorMessage, { useErrorHandler } from './ErrorMessage';
 
 // Helper function for logging
 const logDebug = (message, ...args) => {
@@ -321,8 +322,9 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
   const effectiveStatus = externalStatus || localStatus || 'stopped';
   const effectiveStatusError = localStatusError || service.statusError;
   
+  // Use error handler hook
+  const { errors, addError, removeError, clearAllErrors } = useErrorHandler();
 
-  
   // Auto-clear copy feedback after 2 seconds
   useEffect(() => {
     if (copyFeedback) {
@@ -687,14 +689,49 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
           setStuckContainerWarning({ containerName, runtimeName });
         } else {
           // Fallback if parsing fails
-          alert(`Failed to start ${name}: ${errorMessage}`);
+          addError({
+            type: 'error',
+            title: `Failed to start ${name}`,
+            message: errorMessage,
+            details: 'Unable to parse stuck container error. Please check container status and try restarting the runtime.'
+          });
         }
       } else {
-      // Show different error messages based on the type of failure
-      if (errorMessage.includes('download image') || errorMessage.includes('Image pull')) {
-        alert(`Failed to download required image for ${name}: ${error.message || error}\n\nPlease check your internet connection and Docker/Podman status.`);
-      } else {
-        alert(`Failed to start ${name}: ${error.message || error}`);
+        // Show different error messages based on the type of failure
+        if (errorMessage.includes('download image') || errorMessage.includes('Image pull')) {
+          addError({
+            type: 'error',
+            title: `Failed to download image for ${name}`,
+            message: 'Image pull failed. Please check your internet connection and container runtime status.',
+            details: error.message || error.toString(),
+            actions: [
+              {
+                label: 'Retry',
+                onClick: () => {
+                  removeError(errors[errors.length - 1]?.id);
+                  handleStartService(e);
+                },
+                variant: 'primary'
+              }
+            ]
+          });
+        } else {
+          addError({
+            type: 'error',
+            title: `Failed to start ${name}`,
+            message: error.message || error.toString(),
+            details: 'Check service logs for more details and ensure all dependencies are running.',
+            actions: [
+              {
+                label: 'View Logs',
+                onClick: () => {
+                  removeError(errors[errors.length - 1]?.id);
+                  handleShowLogs(e);
+                },
+                variant: 'secondary'
+              }
+            ]
+          });
         }
       }
     } finally {
@@ -741,7 +778,22 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
       // Notify parent about the error
       notifyStatusChange('failed', errorMessage);
       
-      alert(`Failed to stop ${name}: ${error.message || error}`);
+      addError({
+        type: 'error',
+        title: `Failed to stop ${name}`,
+        message: error.message || error.toString(),
+        details: 'Service may still be stopping in the background. Check service status or view logs for more information.',
+        actions: [
+          {
+            label: 'View Logs',
+            onClick: () => {
+              removeError(errors[errors.length - 1]?.id);
+              handleShowLogs(e);
+            },
+            variant: 'secondary'
+          }
+        ]
+      });
     } finally {
       setIsStopping(false);
       
@@ -762,11 +814,31 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
         const primaryUrl = response.connection.webUrls[0].url;
         window.open(primaryUrl, '_blank', 'noopener,noreferrer');
         } else {
-          alert(`Service ${name} does not have a web interface available`);
+          addError({
+            type: 'info',
+            title: 'No web interface available',
+            message: `Service ${name} does not have a web interface available.`,
+            details: 'This service may only provide API endpoints or other connection methods. Use the Connect button to see available connection options.'
+          });
       }
     } catch (error) {
       console.error(`Failed to open ${name} in browser:`, error);
-      alert(`Failed to open ${name} in browser: ${error.message || error}`);
+      addError({
+        type: 'error',
+        title: `Failed to open ${name}`,
+        message: 'Unable to open service in browser.',
+        details: error.message || error.toString(),
+        actions: [
+          {
+            label: 'Show Connection Info',
+            onClick: () => {
+              removeError(errors[errors.length - 1]?.id);
+              handleConnectionInfo(e);
+            },
+            variant: 'secondary'
+          }
+        ]
+      });
     }
   };
 
@@ -807,7 +879,22 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
       }
     } catch (error) {
       console.error('Failed to restart runtime:', error);
-      alert(`Failed to restart runtime: ${error.message || error}`);
+      addError({
+        type: 'error',
+        title: 'Failed to restart runtime',
+        message: 'Unable to restart the container runtime.',
+        details: error.message || error.toString(),
+        actions: [
+          {
+            label: 'Try Again',
+            onClick: () => {
+              removeError(errors[errors.length - 1]?.id);
+              handleRestartRuntime();
+            },
+            variant: 'primary'
+          }
+        ]
+      });
     }
   };
 
@@ -1035,6 +1122,22 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
           onDismiss={handleDismissStuckContainerWarning}
         />
       )}
+      
+      {/* Error Messages */}
+      {errors.map((error) => (
+        <ErrorMessage
+          key={error.id}
+          type={error.type || 'error'}
+          title={error.title}
+          message={error.message}
+          details={error.details}
+          actions={error.actions}
+          onDismiss={() => removeError(error.id)}
+          autoHide={error.type === 'success' || error.type === 'info'}
+          autoHideDelay={error.type === 'success' ? 3000 : 5000}
+          className="service-error-message"
+        />
+      ))}
       
       {/* Action Buttons */}
       <div className="service-actions">

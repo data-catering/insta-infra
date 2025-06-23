@@ -261,9 +261,11 @@ const ProgressModal = ({ isOpen, onClose, serviceName, imageName = '' }) => {
                   <strong>Troubleshooting:</strong>
                   <ul>
                     <li>Check your internet connection</li>
-                    <li>Verify Docker is running properly</li>
-                    <li>Try running: <code>docker pull {imageName || 'image-name'}</code></li>
+                    <li>Verify Docker/Podman is running properly</li>
+                    <li>Try running manually: <code>docker pull {imageName || 'image-name'}</code></li>
                     <li>Check if you have sufficient disk space</li>
+                    <li>Verify image name and registry access</li>
+                    <li>Check for network firewall restrictions</li>
                   </ul>
                 </div>
               </div>
