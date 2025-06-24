@@ -83,6 +83,17 @@ type HealthStatus struct {
 	Runtime   string    `json:"runtime,omitempty"`
 }
 
+// EnhancedErrorResponse represents the standardized error response structure
+type EnhancedErrorResponse struct {
+	Error       string                 `json:"error"`
+	ServiceName string                 `json:"service_name,omitempty"`
+	ImageName   string                 `json:"image_name,omitempty"`
+	Action      string                 `json:"action"`
+	Timestamp   string                 `json:"timestamp"`
+	Status      int                    `json:"status,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
 // NewAPIServer creates a new API server instance
 func NewAPIServer(app *App) *APIServer {
 	// Set gin to release mode for production-like behavior
@@ -512,7 +523,7 @@ func (s *APIServer) listServices(c *gin.Context) {
 func (s *APIServer) startService(c *gin.Context) {
 	serviceName := c.Param("name")
 	if serviceName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "service name is required"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "service name is required"})
 		return
 	}
 
@@ -526,7 +537,13 @@ func (s *APIServer) startService(c *gin.Context) {
 
 	serviceHandler := s.handlerManager.GetServiceHandler()
 	if serviceHandler == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "service handler not available"})
+		metadata := map[string]interface{}{
+			"serviceName": serviceName,
+			"action":      "service_start",
+			"errorType":   "service_start_failed",
+			"persist":     persist,
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, "service handler not available", serviceName, "", "start", metadata)
 		return
 	}
 
@@ -537,7 +554,21 @@ func (s *APIServer) startService(c *gin.Context) {
 	if err != nil {
 		// Broadcast error status
 		s.BroadcastServiceStatusUpdate(serviceName, "failed", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":        err.Error(),
+			"service_name": serviceName,
+			"action":       "start",
+			"timestamp":    time.Now().Format(time.RFC3339),
+			"persist":      persist,
+			"status":       http.StatusInternalServerError,
+			"metadata": gin.H{
+				"serviceName": serviceName,
+				"action":      "service_start",
+				"timestamp":   time.Now().Format(time.RFC3339),
+				"errorType":   "service_start_failed",
+				"persist":     persist,
+			},
+		})
 		return
 	}
 
@@ -561,7 +592,12 @@ func (s *APIServer) stopService(c *gin.Context) {
 
 	serviceHandler := s.handlerManager.GetServiceHandler()
 	if serviceHandler == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "service handler not available"})
+		metadata := map[string]interface{}{
+			"serviceName": serviceName,
+			"action":      "service_stop",
+			"errorType":   "service_stop_failed",
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, "service handler not available", serviceName, "", "stop", metadata)
 		return
 	}
 
@@ -572,7 +608,19 @@ func (s *APIServer) stopService(c *gin.Context) {
 	if err != nil {
 		// Broadcast error status
 		s.BroadcastServiceStatusUpdate(serviceName, "failed", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":        err.Error(),
+			"service_name": serviceName,
+			"action":       "stop",
+			"timestamp":    time.Now().Format(time.RFC3339),
+			"status":       http.StatusInternalServerError,
+			"metadata": gin.H{
+				"serviceName": serviceName,
+				"action":      "service_stop",
+				"timestamp":   time.Now().Format(time.RFC3339),
+				"errorType":   "service_stop_failed",
+			},
+		})
 		return
 	}
 
@@ -595,13 +643,30 @@ func (s *APIServer) getEnhancedServiceConnection(c *gin.Context) {
 
 	connectionHandler := s.handlerManager.GetConnectionHandler()
 	if connectionHandler == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "connection handler not available"})
+		metadata := map[string]interface{}{
+			"serviceName": serviceName,
+			"action":      "get_connection_info",
+			"errorType":   "connection_info_failed",
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, "connection handler not available", serviceName, "", "get_connection_info", metadata)
 		return
 	}
 
 	enhancedConnection, err := connectionHandler.GetEnhancedServiceConnectionInfo(serviceName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":        err.Error(),
+			"service_name": serviceName,
+			"action":       "get_connection_info",
+			"timestamp":    time.Now().Format(time.RFC3339),
+			"status":       http.StatusInternalServerError,
+			"metadata": gin.H{
+				"serviceName": serviceName,
+				"action":      "get_connection_info",
+				"timestamp":   time.Now().Format(time.RFC3339),
+				"errorType":   "connection_info_failed",
+			},
+		})
 		return
 	}
 
@@ -626,7 +691,12 @@ func (s *APIServer) openServiceConnection(c *gin.Context) {
 
 	connectionInfo, err := connectionHandler.OpenServiceInBrowser(serviceName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":        err.Error(),
+			"service_name": serviceName,
+			"action":       "open_in_browser",
+			"timestamp":    time.Now().Format(time.RFC3339),
+		})
 		return
 	}
 
@@ -654,13 +724,33 @@ func (s *APIServer) getServiceLogs(c *gin.Context) {
 
 	logsHandler := s.handlerManager.GetLogsHandler()
 	if logsHandler == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "logs handler not available"})
+		metadata := map[string]interface{}{
+			"serviceName": serviceName,
+			"action":      "get_service_logs",
+			"errorType":   "logs_fetch_failed",
+			"tailLines":   tailLines,
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, "logs handler not available", serviceName, "", "get_logs", metadata)
 		return
 	}
 
 	logs, err := logsHandler.GetServiceLogs(serviceName, tailLines)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":        err.Error(),
+			"service_name": serviceName,
+			"action":       "get_logs",
+			"tail_lines":   tailLines,
+			"timestamp":    time.Now().Format(time.RFC3339),
+			"status":       http.StatusInternalServerError,
+			"metadata": gin.H{
+				"serviceName": serviceName,
+				"action":      "get_service_logs",
+				"timestamp":   time.Now().Format(time.RFC3339),
+				"errorType":   "logs_fetch_failed",
+				"tailLines":   tailLines,
+			},
+		})
 		return
 	}
 
@@ -900,13 +990,19 @@ func (s *APIServer) getAllImageStatuses(c *gin.Context) {
 func (s *APIServer) startImagePull(c *gin.Context) {
 	imageName := c.Param("name")
 	if imageName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "image name is required"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "image name is required"})
 		return
 	}
 
 	imageHandler := s.handlerManager.GetImageHandler()
 	if imageHandler == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "image handler not available"})
+		metadata := map[string]interface{}{
+			"imageName":   imageName,
+			"serviceName": imageName,
+			"action":      "start_image_pull",
+			"errorType":   "image_pull_failed",
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, "image handler not available", imageName, imageName, "start_image_pull", metadata)
 		return
 	}
 
@@ -917,7 +1013,21 @@ func (s *APIServer) startImagePull(c *gin.Context) {
 	if err != nil {
 		// Broadcast error status
 		s.BroadcastImagePullProgress(imageName, imageName, 0, "error")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":        err.Error(),
+			"image_name":   imageName,
+			"service_name": imageName,
+			"action":       "start_pull",
+			"timestamp":    time.Now().Format(time.RFC3339),
+			"status":       http.StatusInternalServerError,
+			"metadata": gin.H{
+				"imageName":   imageName,
+				"serviceName": imageName,
+				"action":      "image_pull",
+				"timestamp":   time.Now().Format(time.RFC3339),
+				"errorType":   "image_pull_failed",
+			},
+		})
 		return
 	}
 
@@ -951,7 +1061,21 @@ func (s *APIServer) stopImagePull(c *gin.Context) {
 	if err != nil {
 		// Broadcast error status
 		s.BroadcastImagePullProgress(imageName, imageName, 0, "error")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":        err.Error(),
+			"image_name":   imageName,
+			"service_name": imageName,
+			"action":       "stop_pull",
+			"timestamp":    time.Now().Format(time.RFC3339),
+			"status":       http.StatusInternalServerError,
+			"metadata": gin.H{
+				"imageName":   imageName,
+				"serviceName": imageName,
+				"action":      "stop_image_pull",
+				"timestamp":   time.Now().Format(time.RFC3339),
+				"errorType":   "image_pull_stop_failed",
+			},
+		})
 		return
 	}
 
@@ -980,7 +1104,12 @@ func (s *APIServer) getImagePullProgress(c *gin.Context) {
 
 	progress, err := imageHandler.GetImagePullProgress(imageName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":      err.Error(),
+			"image_name": imageName,
+			"action":     "get_pull_progress",
+			"timestamp":  time.Now().Format(time.RFC3339),
+		})
 		return
 	}
 
@@ -1424,4 +1553,40 @@ func (s *APIServer) shutdownApplication(c *gin.Context) {
 		// Exit the application
 		os.Exit(0)
 	}()
+}
+
+// sendEnhancedErrorResponse sends a consistent enhanced error response
+func (s *APIServer) sendEnhancedErrorResponse(c *gin.Context, statusCode int, errorMsg, serviceName, imageName, action string, metadata map[string]interface{}) {
+	timestamp := time.Now().Format(time.RFC3339)
+
+	// Ensure metadata is not nil
+	if metadata == nil {
+		metadata = make(map[string]interface{})
+	}
+
+	// Add standard metadata fields if not present
+	if _, exists := metadata["timestamp"]; !exists {
+		metadata["timestamp"] = timestamp
+	}
+	if _, exists := metadata["action"]; !exists && action != "" {
+		metadata["action"] = action
+	}
+	if _, exists := metadata["serviceName"]; !exists && serviceName != "" {
+		metadata["serviceName"] = serviceName
+	}
+	if _, exists := metadata["imageName"]; !exists && imageName != "" {
+		metadata["imageName"] = imageName
+	}
+
+	response := EnhancedErrorResponse{
+		Error:       errorMsg,
+		ServiceName: serviceName,
+		ImageName:   imageName,
+		Action:      action,
+		Timestamp:   timestamp,
+		Status:      statusCode,
+		Metadata:    metadata,
+	}
+
+	c.JSON(statusCode, response)
 }

@@ -11,7 +11,8 @@ const ErrorMessage = ({
   autoHide = false,
   autoHideDelay = 5000,
   actions = [],
-  className = ''
+  className = '',
+  metadata = {}
 }) => {
   const [isVisible, setIsVisible] = useState(true);
 
@@ -102,7 +103,11 @@ const ErrorMessage = ({
               </button>
             ))}
             {onDismiss && (
-              <button onClick={handleDismiss} className="error-message-close">
+              <button 
+                onClick={handleDismiss} 
+                className="error-message-close"
+                aria-label="Close error message"
+              >
                 <X size={16} />
               </button>
             )}
@@ -155,8 +160,12 @@ export const ErrorToast = ({
         <div className="error-toast-icon">{icon}</div>
         <div className="error-toast-message">{message}</div>
         <button 
-          onClick={() => setIsVisible(false)} 
+          onClick={() => {
+            setIsVisible(false);
+            if (onClose) onClose();
+          }} 
           className="error-toast-close"
+          aria-label="Close notification"
         >
           <X size={14} />
         </button>
@@ -165,9 +174,10 @@ export const ErrorToast = ({
   );
 };
 
-// Hook for managing error state
+// Hook for managing error state with enhanced features
 export const useErrorHandler = () => {
   const [errors, setErrors] = useState([]);
+  const [toasts, setToasts] = useState([]);
 
   const addError = (error) => {
     const errorObj = {
@@ -178,20 +188,67 @@ export const useErrorHandler = () => {
     setErrors(prev => [...prev, errorObj]);
   };
 
+  const addToast = (toast) => {
+    const toastObj = {
+      id: Date.now() + Math.random(),
+      timestamp: new Date(),
+      duration: 4000,
+      ...toast
+    };
+    setToasts(prev => [...prev, toastObj]);
+  };
+
   const removeError = (id) => {
     setErrors(prev => prev.filter(error => error.id !== id));
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
   };
 
   const clearAllErrors = () => {
     setErrors([]);
   };
 
+  const clearAllToasts = () => {
+    setToasts([]);
+  };
+
+  const clearAll = () => {
+    clearAllErrors();
+    clearAllToasts();
+  };
+
   return {
     errors,
+    toasts,
     addError,
+    addToast,
     removeError,
-    clearAllErrors
+    removeToast,
+    clearAllErrors,
+    clearAllToasts,
+    clearAll
   };
+};
+
+// Toast container component for managing multiple toasts
+export const ToastContainer = ({ toasts, onRemoveToast }) => {
+  if (!toasts || toasts.length === 0) return null;
+
+  return (
+    <div className="error-toast-container">
+      {toasts.map(toast => (
+        <ErrorToast
+          key={toast.id}
+          type={toast.type}
+          message={toast.message}
+          duration={toast.duration}
+          onClose={() => onRemoveToast(toast.id)}
+        />
+      ))}
+    </div>
+  );
 };
 
 export default ErrorMessage; 

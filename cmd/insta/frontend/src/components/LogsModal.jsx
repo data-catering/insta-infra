@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Search, Filter, ScrollText, AlertCircle } from 'lucide-react';
 import { getServiceLogs, wsClient, WS_MSG_TYPES } from '../api/client';
+import { useErrorHandler } from './ErrorMessage';
 
 const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) => {
   const [logs, setLogs] = useState([]);
@@ -14,6 +15,7 @@ const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) 
   
   const logsContainerRef = useRef(null);
   const logStreamRef = useRef(null);
+  const { addError } = useErrorHandler();
 
   // Determine which service to show logs for
   const targetService = selectedDependency?.serviceName || serviceName;
@@ -76,6 +78,31 @@ const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) 
       console.error(`Failed to load logs for ${targetService}:`, err);
       const errorMessage = err?.message || err?.toString() || 'Unknown error occurred';
       setError(`Failed to load logs: ${errorMessage}`);
+      
+      // Add detailed error message for user
+      addError({
+        type: 'error',
+        title: 'Failed to Load Service Logs',
+        message: `Unable to load logs for ${targetService}`,
+        details: `Service: ${targetService} | Error: ${errorMessage} | Time: ${new Date().toLocaleTimeString()}`,
+        metadata: {
+          serviceName: targetService,
+          action: 'load_logs',
+          errorMessage: errorMessage,
+          timestamp: new Date().toISOString(),
+          isShowingDependency: isShowingDependency
+        },
+        actions: [
+          {
+            label: 'Retry',
+            onClick: () => {
+              setError('');
+              loadInitialLogs();
+            },
+            variant: 'primary'
+          }
+        ]
+      });
     } finally {
       setIsLoading(false);
     }
@@ -136,6 +163,30 @@ const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) 
       console.error(`Failed to start log stream for ${targetService}:`, err);
       const errorMessage = err?.message || err?.toString() || 'Unknown error occurred';
       setError(`Failed to start log stream: ${errorMessage}`);
+      
+      // Add detailed error message for user
+      addError({
+        type: 'error',
+        title: 'Log Stream Failed',
+        message: `Unable to start log streaming for ${targetService}`,
+        details: `Service: ${targetService} | Error: ${errorMessage} | Time: ${new Date().toLocaleTimeString()}`,
+        metadata: {
+          serviceName: targetService,
+          action: 'start_log_stream',
+          errorMessage: errorMessage,
+          timestamp: new Date().toISOString()
+        },
+        actions: [
+          {
+            label: 'Retry',
+            onClick: () => {
+              setError('');
+              startLogStream();
+            },
+            variant: 'primary'
+          }
+        ]
+      });
     }
   };
 

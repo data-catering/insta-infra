@@ -7,7 +7,7 @@ import ConnectionModal from './components/ConnectionModal';
 import LogsModal from './components/LogsModal';
 import LogsPanel from './components/LogsPanel';
 import RuntimeSetup from './components/RuntimeSetup';
-import ErrorMessage, { useErrorHandler } from './components/ErrorMessage';
+import ErrorMessage, { useErrorHandler, ToastContainer } from './components/ErrorMessage';
 import { 
   getAllServiceStatuses,
   getRunningServices,
@@ -25,7 +25,7 @@ import {
 
 function App() {
   // Error handling
-  const { errors, addError, removeError, clearAllErrors } = useErrorHandler();
+  const { errors, toasts, addError, addToast, removeError, removeToast, clearAllErrors } = useErrorHandler();
   
   // Simple state management
   const [services, setServices] = useState([]);
@@ -79,19 +79,13 @@ function App() {
     let runtimeMonitorInterval;
     
     // Only start monitoring if we're not in setup mode
-    // We don't need to check currentRuntime because the API will tell us if runtime is available
     if (!showRuntimeSetup) {
-      console.log('Starting runtime availability monitoring...');
-      
       runtimeMonitorInterval = setInterval(async () => {
-        console.log('Runtime monitor: Checking runtime status...');
         try {
           const status = await getRuntimeStatus();
-          console.log('Runtime monitor: Got status', status);
           
           // If runtime becomes unavailable, transition to setup immediately
           if (!status.canProceed) {
-            console.log('Runtime monitor detected unavailable runtime, transitioning to setup screen');
             setRuntimeStatus(status);
             setShowRuntimeSetup(true);
             // Clear all data to prevent stale state
@@ -102,11 +96,8 @@ function App() {
             setError(null);
             setIsLoading(false);
             setIsAnimating(false);
-          } else {
-            console.log('Runtime monitor: Runtime is available, continuing normal operation');
           }
         } catch (error) {
-          console.warn('Runtime monitor check failed, assuming runtime unavailable:', error);
           // If runtime check fails completely, assume runtime is unavailable
           setShowRuntimeSetup(true);
           setServices([]);
@@ -118,17 +109,14 @@ function App() {
           setIsAnimating(false);
         }
       }, 3000); // Check every 3 seconds for responsive detection
-    } else {
-      console.log('Runtime monitor: Not starting monitoring because in setup mode');
     }
     
     return () => {
       if (runtimeMonitorInterval) {
-        console.log('Stopping runtime availability monitoring');
         clearInterval(runtimeMonitorInterval);
       }
     };
-  }, [showRuntimeSetup]); // Only depend on showRuntimeSetup
+  }, [showRuntimeSetup]);
 
   // Initialize WebSocket client and set up real-time event handlers
   const initializeWebSocket = () => {
@@ -432,8 +420,41 @@ function App() {
       console.error("Error loading services:", error);
       
       // Don't parse error messages - let the runtime monitor handle runtime issues
-      // Just show the error and let periodic monitoring detect runtime problems
-      setError(error.message || "Failed to load services");
+      // Just show detailed error with metadata
+      const errorMessage = error.message || "Failed to load services";
+      
+      addError({
+        type: 'error',
+        title: 'Failed to Load Services',
+        message: errorMessage,
+        details: `Runtime: ${currentRuntime || 'Unknown'} | Time: ${new Date().toLocaleTimeString()}`,
+        metadata: {
+          runtime: currentRuntime,
+          timestamp: new Date().toISOString(),
+          errorType: 'service_loading_error',
+          endpoint: 'listServices/getAllServiceStatuses'
+        },
+        actions: [
+          {
+            label: 'Retry',
+            onClick: () => {
+              clearAllErrors();
+              loadServicesAndStatuses();
+            },
+            variant: 'primary'
+          },
+          {
+            label: 'Check Runtime',
+            onClick: () => {
+              clearAllErrors();
+              checkRuntimeStatus();
+            },
+            variant: 'secondary'
+          }
+        ]
+      });
+      
+      setError(errorMessage);
       setServices([]);
       setRunningServices([]);
       setDependencyStatuses({});
@@ -580,14 +601,21 @@ function App() {
     } catch (error) {
       addError({
         type: 'error',
-        title: 'Failed to stop all services',
-        message: 'Unable to stop all services. Some services may still be running.',
-        details: error.message || error.toString(),
+        title: 'Stop All Services Failed',
+        message: 'Unable to stop all services',
+        details: `Runtime: ${currentRuntime || 'Unknown'} | Running: ${runningServicesCount} services | Error: ${error.message} | Time: ${new Date().toLocaleTimeString()}`,
+        metadata: {
+          runtime: currentRuntime,
+          runningServicesCount,
+          timestamp: new Date().toISOString(),
+          errorType: 'stop_all_services_error',
+          originalError: error.message || error.toString()
+        },
         actions: [
           {
-            label: 'Retry',
+            label: 'Retry Stop All',
             onClick: () => {
-              removeError(errors[errors.length - 1]?.id);
+              clearAllErrors();
               handleStopAllServices();
             },
             variant: 'primary'
@@ -595,7 +623,7 @@ function App() {
           {
             label: 'Refresh Status',
             onClick: () => {
-              removeError(errors[errors.length - 1]?.id);
+              clearAllErrors();
               fetchAllServices();
             },
             variant: 'secondary'
@@ -622,6 +650,38 @@ function App() {
       }, 2000);
     } catch (err) {
       console.error('Failed to restart runtime:', err);
+      
+      addError({
+        type: 'error',
+        title: 'Runtime Restart Failed',
+        message: `Failed to restart ${currentRuntime}`,
+        details: `Error: ${err.message} | Time: ${new Date().toLocaleTimeString()}`,
+        metadata: {
+          runtime: currentRuntime,
+          timestamp: new Date().toISOString(),
+          errorType: 'runtime_restart_error',
+          originalError: err.message
+        },
+        actions: [
+          {
+            label: 'Retry Restart',
+            onClick: () => {
+              clearAllErrors();
+              handleRestartRuntime();
+            },
+            variant: 'primary'
+          },
+          {
+            label: 'Check Status',
+            onClick: () => {
+              clearAllErrors();
+              checkRuntimeStatus();
+            },
+            variant: 'secondary'
+          }
+        ]
+      });
+      
       setError(`Failed to restart ${currentRuntime}: ${err.message}`);
       setIsLoading(false);
     }
@@ -639,17 +699,31 @@ function App() {
         setIsShuttingDown(false);
         addError({
           type: 'error',
-          title: 'Failed to shutdown application',
-          message: 'Unable to shutdown the application properly.',
-          details: error.message || error.toString(),
+          title: 'Application Shutdown Failed',
+          message: 'Unable to shutdown the application properly',
+          details: `Runtime: ${currentRuntime || 'Unknown'} | Error: ${error.message} | Time: ${new Date().toLocaleTimeString()}`,
+          metadata: {
+            runtime: currentRuntime,
+            timestamp: new Date().toISOString(),
+            errorType: 'application_shutdown_error',
+            originalError: error.message || error.toString()
+          },
           actions: [
             {
               label: 'Try Again',
               onClick: () => {
-                removeError(errors[errors.length - 1]?.id);
+                clearAllErrors();
                 handleShutdownApplication();
               },
               variant: 'primary'
+            },
+            {
+              label: 'Force Close',
+              onClick: () => {
+                clearAllErrors();
+                window.close();
+              },
+              variant: 'secondary'
             }
           ]
         });
@@ -926,6 +1000,7 @@ function App() {
                   onServiceStateChange={fetchAllServices} 
                   statuses={statuses}
                   dependencyStatuses={dependencyStatuses}
+                  currentRuntime={currentRuntime}
                 />
               )}
         
@@ -935,7 +1010,8 @@ function App() {
                 statuses={statuses}
                 dependencyStatuses={dependencyStatuses}
                 isLoading={isLoading} 
-                onServiceStateChange={fetchAllServices} 
+                onServiceStateChange={fetchAllServices}
+                currentRuntime={currentRuntime}
               />
             </div>
           </ImageStatusProvider>
@@ -959,6 +1035,12 @@ function App() {
           />
         ))}
       </div>
+
+      {/* Toast Notifications */}
+      <ToastContainer 
+        toasts={toasts}
+        onRemoveToast={removeToast}
+      />
 
       {/* Footer */}
       <footer className="footer">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getAppLogEntries, getAppLogsSince } from '../api/client';
+import { useErrorHandler } from './ErrorMessage';
 
 const LogsPanel = ({ isVisible, onToggle }) => {
   const [logs, setLogs] = useState([]);
@@ -9,6 +10,7 @@ const LogsPanel = ({ isVisible, onToggle }) => {
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
   const logsEndRef = useRef(null);
   const intervalRef = useRef(null);
+  const { addError } = useErrorHandler();
 
   // Auto-scroll to bottom when new logs arrive
   const scrollToBottom = useCallback(() => {
@@ -30,6 +32,29 @@ const LogsPanel = ({ isVisible, onToggle }) => {
     } catch (err) {
       console.error('Failed to load initial logs:', err);
       setError('Failed to load logs');
+      
+      // Add detailed error message for user
+      addError({
+        type: 'error',
+        title: 'Application Logs Failed',
+        message: 'Unable to load application logs',
+        details: `Error: ${err.message || err.toString()} | Time: ${new Date().toLocaleTimeString()}`,
+        metadata: {
+          action: 'load_app_logs',
+          errorMessage: err.message || err.toString(),
+          timestamp: new Date().toISOString()
+        },
+        actions: [
+          {
+            label: 'Retry',
+            onClick: () => {
+              setError(null);
+              loadInitialLogs();
+            },
+            variant: 'primary'
+          }
+        ]
+      });
     } finally {
       setIsLoading(false);
     }

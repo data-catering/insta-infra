@@ -277,7 +277,7 @@ const StuckContainerWarning = ({ containerName, runtimeName, onRestart, onDismis
 
 // Placeholder ServiceItem component
 // This will be expanded to show service details and actions
-function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyStatuses = {}, serviceStatuses = {} }) {
+function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyStatuses = {}, serviceStatuses = {}, currentRuntime }) {
   // Ensure service is a valid object
   if (!service || typeof service !== 'object') {
     console.warn('ServiceItem: Invalid service prop:', service);
@@ -616,11 +616,19 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
                 await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500 milliseconds
                 attempts++;
                 
+                try {
                   const exists = await checkImageExists(name);
                   if (exists && !isResolved) {
                     isResolved = true;
                     resolve();
                     return;
+                  }
+                } catch (checkError) {
+                  // If checking image existence fails, assume runtime error and stop polling
+                  console.error('Image existence check failed for', name, ':', checkError);
+                  isResolved = true;
+                  reject(new Error(`Runtime error while checking image ${name}: ${checkError.message}`));
+                  return;
                 }
               }
               
@@ -698,35 +706,82 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
         }
       } else {
         // Show different error messages based on the type of failure
-        if (errorMessage.includes('download image') || errorMessage.includes('Image pull')) {
+        if (errorMessage.includes('download image') || errorMessage.includes('Image pull') || errorMessage.includes('Runtime error while checking image')) {
+          // Use enhanced error metadata from backend
+          const backendMetadata = error.metadata || {};
+          const extractedImageName = backendMetadata.imageName || (errorMessage.match(/image\s+([^\s:]+)/i)?.[1]) || imageName || name;
+          
           addError({
             type: 'error',
-            title: `Failed to download image for ${name}`,
-            message: 'Image pull failed. Please check your internet connection and container runtime status.',
-            details: error.message || error.toString(),
+            title: `Image Pull Failed`,
+            message: `Failed to download container image for ${name}`,
+            details: `Image: ${extractedImageName} | Service: ${backendMetadata.serviceName || name} | Action: ${backendMetadata.action || 'image_pull'} | Runtime: ${currentRuntime || 'Unknown'} | Backend Time: ${backendMetadata.timestamp ? new Date(backendMetadata.timestamp).toLocaleTimeString() : 'Unknown'}`,
+            metadata: {
+              serviceName: name,
+              imageName: extractedImageName,
+              runtime: currentRuntime,
+              timestamp: new Date().toISOString(),
+              errorType: 'image_pull_error',
+              originalError: errorMessage,
+              backendAction: backendMetadata.action,
+              backendTimestamp: backendMetadata.timestamp,
+              httpStatus: backendMetadata.status
+            },
             actions: [
               {
-                label: 'Retry',
+                label: 'Retry Download',
                 onClick: () => {
-                  removeError(errors[errors.length - 1]?.id);
+                  clearAllErrors();
                   handleStartService(e);
                 },
                 variant: 'primary'
+              },
+              {
+                label: 'Check Runtime',
+                onClick: () => {
+                  clearAllErrors();
+                  // Could trigger runtime status check here
+                },
+                variant: 'secondary'
               }
             ]
           });
         } else {
+          // Use enhanced error metadata from backend for service start errors
+          const backendMetadata = error.metadata || {};
+          
           addError({
             type: 'error',
-            title: `Failed to start ${name}`,
-            message: error.message || error.toString(),
-            details: 'Check service logs for more details and ensure all dependencies are running.',
+            title: `Service Start Failed`,
+            message: `Failed to start ${name}`,
+            details: `Service: ${backendMetadata.serviceName || name} | Action: ${backendMetadata.action || 'start'} | Runtime: ${currentRuntime || 'Unknown'} | Dependencies: ${service.Dependencies?.join(', ') || 'None'} | Backend Time: ${backendMetadata.timestamp ? new Date(backendMetadata.timestamp).toLocaleTimeString() : 'Unknown'}`,
+            metadata: {
+              serviceName: name,
+              serviceType: service.Type,
+              dependencies: service.Dependencies || [],
+              runtime: currentRuntime,
+              timestamp: new Date().toISOString(),
+              errorType: 'service_start_error',
+              originalError: errorMessage,
+              backendAction: backendMetadata.action,
+              backendTimestamp: backendMetadata.timestamp,
+              httpStatus: backendMetadata.status,
+              persist: backendMetadata.persist
+            },
             actions: [
               {
                 label: 'View Logs',
                 onClick: () => {
-                  removeError(errors[errors.length - 1]?.id);
+                  clearAllErrors();
                   handleShowLogs(e);
+                },
+                variant: 'primary'
+              },
+              {
+                label: 'Retry Start',
+                onClick: () => {
+                  clearAllErrors();
+                  handleStartService(e);
                 },
                 variant: 'secondary'
               }
@@ -778,17 +833,40 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
       // Notify parent about the error
       notifyStatusChange('failed', errorMessage);
       
+      // Use enhanced error metadata from backend for service stop errors
+      const backendMetadata = error.metadata || {};
+      
       addError({
         type: 'error',
-        title: `Failed to stop ${name}`,
-        message: error.message || error.toString(),
-        details: 'Service may still be stopping in the background. Check service status or view logs for more information.',
+        title: `Service Stop Failed`,
+        message: `Failed to stop ${name}`,
+        details: `Service: ${backendMetadata.serviceName || name} | Action: ${backendMetadata.action || 'stop'} | Runtime: ${currentRuntime || 'Unknown'} | Status: ${currentStatus} | Backend Time: ${backendMetadata.timestamp ? new Date(backendMetadata.timestamp).toLocaleTimeString() : 'Unknown'}`,
+        metadata: {
+          serviceName: name,
+          serviceType: service.Type,
+          currentStatus: currentStatus,
+          runtime: currentRuntime,
+          timestamp: new Date().toISOString(),
+          errorType: 'service_stop_error',
+          originalError: errorMessage,
+          backendAction: backendMetadata.action,
+          backendTimestamp: backendMetadata.timestamp,
+          httpStatus: backendMetadata.status
+        },
         actions: [
           {
             label: 'View Logs',
             onClick: () => {
-              removeError(errors[errors.length - 1]?.id);
+              clearAllErrors();
               handleShowLogs(e);
+            },
+            variant: 'primary'
+          },
+          {
+            label: 'Force Stop',
+            onClick: () => {
+              clearAllErrors();
+              handleStopService(e);
             },
             variant: 'secondary'
           }

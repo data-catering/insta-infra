@@ -1,7 +1,7 @@
 import React from 'react';
 import ServiceItem from './ServiceItem';
 
-function RunningServices({ services = [], onServiceStateChange, statuses = {}, dependencyStatuses = {} }) {
+function RunningServices({ services = [], onServiceStateChange, statuses = {}, dependencyStatuses = {}, currentRuntime }) {
   // If no running services, don't render anything (component will be hidden by parent)
   if (services.length === 0) {
     return null;
@@ -38,6 +38,7 @@ function RunningServices({ services = [], onServiceStateChange, statuses = {}, d
                 statuses={statuses}
                 dependencyStatuses={dependencyStatuses}
                 serviceStatuses={statuses}
+                currentRuntime={currentRuntime}
               />
             </div>
           ))}

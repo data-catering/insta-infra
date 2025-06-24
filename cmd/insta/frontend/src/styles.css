@@ -3451,6 +3451,22 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  pointer-events: none;
+}
+
+.error-toast-container .error-toast {
+  pointer-events: all;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Additional animations for error messages */

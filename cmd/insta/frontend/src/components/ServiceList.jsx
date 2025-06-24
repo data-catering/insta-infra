@@ -6,7 +6,8 @@ function ServiceList({
   statuses = {}, 
   dependencyStatuses = {},
   isLoading = false, 
-  onServiceStateChange
+  onServiceStateChange,
+  currentRuntime
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -230,7 +231,7 @@ function ServiceList({
                   className="fade-in" 
                   style={{ animationDelay: `${Math.min(index * 20, 500)}ms` }}
                 >
-                  <ServiceItem service={service} onServiceStateChange={onServiceStateChange} statuses={statuses} dependencyStatuses={dependencyStatuses} serviceStatuses={statuses} />
+                  <ServiceItem service={service} onServiceStateChange={onServiceStateChange} statuses={statuses} dependencyStatuses={dependencyStatuses} serviceStatuses={statuses} currentRuntime={currentRuntime} />
                 </div>
               ))}
             </div>
@@ -242,7 +243,7 @@ function ServiceList({
                   className="fade-in" 
                   style={{ animationDelay: `${Math.min(index * 15, 300)}ms` }}
                 >
-                  <ServiceItem service={service} onServiceStateChange={onServiceStateChange} statuses={statuses} dependencyStatuses={dependencyStatuses} serviceStatuses={statuses} />
+                  <ServiceItem service={service} onServiceStateChange={onServiceStateChange} statuses={statuses} dependencyStatuses={dependencyStatuses} serviceStatuses={statuses} currentRuntime={currentRuntime} />
                 </div>
               ))}
             </div>

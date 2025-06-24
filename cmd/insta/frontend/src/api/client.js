@@ -7,7 +7,26 @@ const API_BASE_URL = window.location.origin + '/api/v1';
 async function handleResponse(response) {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    
+    // Create enhanced error object with full backend response data
+    const error = new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    
+    // Preserve all backend error metadata for enhanced error handling
+    error.metadata = {
+      status: response.status,
+      statusText: response.statusText,
+      serviceName: errorData.service_name,
+      imageName: errorData.image_name,
+      action: errorData.action,
+      timestamp: errorData.timestamp,
+      persist: errorData.persist,
+      tailLines: errorData.tail_lines,
+      requiresManualAction: errorData.requires_manual_action,
+      ...errorData.metadata, // Include backend metadata object
+      ...errorData // Include any other backend fields
+    };
+    
+    throw error;
   }
   return response.json();
 }

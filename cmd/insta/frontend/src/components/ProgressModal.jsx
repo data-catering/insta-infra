@@ -68,7 +68,16 @@ const ProgressModal = ({ isOpen, onClose, serviceName, imageName = '' }) => {
             onClose();
           }, 2000); // Show completion for 2 seconds
         }
-        // Don't auto-close on error, let user see the error
+        
+        // Stop monitoring and cleanup on error
+        if (data.status === 'error') {
+          // Stop WebSocket monitoring for this service
+          cleanup();
+          // Close modal automatically on error after a brief display
+          setTimeout(() => {
+            onClose();
+          }, 3000); // Show error for 3 seconds
+        }
       }
     };
 
