@@ -1,4 +1,4 @@
-.PHONY: build test clean lint vet fmt help release install packages publish deps build-all build-frontend build-web dev-web clean-web
+.PHONY: build test clean lint vet fmt help release install packages publish deps build-all build-frontend build-web dev-web clean-web clean-test
 
 BINARY_NAME=insta
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -22,6 +22,7 @@ help:
 	@echo "  make test-go-coverage Run Go tests with coverage"
 	@echo "  make test-ui     Run frontend tests only"
 	@echo "  make test-ui-coverage Run frontend tests with coverage"
+	@echo "  make clean-test  Clean test cache and temporary files"
 	@echo "  make clean       Clean all build artifacts"
 	@echo "  make clean-web   Clean browser-based Web UI build artifacts only"
 	@echo "  make lint        Run linter"
@@ -39,15 +40,17 @@ build:
 
 
 
-test: build-web test-go test-ui
+test: clean-test build-web test-go test-ui
 
 test-go:
 	@echo "Running Go tests..."
-	go test -v ./...
+	go clean -testcache
+	go test -v -count=1 ./...
 
 test-go-coverage:
 	@echo "Running Go tests with coverage..."
-	go test -v -coverprofile=coverage.out ./...
+	go clean -testcache
+	go test -v -count=1 -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
 test-ui:
@@ -58,6 +61,13 @@ test-ui:
 		echo "Frontend dependencies not installed. Run 'make deps' first."; \
 		exit 1; \
 	fi
+
+clean-test:
+	@echo "Cleaning test cache and temporary files..."
+	go clean -testcache
+	go clean -cache
+	rm -f coverage.out coverage.html
+	rm -rf /tmp/app-test-*
 
 test-ui-coverage:
 	@echo "Running frontend tests with coverage..."
