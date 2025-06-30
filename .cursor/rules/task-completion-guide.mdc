@@ -1,0 +1,229 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+@file ../../README.md
+@file ../../internal/core/models.go
+@file ../../cmd/insta/main.go
+
+# insta-infra Task Completion Guide
+
+## Introduction and Core Mission
+
+This rule guides task completion for the `insta-infra` project, which has a clear mission: **making any data infrastructure service easy to run for anyone**. Every task should advance this goal by improving simplicity, reliability, or accessibility of service management.
+
+The project provides both a CLI tool (`cmd/insta`) and a modern Wails-based UI (`cmd/instaui`) for managing containerized data infrastructure services through Docker or Podman.
+
+## Project Architecture Understanding
+
+Before completing any task, understand these key architectural components:
+
+### Core Components
+- **Service Definitions**: `internal/core/models.go` - Canonical list of all supported services
+- **CLI Application**: `cmd/insta/main.go` - Main CLI entry point with embedded resources
+- **Wails UI**: `cmd/instaui/` - Modern React-based GUI for service management
+- **Container Abstraction**: `internal/core/container/` - Runtime-agnostic container operations
+- **Embedded Resources**: `cmd/insta/resources/` - Docker Compose files and service data
+
+### Service Management Flow
+1. Services defined in `internal/core/models.go` with connection details
+2. Docker Compose configurations in `cmd/insta/resources/docker-compose*.yaml`
+3. Runtime detection (Docker/Podman) via `internal/core/container/`
+4. Service lifecycle managed through both CLI and UI interfaces
+
+## Task Completion Principles
+
+### 1. Ease of Use First
+- **One-Command Simplicity**: Any service should start with a single command (`insta postgres`)
+- **Zero Configuration**: Services should work out-of-the-box with sensible defaults
+- **Clear Feedback**: Provide immediate, understandable status and error messages
+- **Cross-Platform**: Ensure changes work on macOS, Linux, and Windows
+
+### 2. Container Runtime Agnostic
+- Always use the `container.Runtime` interface, never call Docker/Podman directly
+- Test with both Docker and Podman when possible
+- Handle runtime detection failures gracefully
+- Respect user's explicit runtime choice (`-r docker` or `-r podman`)
+
+### 3. Resource Management
+- Embed all necessary files in the binary for easy distribution
+- Use the `//go:embed` pattern for resources in `cmd/insta/resources/`
+- Implement proper cleanup and resource management
+- Handle file synchronization between embedded and extracted resources
+
+### 4. Service Integration Standards
+When adding or modifying services:
+- Follow the service definition pattern in `internal/core/models.go`
+- Include proper health checks in Docker Compose configurations
+- Provide meaningful connection commands and default credentials
+- Support both ephemeral and persistent data modes
+- Add integration tests in `cmd/insta/integration_test.go`
+
+## Implementation Guidelines
+
+### Go Backend Development
+
+#### Service Management
+```go
+// Always use the container runtime interface
+func (a *App) startService(serviceName string, persist bool) error {
+    // Use runtime abstraction
+    return a.runtime.StartService(serviceName, persist)
+}
+
+// Handle errors gracefully with context
+func (a *App) checkServiceStatus(serviceName string) error {
+    status, err := a.runtime.GetServiceStatus(serviceName)
+    if err != nil {
+        return fmt.Errorf("failed to check status for %s: %w", serviceName, err)
+    }
+    // ... handle status
+}
+```
+
+#### Error Handling
+- Provide actionable error messages that help users resolve issues
+- Include suggestions for common problems (Docker not running, permissions, etc.)
+- Use structured error wrapping with `fmt.Errorf("context: %w", err)`
+- Handle container runtime detection failures with helpful guidance
+
+#### Resource Embedding
+```go
+//go:embed resources/docker-compose.yaml resources/docker-compose-persist.yaml
+//go:embed all:resources/data
+var embedFS embed.FS
+
+// Extract resources with version synchronization
+func (a *App) syncResources() error {
+    // Check version and sync only when needed
+    // Handle extraction errors gracefully
+}
+```
+
+### Wails UI Development
+
+#### Component Structure
+- Create reusable components in `cmd/instaui/frontend/src/components/`
+- Use TypeScript interfaces for all props and data structures
+- Implement proper error boundaries and loading states
+- Follow the existing service management patterns
+
+#### Backend Integration
+```typescript
+// Use generated Wails bindings
+import { ListServices, StartService, GetServiceStatus } from '../wailsjs/go/main/App';
+
+// Handle async operations with proper error handling
+const handleStartService = async (serviceName: string, persist: boolean) => {
+    try {
+        await StartService(serviceName, persist);
+        // Update UI state
+    } catch (error) {
+        // Show user-friendly error message
+    }
+};
+```
+
+#### State Management
+- Use React hooks for local component state
+- Consider React Context for global service state
+- Implement optimistic updates where appropriate
+- Provide real-time status updates
+
+### Testing Strategy
+
+#### Integration Tests
+- Add tests to `cmd/insta/integration_test.go` for new services
+- Test both CLI and UI functionality when applicable
+- Verify service connectivity and basic operations
+- Test with both Docker and Podman when possible
+
+#### Unit Tests
+- Test service definitions in `cmd/insta/models_test.go`
+- Verify container runtime abstraction works correctly
+- Test error handling and edge cases
+- Mock external dependencies appropriately
+
+## Common Task Patterns
+
+### Adding a New Service
+1. **Define Service**: Add to `internal/core/models.go` with connection details
+2. **Configure Compose**: Add service to `cmd/insta/resources/docker-compose*.yaml`
+3. **Add Resources**: Include any initialization data in `cmd/insta/resources/data/`
+4. **Test Integration**: Add test to `cmd/insta/integration_test.go`
+5. **Update Documentation**: Ensure service appears in help and README
+
+### Improving User Experience
+1. **Identify Pain Points**: Look for common user complaints or confusion
+2. **Simplify Commands**: Reduce required flags and arguments
+3. **Improve Feedback**: Add progress indicators and clearer status messages
+4. **Handle Edge Cases**: Gracefully handle network issues, permission problems, etc.
+
+### Performance Optimization
+1. **Minimize Container Calls**: Batch operations when possible
+2. **Cache Compose Configs**: Avoid re-parsing Docker Compose files
+3. **Parallel Operations**: Use goroutines for independent service operations
+4. **Efficient Status Checks**: Use single `docker ps` calls for multiple services
+
+### Cross-Platform Compatibility
+1. **Path Handling**: Use `filepath.Join()` for all path operations
+2. **Command Execution**: Handle different shell environments
+3. **File Permissions**: Set appropriate permissions for different OS
+4. **Container Paths**: Use forward slashes in container volume mounts
+
+## Quality Assurance
+
+### Before Completing a Task
+- [ ] Test with both Docker and Podman (if applicable)
+- [ ] Verify cross-platform compatibility (macOS, Linux, Windows)
+- [ ] Ensure embedded resources are properly synchronized
+- [ ] Test both CLI and UI interfaces (if applicable)
+- [ ] Add or update relevant tests
+- [ ] Update documentation if user-facing changes
+
+### Code Review Checklist
+- [ ] Follows container runtime abstraction patterns
+- [ ] Provides clear, actionable error messages
+- [ ] Handles edge cases gracefully
+- [ ] Maintains backward compatibility
+- [ ] Includes appropriate tests
+- [ ] Updates relevant documentation
+
+## Common Pitfalls to Avoid
+
+### Container Runtime Issues
+- Use `docker` or `podman` commands directly to check
+- Don't assume a specific runtime is available
+- Don't ignore runtime detection failures
+- Don't hardcode container runtime behavior
+
+### Resource Management
+- Don't modify embedded resources at runtime
+- Don't assume extracted files exist without synchronization
+- Don't ignore file permission issues
+- Don't leave temporary files or containers running
+
+### User Experience
+- Don't require complex configuration for basic usage
+- Don't provide cryptic error messages
+- Don't ignore cross-platform differences
+- Don't break existing CLI interfaces without deprecation
+
+### Service Integration
+- Don't add services without proper health checks
+- Don't ignore service dependencies
+- Don't hardcode credentials or ports
+- Don't skip integration testing
+
+## Success Metrics
+
+A task is successfully completed when:
+1. **It Works Out of the Box**: New users can achieve their goal with minimal setup
+2. **It's Runtime Agnostic**: Functions correctly with both Docker and Podman
+3. **It's Cross-Platform**: Works on macOS, Linux, and Windows
+4. **It's Well-Tested**: Includes appropriate tests and handles edge cases
+5. **It's Documented**: Changes are reflected in help text and documentation
+6. **It Advances the Mission**: Makes data infrastructure services easier to run for anyone
+
+Remember: The ultimate test is whether a new user can successfully run a service with a single command and immediately start using it for their data infrastructure needs.

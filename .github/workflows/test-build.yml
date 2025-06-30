@@ -1,4 +1,4 @@
-name: Test and build
+name: Test and Build
 
 on:
   push:
@@ -17,21 +17,50 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: cmd/insta/frontend/package-lock.json
 
       - name: Install dependencies
-        run: go mod download
-
-      - name: Verify dependencies
-        run: go mod verify
-
-      - name: Run go vet
-        run: go vet ./...
+        run: make deps
 
       - name: Run tests
-        run: go test -v ./...
+        run: make test
 
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+            artifact-name: insta-linux-amd64
+          - os: macos-13
+            platform: darwin/amd64
+            artifact-name: insta-darwin-amd64
+          - os: macos-latest
+            platform: darwin/arm64
+            artifact-name: insta-darwin-arm64
+          - os: windows-latest
+            platform: windows/amd64
+            artifact-name: insta-windows-amd64
+    runs-on: ${{ matrix.os }}
+    needs: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,13 +69,123 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache: true
 
-      - name: Install UPX
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: cmd/insta/frontend/package-lock.json
+
+      - name: Cache apt packages (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-upx-
+            ${{ runner.os }}-apt-
+
+      - name: Cache Homebrew (macOS)
+        if: startsWith(matrix.os, 'macos')
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /opt/homebrew/var/homebrew/locks
+            /opt/homebrew/var/homebrew/cache
+          key: ${{ runner.os }}-brew-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-brew-upx-
+            ${{ runner.os }}-brew-
+
+      - name: Cache Chocolatey (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\Temp\chocolatey
+            C:\ProgramData\chocolatey\cache
+          key: ${{ runner.os }}-choco-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-choco-upx-
+            ${{ runner.os }}-choco-
+
+      - name: Install dependencies
+        run: make deps
+
+      - name: Install UPX (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y upx
 
-      - name: Build
+      - name: Install UPX (macOS)
+        if: startsWith(matrix.os, 'macos')
         run: |
-          chmod +x scripts/build.sh
-          make build 
+          brew install upx
+
+      - name: Install UPX (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install upx
+
+      - name: Build unified binary (CLI + Web UI)
+        run: make build-web
+        env:
+          CGO_ENABLED: 0
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: insta*
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Display structure of downloaded files
+        run: ls -la
+
+      - name: Create release info
+        run: |
+          echo "## Build Information" > release-info.md
+          echo "- **Commit:** ${{ github.sha }}" >> release-info.md
+          echo "- **Date:** $(date -u)" >> release-info.md
+          echo "- **Unified Binaries:** insta-* (includes both CLI and Web UI)" >> release-info.md
+          echo "  - Linux AMD64: insta-linux-amd64" >> release-info.md
+          echo "  - macOS Intel: insta-darwin-amd64" >> release-info.md  
+          echo "  - macOS Apple Silicon: insta-darwin-arm64" >> release-info.md
+          echo "  - Windows AMD64: insta-windows-amd64" >> release-info.md
+          echo "" >> release-info.md
+          echo "### Usage" >> release-info.md
+          echo "Each binary provides both CLI and Web UI functionality:" >> release-info.md
+          echo "- **CLI Mode:** \`./insta -l\` (list services)" >> release-info.md
+          echo "- **Web UI Mode:** \`./insta\` (opens browser automatically)" >> release-info.md
+          echo "- **Web Server Mode:** \`./insta --port 9310 --no-browser\`" >> release-info.md
+
+      - name: Upload release info
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-info
+          path: release-info.md
