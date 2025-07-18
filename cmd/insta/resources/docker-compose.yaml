@@ -9,7 +9,7 @@ services:
       retries: 3
       test: [CMD-SHELL, "curl -k -f http://localhost:8161/admin"]
       timeout: 5s
-    image: "apache/activemq-artemis:${ACTIVEMQ_VERSION:-2.41.0}"
+    image: "apache/activemq-artemis:${ACTIVEMQ_VERSION:-2.42.0}"
     ports:
       - "61616:61616"
       - "8161:8161"
