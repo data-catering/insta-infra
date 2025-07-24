@@ -1524,7 +1524,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:6333/health"]
       timeout: 5s
-    image: "qdrant/qdrant:${QDRANT_VERSION:-v1.15.0}"
+    image: "qdrant/qdrant:${QDRANT_VERSION:-v1.15.1}"
     ports:
       - "${QDRANT_PORT:-6333}:6333"
       - "6334:6334"
