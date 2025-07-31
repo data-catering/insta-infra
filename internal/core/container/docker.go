@@ -609,7 +609,8 @@ func (d *DockerRuntime) GetContainerLogs(containerName string, tailLines int) ([
 	args := buildLogCommand(containerName, tailLines, false)
 	cmd := exec.Command(d.getDockerCommand(), args...)
 
-	output, err := cmd.Output()
+	// Capture both stdout and stderr since docker logs writes to stderr
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logs for container %s: %w", containerName, err)
 	}

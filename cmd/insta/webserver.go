@@ -137,6 +137,9 @@ func NewAPIServer(app *App) *APIServer {
 		logger.Log("Handlers initialized successfully for HTTP API")
 	}
 
+	// Set WebSocket broadcaster on logs handler for real-time log streaming
+	handlerManager.SetWebSocketBroadcaster(wsBroadcaster)
+
 	// Setup routes
 	server.setupRoutes()
 
@@ -261,6 +264,9 @@ func (s *APIServer) setupRoutes() {
 		logs.GET("/app", s.getAppLogs)
 		logs.GET("/app/entries", s.getAppLogEntries)
 		logs.GET("/app/since/:timestamp", s.getAppLogsSince)
+		logs.POST("/:service/stream/start", s.startServiceLogStream)
+		logs.POST("/:service/stream/stop", s.stopServiceLogStream)
+		logs.GET("/streams/active", s.getActiveLogStreams)
 	}
 
 	// Runtime Management endpoints
@@ -1154,6 +1160,102 @@ func (s *APIServer) getAppLogsSince(c *gin.Context) {
 		"log_entries": entries,
 		"total_logs":  len(entries),
 		"since":       timestampStr,
+	})
+}
+
+// Log Streaming Endpoints
+
+func (s *APIServer) startServiceLogStream(c *gin.Context) {
+	serviceName := c.Param("service")
+	if serviceName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "service name is required"})
+		return
+	}
+
+	logsHandler := s.handlerManager.GetLogsHandler()
+	if logsHandler == nil {
+		metadata := map[string]interface{}{
+			"serviceName": serviceName,
+			"action":      "start_log_stream",
+			"errorType":   "logs_handler_unavailable",
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, "logs handler not available", serviceName, "", "start_log_stream", metadata)
+		return
+	}
+
+	// Start the log stream
+	err := logsHandler.StartLogStream(serviceName)
+	if err != nil {
+		metadata := map[string]interface{}{
+			"serviceName": serviceName,
+			"action":      "start_log_stream",
+			"errorType":   "log_stream_start_failed",
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("failed to start log stream: %v", err), serviceName, "", "start_log_stream", metadata)
+		return
+	}
+
+	// Broadcast that log streaming has started
+	s.BroadcastAppLogs(fmt.Sprintf("Started log streaming for service: %s", serviceName), "info")
+
+	c.JSON(http.StatusOK, gin.H{
+		"service_name": serviceName,
+		"action":       "start_log_stream",
+		"status":       "started",
+	})
+}
+
+func (s *APIServer) stopServiceLogStream(c *gin.Context) {
+	serviceName := c.Param("service")
+	if serviceName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "service name is required"})
+		return
+	}
+
+	logsHandler := s.handlerManager.GetLogsHandler()
+	if logsHandler == nil {
+		metadata := map[string]interface{}{
+			"serviceName": serviceName,
+			"action":      "stop_log_stream",
+			"errorType":   "logs_handler_unavailable",
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, "logs handler not available", serviceName, "", "stop_log_stream", metadata)
+		return
+	}
+
+	// Stop the log stream
+	err := logsHandler.StopLogStream(serviceName)
+	if err != nil {
+		metadata := map[string]interface{}{
+			"serviceName": serviceName,
+			"action":      "stop_log_stream",
+			"errorType":   "log_stream_stop_failed",
+		}
+		s.sendEnhancedErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("failed to stop log stream: %v", err), serviceName, "", "stop_log_stream", metadata)
+		return
+	}
+
+	// Broadcast that log streaming has stopped
+	s.BroadcastAppLogs(fmt.Sprintf("Stopped log streaming for service: %s", serviceName), "info")
+
+	c.JSON(http.StatusOK, gin.H{
+		"service_name": serviceName,
+		"action":       "stop_log_stream",
+		"status":       "stopped",
+	})
+}
+
+func (s *APIServer) getActiveLogStreams(c *gin.Context) {
+	logsHandler := s.handlerManager.GetLogsHandler()
+	if logsHandler == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "logs handler not available"})
+		return
+	}
+
+	activeStreams := logsHandler.GetActiveLogStreams()
+	c.JSON(http.StatusOK, gin.H{
+		"active_streams": activeStreams,
+		"total_active":   len(activeStreams),
 	})
 }
 

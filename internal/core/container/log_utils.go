@@ -54,9 +54,6 @@ func streamFromReader(reader io.Reader, logChan chan<- string, stopChan <-chan s
 // parseLogOutput is a shared utility for parsing container log output
 func parseLogOutput(output []byte) []string {
 	logLines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(logLines) == 1 && logLines[0] == "" {
-		return []string{} // Return empty slice for empty logs
-	}
 	return logLines
 }
 

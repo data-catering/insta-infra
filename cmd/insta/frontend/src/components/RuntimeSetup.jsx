@@ -264,7 +264,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
               </svg>
               <div>
                 <p className="error-title">Runtime Check Failed</p>
-                <p className="error-message">Failed to determine container runtime availability.</p>
+                <p className="error-message">insta-infra not running or failed to determine container runtime availability.</p>
               </div>
             </div>
           </div>

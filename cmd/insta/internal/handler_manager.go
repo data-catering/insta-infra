@@ -104,6 +104,13 @@ func (h *HandlerManager) GetContainerRuntime() container.Runtime {
 	return h.containerRuntime
 }
 
+// SetWebSocketBroadcaster sets the WebSocket broadcaster on the logs handler
+func (h *HandlerManager) SetWebSocketBroadcaster(broadcaster handlers.WebSocketBroadcaster) {
+	if h.logsHandler != nil {
+		h.logsHandler.SetWebSocketBroadcaster(broadcaster)
+	}
+}
+
 // ReinitializeRuntime attempts to reinitialize the container runtime
 func (h *HandlerManager) ReinitializeRuntime(instaDir string, ctx context.Context) error {
 	return h.Initialize(instaDir, ctx)

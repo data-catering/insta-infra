@@ -131,6 +131,22 @@ export async function getServiceLogs(serviceName) {
   return apiRequest(`/services/${serviceName}/logs`);
 }
 
+export async function startServiceLogStream(serviceName) {
+  return apiRequest(`/logs/${serviceName}/stream/start`, {
+    method: 'POST'
+  });
+}
+
+export async function stopServiceLogStream(serviceName) {
+  return apiRequest(`/logs/${serviceName}/stream/stop`, {
+    method: 'POST'
+  });
+}
+
+export async function getActiveLogStreams() {
+  return apiRequest('/logs/streams/active');
+}
+
 export async function getAppLogs() {
   return apiRequest('/logs/app');
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/data-catering/insta-infra/v2/cmd/insta/models"
@@ -17,6 +18,12 @@ type LogsHandler struct {
 	ctx             context.Context
 	logStreams      map[string]chan struct{}
 	logStreamsMutex sync.RWMutex
+	wsBroadcaster   WebSocketBroadcaster
+}
+
+// WebSocketBroadcaster interface for broadcasting log messages
+type WebSocketBroadcaster interface {
+	BroadcastServiceLogs(serviceName, logMessage string)
 }
 
 // NewLogsHandler creates a new simplified logs handler
@@ -39,6 +46,11 @@ func NewLogsHandler(runtime container.Runtime, instaDir string, ctx context.Cont
 		ctx:            ctx,
 		logStreams:     make(map[string]chan struct{}),
 	}
+}
+
+// SetWebSocketBroadcaster sets the WebSocket broadcaster for log streaming
+func (h *LogsHandler) SetWebSocketBroadcaster(broadcaster WebSocketBroadcaster) {
+	h.wsBroadcaster = broadcaster
 }
 
 // GetServiceLogs returns recent logs from all containers belonging to a service
@@ -105,6 +117,12 @@ func (h *LogsHandler) StartLogStream(serviceName string) error {
 	// Get enhanced service information
 	service, exists := h.serviceManager.GetService(serviceName)
 	if !exists {
+		return fmt.Errorf("service %s not found", serviceName)
+	}
+
+	// Get enhanced service status
+	status, err := h.serviceManager.UpdateServiceStatus(serviceName)
+	if err != nil {
 		// Clean up stop channel
 		h.logStreamsMutex.Lock()
 		delete(h.logStreams, serviceName)
@@ -112,8 +130,8 @@ func (h *LogsHandler) StartLogStream(serviceName string) error {
 		return fmt.Errorf("service %s not found", serviceName)
 	}
 
-	// Check if service is running
-	if service.Status != "running" {
+	// Check if service is running (check if it contains the word "running")
+	if !strings.Contains(status, "running") {
 		// Service is not running, clean up and return
 		h.logStreamsMutex.Lock()
 		delete(h.logStreams, serviceName)
@@ -152,12 +170,18 @@ func (h *LogsHandler) streamContainerLogs(serviceName, containerName string, sto
 		}
 	}()
 
-	// Forward logs (in a real implementation, this would go to WebSocket broadcaster)
+	// Forward logs to WebSocket broadcaster
 	go func() {
 		for log := range logChan {
-			// Log processing is now handled by WebSocket broadcaster
-			// This is a simplified implementation that just logs locally
-			h.logger.Log(fmt.Sprintf("[%s][%s] %s", serviceName, containerName, log))
+			// Broadcast to WebSocket clients if broadcaster is available
+			if h.wsBroadcaster != nil {
+				// Format the log message with container prefix if multiple containers
+				formattedLog := log
+				if service, exists := h.serviceManager.GetService(serviceName); exists && len(service.AllContainers) > 1 {
+					formattedLog = fmt.Sprintf("[%s] %s", containerName, log)
+				}
+				h.wsBroadcaster.BroadcastServiceLogs(serviceName, formattedLog)
+			}
 		}
 	}()
 }

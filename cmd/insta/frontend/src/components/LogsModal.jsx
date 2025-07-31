@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Search, Filter, ScrollText, AlertCircle } from 'lucide-react';
-import { getServiceLogs, wsClient, WS_MSG_TYPES } from '../api/client';
+import { getServiceLogs, startServiceLogStream, stopServiceLogStream, wsClient, WS_MSG_TYPES } from '../api/client';
 import { useErrorHandler } from './ErrorMessage';
 
 const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) => {
@@ -36,9 +36,6 @@ const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) 
       };
     }
     
-    return () => {
-      cleanup();
-    };
   }, [isOpen, targetService]);
 
   // Auto-scroll effect
@@ -139,6 +136,9 @@ const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) 
   const cleanup = () => {
     // Stop streaming if active
     if (isStreaming) {
+      stopServiceLogStream(targetService).catch(err => {
+        console.error(`Failed to stop log stream during cleanup for ${targetService}:`, err);
+      });
       setIsStreaming(false);
     }
     
@@ -157,7 +157,8 @@ const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) 
 
     try {
       setError('');
-      // In the WebSocket implementation, streaming is automatic once subscribed
+      // Call the API to start log streaming
+      await startServiceLogStream(targetService);
       setIsStreaming(true);
     } catch (err) {
       console.error(`Failed to start log stream for ${targetService}:`, err);
@@ -196,8 +197,8 @@ const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) 
     }
 
     try {
-      // In the WebSocket implementation, we just set streaming to false
-      // The actual unsubscribe happens in cleanup()
+      // Call the API to stop log streaming
+      await stopServiceLogStream(targetService);
       setIsStreaming(false);
     } catch (err) {
       console.error(`Failed to stop log stream for ${targetService}:`, err);
