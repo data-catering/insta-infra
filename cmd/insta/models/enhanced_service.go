@@ -49,6 +49,7 @@ IMPLEMENTATION NOTES:
 type EnhancedService struct {
 	// Basic service information from internal/core/models.go
 	Name             string `json:"name"`
+	DisplayName      string `json:"display_name"`  // Human-friendly name for UI display
 	Type             string `json:"type"`
 	ConnectionCmd    string `json:"connection_cmd"`
 	DefaultUser      string `json:"default_user,omitempty"`
@@ -354,12 +355,22 @@ func NewComposeFileParser(instaDir string) *ComposeFileParser {
 	}
 }
 
-// LoadComposeFiles loads and parses docker-compose files
+// LoadComposeFiles loads and parses docker-compose files including custom files
 func (p *ComposeFileParser) LoadComposeFiles(instaDir string) error {
-	// Define compose files to parse
+	// Define built-in compose files to parse
 	composeFiles := []string{
 		filepath.Join(instaDir, "docker-compose.yaml"),
 		filepath.Join(instaDir, "docker-compose-persist.yaml"),
+	}
+
+	// Add custom compose files if they exist
+	customRegistry, err := NewCustomServiceRegistry(instaDir)
+	if err != nil {
+		// Log warning but don't fail - custom services are optional
+		fmt.Fprintf(os.Stderr, "Warning: failed to load custom service registry: %v\n", err)
+	} else {
+		customFiles := customRegistry.GetAllCustomComposeFiles()
+		composeFiles = append(composeFiles, customFiles...)
 	}
 
 	p.composeFiles = composeFiles
@@ -375,6 +386,12 @@ func (p *ComposeFileParser) LoadComposeFiles(instaDir string) error {
 		if p.shouldReparse(filePath) {
 			err := p.parseComposeFile(filePath)
 			if err != nil {
+				// For custom files, log warning but continue
+				if strings.Contains(filePath, "custom") {
+					fmt.Fprintf(os.Stderr, "Warning: failed to parse custom compose file %s: %v\n", filePath, err)
+					continue
+				}
+				// For built-in files, fail hard
 				return fmt.Errorf("failed to parse compose file %s: %w", filePath, err)
 			}
 		}
@@ -551,10 +568,23 @@ func (sm *ServiceManager) LoadServices() error {
 		return err
 	}
 
+	// Register custom services from custom compose files
+	err = sm.registerCustomServices()
+	if err != nil {
+		// Log warning but don't fail - custom services are optional
+		fmt.Fprintf(os.Stderr, "Warning: failed to register custom services: %v\n", err)
+	}
+
 	// Second: Create services from core.Services (authoritative source)
 	for serviceName, coreService := range core.Services {
+		// Set DisplayName based on service type
+		// For custom services: use service name (human-friendly)
+		// For pre-defined services: use container name
+		displayName := serviceName
+
 		enhanced := &EnhancedService{
 			Name:                  coreService.Name,
+			DisplayName:           displayName,
 			Type:                  coreService.Type,
 			ConnectionCmd:         coreService.ConnectionCmd,
 			DefaultUser:           coreService.DefaultUser,
@@ -630,8 +660,24 @@ func (sm *ServiceManager) enhanceServiceWithComposeData(serviceName string, serv
 	// Set container information from compose
 	if config.ContainerName != "" {
 		service.ContainerName = config.ContainerName
+		// For custom services with explicit container_name, use that as DisplayName
+		if service.Type == "Custom" {
+			service.DisplayName = config.ContainerName
+		} else {
+			// For pre-defined services, DisplayName is the container name
+			service.DisplayName = config.ContainerName
+		}
 	} else {
-		service.ContainerName = serviceName
+		// For custom services without explicit container_name, use Docker Compose naming pattern
+		if service.Type == "Custom" {
+			service.ContainerName = fmt.Sprintf("insta-%s-1", serviceName)
+			// Keep DisplayName as service name for custom services (human-friendly)
+			service.DisplayName = serviceName
+		} else {
+			service.ContainerName = serviceName
+			// For pre-defined services, DisplayName is the container name
+			service.DisplayName = serviceName
+		}
 	}
 
 	if config.Image != "" {
@@ -1269,8 +1315,8 @@ func (sm *ServiceManager) GetMultipleServiceStatuses(serviceNames []string) (map
 	return result, nil
 }
 
-// GetAllRunningServices returns all services that are currently running indexed by container name
-// (This aligns with the service-to-container architecture where dependencies are tracked by container names)
+// GetAllRunningServices returns all services that are currently running indexed by display name
+// (This provides human-friendly names for UI display: service names for custom services, container names for pre-defined services)
 func (sm *ServiceManager) GetAllRunningServices() (map[string]*EnhancedService, error) {
 	result := make(map[string]*EnhancedService)
 
@@ -1283,11 +1329,12 @@ func (sm *ServiceManager) GetAllRunningServices() (map[string]*EnhancedService, 
 	// Iterate through all services and find ones that are running (contains "running" in the status)
 	for _, service := range sm.services {
 		if strings.Contains(service.Status, "running") {
-			containerName := service.ContainerName
-			if containerName == "" {
-				containerName = service.Name
+			// Use DisplayName as key for UI display (human-friendly names)
+			displayName := service.DisplayName
+			if displayName == "" {
+				displayName = service.Name
 			}
-			result[containerName] = service
+			result[displayName] = service
 		}
 	}
 
@@ -1353,6 +1400,13 @@ func (sm *ServiceManager) GetAllDependencyStatuses() (map[string]*EnhancedServic
 			var isService bool
 			for _, existingService := range sm.services {
 				if existingService.ContainerName == depContainerName {
+					isService = true
+					break
+				}
+				// Special case for custom services: check if this dependency container 
+				// is the Docker Compose generated name for a custom service
+				if existingService.Type == "Custom" && 
+				   depContainerName == fmt.Sprintf("insta-%s-1", existingService.Name) {
 					isService = true
 					break
 				}
@@ -1507,4 +1561,22 @@ func (sm *ServiceManager) CheckStartingServicesProgress() (map[string]*EnhancedS
 	}
 
 	return result, nil
+}
+
+
+// registerCustomServices registers all custom services with the core service registry
+func (sm *ServiceManager) registerCustomServices() error {
+	// Create custom service registry
+	customRegistry, err := NewCustomServiceRegistry(sm.instaDir)
+	if err != nil {
+		return fmt.Errorf("failed to create custom service registry: %w", err)
+	}
+
+	// Register all custom services
+	err = customRegistry.RegisterAllCustomServices()
+	if err != nil {
+		return fmt.Errorf("failed to register custom services: %w", err)
+	}
+
+	return nil
 }

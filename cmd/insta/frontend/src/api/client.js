@@ -28,7 +28,30 @@ async function handleResponse(response) {
     
     throw error;
   }
-  return response.json();
+  
+  // Handle responses with no content (e.g., 204 No Content)
+  if (response.status === 204 || (response.headers && response.headers.get('content-length') === '0')) {
+    return null;
+  }
+  
+  // Check if response has JSON content type
+  const contentType = response.headers && response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return response.json();
+  }
+  
+  // Try to parse as JSON, but handle empty responses gracefully
+  try {
+    return await response.json();
+  } catch (error) {
+    // If JSON parsing fails and response is likely empty, return empty object for compatibility
+    const text = await response.text();
+    if (!text.trim()) {
+      return {};
+    }
+    // Re-throw the error if there was actual content we couldn't parse
+    throw error;
+  }
 }
 
 // Helper function to make API requests
@@ -97,6 +120,47 @@ export async function openServiceConnection(serviceName) {
   return apiRequest(`/services/${serviceName}/open`, {
     method: 'POST',
   });
+}
+
+// ==================== CUSTOM SERVICES ====================
+
+export async function listCustomServices() {
+  return apiRequest('/custom/compose');
+}
+
+export async function getCustomService(serviceId) {
+  return apiRequest(`/custom/compose/${serviceId}`);
+}
+
+export async function uploadCustomService(name, description, content) {
+  return apiRequest('/custom/compose', {
+    method: 'POST',
+    body: JSON.stringify({ name, description, content }),
+  });
+}
+
+export async function updateCustomService(serviceId, name, description, content) {
+  return apiRequest(`/custom/compose/${serviceId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, description, content }),
+  });
+}
+
+export async function deleteCustomService(serviceId) {
+  return apiRequest(`/custom/compose/${serviceId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function validateCustomCompose(content) {
+  return apiRequest('/custom/validate', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function getCustomServiceStats() {
+  return apiRequest('/custom/stats');
 }
 
 // ==================== IMAGE MANAGEMENT ====================

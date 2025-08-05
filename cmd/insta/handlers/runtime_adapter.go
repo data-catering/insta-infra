@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/data-catering/insta-infra/v2/cmd/insta/models"
 	"github.com/data-catering/insta-infra/v2/internal/core/container"
 )
 
@@ -44,20 +45,8 @@ func (r *RuntimeInfoAdapter) GetContainerLogs(containerName string, lines int) (
 }
 
 func (r *RuntimeInfoAdapter) StartService(serviceName string, persist bool) error {
-	// Determine compose files to use with absolute paths
-	var composeFiles []string
-	if r.instaDir != "" {
-		composeFiles = []string{filepath.Join(r.instaDir, "docker-compose.yaml")}
-		if persist {
-			composeFiles = append(composeFiles, filepath.Join(r.instaDir, "docker-compose-persist.yaml"))
-		}
-	} else {
-		// Fallback to relative paths if instaDir not set
-		composeFiles = []string{"docker-compose.yaml"}
-		if persist {
-			composeFiles = append(composeFiles, "docker-compose-persist.yaml")
-		}
-	}
+	// Get all compose files including custom ones
+	composeFiles := r.getAllComposeFiles(persist)
 
 	// Start the service using compose up
 	err := r.runtime.ComposeUp(composeFiles, []string{serviceName}, true)
@@ -111,19 +100,41 @@ func (r *RuntimeInfoAdapter) getFirstContainerForService(serviceName string, com
 	return containerName, nil
 }
 
-func (r *RuntimeInfoAdapter) StopService(serviceName string) error {
-	// Use both compose files for stopping with absolute paths
-	fmt.Println("Stopping service: ", serviceName)
+// getAllComposeFiles returns all compose files including built-in and custom files
+func (r *RuntimeInfoAdapter) getAllComposeFiles(persist bool) []string {
 	var composeFiles []string
+	
+	// Add built-in compose files
 	if r.instaDir != "" {
-		composeFiles = []string{
-			filepath.Join(r.instaDir, "docker-compose.yaml"),
-			filepath.Join(r.instaDir, "docker-compose-persist.yaml"),
+		composeFiles = []string{filepath.Join(r.instaDir, "docker-compose.yaml")}
+		if persist {
+			composeFiles = append(composeFiles, filepath.Join(r.instaDir, "docker-compose-persist.yaml"))
 		}
 	} else {
 		// Fallback to relative paths if instaDir not set
-		composeFiles = []string{"docker-compose.yaml", "docker-compose-persist.yaml"}
+		composeFiles = []string{"docker-compose.yaml"}
+		if persist {
+			composeFiles = append(composeFiles, "docker-compose-persist.yaml")
+		}
 	}
+	
+	// Add custom compose files if instaDir is available
+	if r.instaDir != "" {
+		customRegistry, err := models.NewCustomServiceRegistry(r.instaDir)
+		if err == nil {
+			customFiles := customRegistry.GetAllCustomComposeFiles()
+			composeFiles = append(composeFiles, customFiles...)
+		}
+		// Silently ignore errors - custom services are optional
+	}
+	
+	return composeFiles
+}
+
+func (r *RuntimeInfoAdapter) StopService(serviceName string) error {
+	// Use all compose files for stopping (including custom files)
+	fmt.Println("Stopping service: ", serviceName)
+	composeFiles := r.getAllComposeFiles(true) // Use true to include persist files
 
 	// Stop the service using compose down
 	return r.runtime.ComposeDown(composeFiles, []string{serviceName})

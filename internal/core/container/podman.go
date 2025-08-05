@@ -76,12 +76,15 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	validateArgs = append(validateArgs, "config", "--quiet")
 
 	validateCmd := exec.Command(p.getPodmanCommand(), validateArgs...)
-	validateCmd.Stdout = os.Stdout
-	validateCmd.Stderr = os.Stderr
 	validateCmd.Dir = filepath.Dir(composeFiles[0])
 
-	if err := executeCommand(validateCmd, "compose files validation failed"); err != nil {
-		return err
+	// Capture both stdout and stderr since podman compose writes to both
+	output, err := validateCmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("compose files validation failed: %s\nOutput: %s", err, string(output))
+		}
+		return fmt.Errorf("compose files validation failed: %s", err)
 	}
 
 	// Ensure the insta network exists
@@ -100,10 +103,18 @@ func (p *PodmanRuntime) ComposeUp(composeFiles []string, services []string, quie
 	upArgs = append(upArgs, services...)
 
 	upCmd := exec.Command(p.getPodmanCommand(), upArgs...)
-	upCmd.Stderr = os.Stderr
 	upCmd.Dir = filepath.Dir(composeFiles[0])
 
-	return executeCommand(upCmd, "podman compose up failed")
+	// Capture both stdout and stderr since podman compose writes to both
+	output, err = upCmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("podman compose up failed: %s\nOutput: %s", err, string(output))
+		}
+		return fmt.Errorf("podman compose up failed: %s", err)
+	}
+
+	return nil
 }
 
 func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) error {
@@ -120,12 +131,15 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 	stopArgs = append(stopArgs, services...)
 
 	stopCmd := exec.Command(p.getPodmanCommand(), stopArgs...)
-	stopCmd.Stdout = os.Stdout
-	stopCmd.Stderr = os.Stderr
 	stopCmd.Dir = filepath.Dir(composeFiles[0])
 
-	if err := executeCommand(stopCmd, "podman compose stop failed"); err != nil {
-		return err
+	// Capture both stdout and stderr since podman compose writes to both
+	output, err := stopCmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("podman compose stop failed: %s\nOutput: %s", err, string(output))
+		}
+		return fmt.Errorf("podman compose stop failed: %s", err)
 	}
 
 	// Remove stopped containers but preserve volumes
@@ -137,11 +151,18 @@ func (p *PodmanRuntime) ComposeDown(composeFiles []string, services []string) er
 	rmArgs = append(rmArgs, services...)
 
 	rmCmd := exec.Command(p.getPodmanCommand(), rmArgs...)
-	rmCmd.Stdout = os.Stdout
-	rmCmd.Stderr = os.Stderr
 	rmCmd.Dir = filepath.Dir(composeFiles[0])
 
-	return executeCommand(rmCmd, "podman compose rm failed")
+	// Capture both stdout and stderr since podman compose writes to both
+	output, err = rmCmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("podman compose rm failed: %s\nOutput: %s", err, string(output))
+		}
+		return fmt.Errorf("podman compose rm failed: %s", err)
+	}
+
+	return nil
 }
 
 func (p *PodmanRuntime) ExecInContainer(containerName string, cmd string, interactive bool) error {
@@ -161,12 +182,27 @@ func (p *PodmanRuntime) ExecInContainer(containerName string, cmd string, intera
 	execCmd.Stdout = os.Stdout
 	execCmd.Stderr = os.Stderr
 
-	return executeCommand(execCmd, fmt.Sprintf("failed to execute command in container %s", containerName))
+	// For interactive commands, we need to keep the original behavior
+	// since we want to see the output in real-time
+	if interactive {
+		return executeCommand(execCmd, fmt.Sprintf("failed to execute command in container %s", containerName))
+	}
+
+	// For non-interactive commands, use CombinedOutput for better error handling
+	output, err := execCmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("failed to execute command in container %s: %s\nOutput: %s", containerName, err, string(output))
+		}
+		return fmt.Errorf("failed to execute command in container %s: %s", containerName, err)
+	}
+
+	return nil
 }
 
 func (p *PodmanRuntime) GetPortMappings(containerName string) (map[string]string, error) {
 	cmd := exec.Command(p.getPodmanCommand(), "port", containerName)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port mappings for container %s: %w", containerName, err)
 	}
@@ -191,12 +227,12 @@ func (p *PodmanRuntime) getOrParseComposeConfig(composeFiles []string) (*Compose
 		cmd.Dir = filepath.Dir(composeFiles[0])
 	}
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("failed to get podman compose configuration: %s\n%s", err, string(exitErr.Stderr))
+		if len(output) > 0 {
+			return nil, fmt.Errorf("failed to get podman compose configuration: %s\nOutput: %s", err, string(output))
 		}
-		return nil, fmt.Errorf("failed to get podman compose configuration: %w", err)
+		return nil, fmt.Errorf("failed to get podman compose configuration: %s", err)
 	}
 
 	var config ComposeConfig
@@ -469,7 +505,7 @@ func (p *PodmanRuntime) GetAllContainerStatuses() (map[string]string, error) {
 		"--filter", "label=com.docker.compose.project=insta",
 		"--format", "{{.Names}},{{.State}},{{.Status}}")
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get running containers: %w", err)
 	}
@@ -648,7 +684,7 @@ func (p *PodmanRuntime) StreamContainerLogs(containerName string, logChan chan<-
 // containerExistsAnywhere checks if a container with the given name exists (running or stopped)
 func (p *PodmanRuntime) containerExistsAnywhere(containerName string) bool {
 	cmd := exec.Command(p.getPodmanCommand(), "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false
 	}
@@ -675,7 +711,7 @@ func (p *PodmanRuntime) CheckMultipleImagesExist(imageNames []string) (map[strin
 
 	// Use podman images command to get all local images in one call
 	cmd := exec.Command(p.getPodmanCommand(), "images", "--format", "{{.Repository}}:{{.Tag}}")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list podman images: %w", err)
 	}
@@ -728,7 +764,7 @@ func (p *PodmanRuntime) CheckMultipleImagesExist(imageNames []string) (map[strin
 // ListAllImages returns a list of all available Podman images
 func (p *PodmanRuntime) ListAllImages() ([]string, error) {
 	cmd := exec.Command(p.getPodmanCommand(), "images", "--format", "{{.Repository}}:{{.Tag}}")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list podman images: %w", err)
 	}

@@ -4,6 +4,9 @@
 
 A simple, fast CLI tool for spinning up data infrastructure services using Docker or Podman.
 
+> [!NOTE]
+> [Check out the demo UI](https://data-catering.github.io/insta-infra/demo/ui/index.html)
+
 ## Features
 
 - Run data infrastructure services with a single command
@@ -13,6 +16,14 @@ A simple, fast CLI tool for spinning up data infrastructure services using Docke
 - Connect to services with pre-configured environment variables
 
 ## Installation
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | sh
+```
+OR
+```bash
+wget -q -O - https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | sh
+```
 
 ### Using Homebrew
 
@@ -120,9 +131,11 @@ insta -v
 
 ## Web UI
 
-insta-infra also provides a modern web-based graphical interface for users who prefer visual service management.
+```bash
+insta --ui
+```
 
-![Web UI Screenshot](docs/img/web-ui-demo.png)
+[Check out the demo UI](https://data-catering.github.io/insta-infra/demo/ui/index.html).
 
 ### Features
 
@@ -133,98 +146,6 @@ insta-infra also provides a modern web-based graphical interface for users who p
 - **Data Persistence**: Toggle data persistence with checkboxes
 - **Browser Integration**: Direct "Open" buttons for web-based services
 - **Dependency Visualization**: Clear display of service dependencies
-
-### Building the Web UI
-
-#### Prerequisites
-
-In addition to the standard requirements, the Web UI requires:
-- **Node.js** (16+) and **npm**
-
-
-#### Development Mode
-
-To run the Web UI in development mode with hot reload:
-
-```bash
-# Clone and navigate to the project
-git clone https://github.com/data-catering/insta-infra.git
-cd insta-infra
-
-# Start the development server
-make dev-web
-```
-
-This will:
-1. Start the Go backend
-2. Launch the React frontend with hot reload
-3. Open the application window automatically
-
-#### Production Build
-
-To build a production version of the Web UI:
-
-```bash
-# Build the Web UI binary
-make build-ui
-
-# Or build manually
-make build-web
-```
-
-The built application will be available as `./insta` in the project root.
-
-### Using the Web UI
-
-1. **Launch the application**:
-   ```bash
-   # If you built with make
-   ./insta-infra-ui
-   
-   # If you built manually
-   ./insta
-   ```
-
-2. **Service Management**:
-   - Browse available services in the main grid
-   - Click **Start** to launch a service (check "Persist data" for persistence)
-   - Click **Stop** to shut down running services
-   - Use **Stop All** to shut down all running services at once
-
-3. **Connecting to Services**:
-   - **Open**: For web-based services (Grafana, Kibana, etc.), click to open in browser
-   - **Connect**: View connection details, URLs, credentials, and CLI commands
-   - **Copy**: All connection details have copy-to-clipboard functionality
-
-4. **Status Monitoring**:
-   - Green indicators show running services
-   - Gray indicators show stopped services
-   - Red indicators show error states
-   - Real-time updates every 30 seconds
-
-### Cross-Platform Support
-
-The Web UI supports the same platforms as the CLI:
-- **macOS**: ARM64 and Intel
-- **Linux**: ARM64 and Intel  
-- **Windows**: ARM64 and Intel
-
-### Troubleshooting
-
-**Application won't start**:
-- Ensure Docker/Podman is running
-- Check that required ports aren't already in use
-- Try running with `make dev-web` for detailed error messages
-
-**Services won't start**:
-- Verify container runtime is accessible
-- Check system resources (memory, disk space)
-- Review Docker/Podman logs for specific errors
-
-**UI not updating**:
-- Click the refresh button manually
-- Check network connectivity if using remote Docker
-- Restart the application if status seems stuck
 
 ## Configuration
 
@@ -378,36 +299,3 @@ make clean
 | Tracing                     | jaeger                                                                                                                                 |
 | Web Server                  | httpbin, httpd                                                                                                                         |
 | Workflow                    | maestro, temporal                                                                                                                      |
-
-## Updating
-
-### Using Package Managers
-
-If you installed via a package manager, you can update using the standard update commands:
-
-```bash
-# Debian/Ubuntu
-sudo apt update && sudo apt upgrade
-
-# RHEL/CentOS/Fedora
-sudo dnf update
-# or
-sudo yum update
-
-# Arch Linux
-sudo pacman -Syu
-
-# macOS (Homebrew)
-brew upgrade
-
-# Windows (Chocolatey)
-choco upgrade insta
-```
-
-### Manual Update
-
-If you prefer to update manually:
-
-1. Download the latest release from the [GitHub releases page](https://github.com/data-catering/insta-infra/releases)
-2. Replace your existing binary with the new one
-3. Make sure the binary is executable: `chmod +x insta`

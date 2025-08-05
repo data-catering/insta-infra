@@ -1,0 +1,5 @@
+services:
+  test-service:
+    image: nginx:latest
+    ports:
+      - "8081:80"

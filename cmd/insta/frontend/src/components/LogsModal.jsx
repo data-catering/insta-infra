@@ -265,10 +265,10 @@ const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) 
 
   return createPortal(
     <div className="connection-modal-overlay" onClick={onClose}>
-      <div className="connection-modal logs-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="connection-modal logs-modal" role="dialog" aria-labelledby="logs-modal-title" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="connection-modal-header">
-          <div className="connection-modal-title">
+          <div className="connection-modal-title" id="logs-modal-title">
             <ScrollText size={20} />
             <span>
               Logs - {targetService}

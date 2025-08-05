@@ -6,6 +6,12 @@ Infra through Insta is a game-changer for IT infrastructure. With a detailed doc
 
 Insta-Infra’s agility helps organizations adapt swiftly to market changes, ensuring IT environments align with business goals. Built-in health checks and dependency management enhance high availability and reliability, optimizing resource use for better performance. This fosters innovation and keeps you competitive in the digital landscape.
 
+## Demo
+
+<span class="center-content">
+[Demo UI](demo/ui/index.html){ .md-button .md-button--primary }
+</span>
+
 ## Features
 
 - Simple commands
@@ -13,3 +19,13 @@ Insta-Infra’s agility helps organizations adapt swiftly to market changes, ens
 - Works anywhere
 - Don't worry about startup configuration
 - Don't think about what hostname, port, or credentials to use to connect
+
+## Installation
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | sh
+```
+OR
+```bash
+wget -q -O - https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | sh
+```

@@ -71,21 +71,21 @@ func (d *DockerRuntime) ComposeUp(composeFiles []string, services []string, quie
 	args = append(args, services...)
 
 	cmd := exec.Command(d.getDockerCommand(), args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	// Set working directory to the directory containing the first compose file
 	cmd.Dir = filepath.Dir(composeFiles[0])
 
-	if err := cmd.Run(); err != nil {
+	// Capture both stdout and stderr since docker compose writes to both
+	output, err := cmd.CombinedOutput()
+	if err != nil {
 		// If the error indicates Docker daemon is not running, return a specific error
 		if strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			return fmt.Errorf("docker daemon not running")
 		}
-		// Use the helper for error handling
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return fmt.Errorf("docker compose up failed: %s\n%s", err, string(exitErr.Stderr))
+		// Include the command output in the error message for better debugging
+		if len(output) > 0 {
+			return fmt.Errorf("docker compose up failed: %s\nOutput: %s", err, string(output))
 		}
-		return fmt.Errorf("docker compose up failed: %w", err)
+		return fmt.Errorf("docker compose up failed: %s", err)
 	}
 	return nil
 }
@@ -114,12 +114,15 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	stopArgs = append(stopArgs, services...)
 
 	stopCmd := exec.Command(d.getDockerCommand(), stopArgs...)
-	stopCmd.Stdout = os.Stdout
-	stopCmd.Stderr = os.Stderr
 	stopCmd.Dir = filepath.Dir(composeFiles[0])
 
-	if err := executeCommand(stopCmd, "docker compose stop failed"); err != nil {
-		return err
+	// Capture both stdout and stderr since docker compose writes to both
+	output, err := stopCmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("docker compose stop failed: %s\nOutput: %s", err, string(output))
+		}
+		return fmt.Errorf("docker compose stop failed: %s", err)
 	}
 
 	// Remove stopped containers but preserve volumes
@@ -131,11 +134,18 @@ func (d *DockerRuntime) ComposeDown(composeFiles []string, services []string) er
 	rmArgs = append(rmArgs, services...)
 
 	rmCmd := exec.Command(d.getDockerCommand(), rmArgs...)
-	rmCmd.Stdout = os.Stdout
-	rmCmd.Stderr = os.Stderr
 	rmCmd.Dir = filepath.Dir(composeFiles[0])
 
-	return executeCommand(rmCmd, "docker compose rm failed")
+	// Capture both stdout and stderr since docker compose writes to both
+	output, err = rmCmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("docker compose rm failed: %s\nOutput: %s", err, string(output))
+		}
+		return fmt.Errorf("docker compose rm failed: %s", err)
+	}
+
+	return nil
 }
 
 func (d *DockerRuntime) ExecInContainer(containerName string, cmd string, interactive bool) error {
@@ -155,12 +165,27 @@ func (d *DockerRuntime) ExecInContainer(containerName string, cmd string, intera
 	execCmd.Stdout = os.Stdout
 	execCmd.Stderr = os.Stderr
 
-	return executeCommand(execCmd, fmt.Sprintf("failed to execute command in container %s", containerName))
+	// For interactive commands, we need to keep the original behavior
+	// since we want to see the output in real-time
+	if interactive {
+		return executeCommand(execCmd, fmt.Sprintf("failed to execute command in container %s", containerName))
+	}
+
+	// For non-interactive commands, use CombinedOutput for better error handling
+	output, err := execCmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			return fmt.Errorf("failed to execute command in container %s: %s\nOutput: %s", containerName, err, string(output))
+		}
+		return fmt.Errorf("failed to execute command in container %s: %s", containerName, err)
+	}
+
+	return nil
 }
 
 func (d *DockerRuntime) GetPortMappings(containerName string) (map[string]string, error) {
 	cmd := exec.Command(d.getDockerCommand(), "port", containerName)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get port mappings for container %s: %w", containerName, err)
 	}
@@ -185,12 +210,12 @@ func (d *DockerRuntime) getOrParseComposeConfig(composeFiles []string) (*Compose
 		cmd.Dir = filepath.Dir(composeFiles[0])
 	}
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("failed to get docker compose configuration: %s\n%s", err, string(exitErr.Stderr))
+		if len(output) > 0 {
+			return nil, fmt.Errorf("failed to get docker compose configuration: %s\nOutput: %s", err, string(output))
 		}
-		return nil, fmt.Errorf("failed to get docker compose configuration: %w", err)
+		return nil, fmt.Errorf("failed to get docker compose configuration: %s", err)
 	}
 
 	var config ComposeConfig
@@ -475,7 +500,7 @@ func (d *DockerRuntime) GetAllContainerStatuses() (map[string]string, error) {
 		"--filter", "label=com.docker.compose.project=insta",
 		"--format", "{{.Names}},{{.State}},{{.Status}}")
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get running containers: %w", err)
 	}
@@ -662,7 +687,7 @@ func (d *DockerRuntime) StreamContainerLogs(containerName string, logChan chan<-
 // containerExistsAnywhere checks if a container with the given name exists (running or stopped)
 func (d *DockerRuntime) containerExistsAnywhere(containerName string) bool {
 	cmd := exec.Command(d.getDockerCommand(), "ps", "-a", "--format", "{{.Names}}", "--filter", fmt.Sprintf("name=^%s$", containerName))
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false
 	}
@@ -679,7 +704,7 @@ func (d *DockerRuntime) containerExistsAnywhere(containerName string) bool {
 // GetContainerStatus returns the status of a container (running, exited, created, etc.)
 func (d *DockerRuntime) GetContainerStatus(containerName string) (string, error) {
 	cmd := exec.Command(d.getDockerCommand(), "inspect", "--format", "{{.State.Status}} {{.State.ExitCode}}", containerName)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// If container doesn't exist, return stopped
 		if strings.Contains(err.Error(), "No such container") {
@@ -754,7 +779,7 @@ func (d *DockerRuntime) CheckMultipleImagesExist(imageNames []string) (map[strin
 
 	// Use docker images command to get all local images in one call
 	cmd := exec.Command(d.getDockerCommand(), "images", "--format", "{{.Repository}}:{{.Tag}}")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list docker images: %w", err)
 	}
@@ -807,7 +832,7 @@ func (d *DockerRuntime) CheckMultipleImagesExist(imageNames []string) (map[strin
 // ListAllImages returns a list of all available Docker images
 func (d *DockerRuntime) ListAllImages() ([]string, error) {
 	cmd := exec.Command(d.getDockerCommand(), "images", "--format", "{{.Repository}}:{{.Tag}}")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list docker images: %w", err)
 	}

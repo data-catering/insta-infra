@@ -772,7 +772,6 @@ function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyS
               {
                 label: 'View Logs',
                 onClick: () => {
-                  clearAllErrors();
                   handleShowLogs(e);
                 },
                 variant: 'primary'

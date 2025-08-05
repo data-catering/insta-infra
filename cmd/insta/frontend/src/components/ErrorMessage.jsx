@@ -15,21 +15,29 @@ const ErrorMessage = ({
   metadata = {}
 }) => {
   const [isVisible, setIsVisible] = useState(true);
+  const [detailsViewed, setDetailsViewed] = useState(false);
 
-  // Auto-hide functionality
+  // Auto-hide functionality - but don't auto-hide if details have been viewed
   useEffect(() => {
-    if (autoHide && autoHideDelay > 0) {
+    if (autoHide && autoHideDelay > 0 && !detailsViewed) {
       const timer = setTimeout(() => {
         handleDismiss();
       }, autoHideDelay);
       return () => clearTimeout(timer);
     }
-  }, [autoHide, autoHideDelay]);
+  }, [autoHide, autoHideDelay, detailsViewed]);
 
   const handleDismiss = () => {
     setIsVisible(false);
     if (onDismiss) {
       onDismiss();
+    }
+  };
+
+  const handleDetailsToggle = (event) => {
+    // Mark details as viewed when user clicks to show them
+    if (event.target.open) {
+      setDetailsViewed(true);
     }
   };
 
@@ -76,14 +84,16 @@ const ErrorMessage = ({
   return (
     <div className={`error-message ${containerClass} ${className}`} role="alert">
       <div className="error-message-content">
-        <div className={`error-message-icon ${iconColor}`}>
-          {icon}
+        <div className="error-message-header">
+          <div className={`error-message-icon ${iconColor}`}>
+            {icon}
+          </div>
+          {title && <div className="error-message-title">{title}</div>}
         </div>
         <div className="error-message-text">
-          {title && <div className="error-message-title">{title}</div>}
           {message && <div className="error-message-description">{message}</div>}
           {details && (
-            <details className="error-message-details">
+            <details className="error-message-details" onToggle={handleDetailsToggle}>
               <summary>Show Details</summary>
               <div className="error-message-details-content">{details}</div>
             </details>
@@ -104,7 +114,7 @@ const ErrorMessage = ({
             ))}
             {onDismiss && (
               <button 
-                onClick={handleDismiss} 
+                onClick={handleDismiss}
                 className="error-message-close"
                 aria-label="Close error message"
               >

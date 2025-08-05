@@ -118,6 +118,56 @@ describe('ErrorMessage Component', () => {
       expect(mockOnDismiss).toHaveBeenCalledTimes(1);
     }, { timeout: 200 });
   });
+
+  it('does not auto-hide after viewing details', async () => {
+    const onDismiss = vi.fn();
+    render(
+      <ErrorMessage
+        message="Test message"
+        details="Test details"
+        autoHide={true}
+        autoHideDelay={100}
+        onDismiss={onDismiss}
+      />
+    );
+
+    expect(screen.getByText('Test message')).toBeInTheDocument();
+
+    // Click to view details
+    const detailsButton = screen.getByText('Show Details');
+    fireEvent.click(detailsButton);
+
+    // Wait for the auto-hide delay
+    await waitFor(() => {
+      expect(screen.getByText('Test message')).toBeInTheDocument();
+    }, { timeout: 200 });
+
+    // Should not have called onDismiss
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('icon and title are on same line, description underneath', () => {
+    render(
+      <ErrorMessage
+        type="error"
+        title="Error Title"
+        message="Error description"
+      />
+    );
+
+    const header = screen.getByText('Error Title').closest('.error-message-header');
+    const icon = header.querySelector('.error-message-icon');
+    const title = header.querySelector('.error-message-title');
+
+    expect(header).toBeInTheDocument();
+    expect(icon).toBeInTheDocument();
+    expect(title).toBeInTheDocument();
+
+    // Description should be in the text section, not the header
+    const description = screen.getByText('Error description');
+    expect(description.closest('.error-message-text')).toBeInTheDocument();
+    expect(description.closest('.error-message-header')).not.toBeInTheDocument();
+  });
 });
 
 describe('ErrorToast Component', () => {

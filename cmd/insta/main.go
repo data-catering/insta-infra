@@ -11,8 +11,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/data-catering/insta-infra/v2/cmd/insta/models"
 	"github.com/data-catering/insta-infra/v2/internal/core"
 	"github.com/data-catering/insta-infra/v2/internal/core/container"
+	"github.com/data-catering/insta-infra/v2/internal/validation"
 )
 
 // Version information - these will be set during build via ldflags
@@ -425,6 +427,237 @@ func (a *App) connectToService(serviceName string) error {
 	return a.runtime.ExecInContainer(serviceName, cmd, true)
 }
 
+func (a *App) handleCustomCommand(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no custom command specified")
+	}
+
+	customRegistry, err := models.NewCustomServiceRegistry(a.instaDir)
+	if err != nil {
+		return fmt.Errorf("failed to initialize custom service registry: %v", err)
+	}
+
+	switch args[0] {
+	case "add":
+		if len(args) < 2 {
+			return fmt.Errorf("no compose file specified. Usage: custom add <file.yaml>")
+		}
+		return a.handleCustomAdd(customRegistry, args[1])
+
+	case "list":
+		return a.handleCustomList(customRegistry)
+
+	case "remove":
+		if len(args) < 2 {
+			return fmt.Errorf("no service name specified. Usage: custom remove <service-name>")
+		}
+		return a.handleCustomRemove(customRegistry, args[1])
+
+	case "validate":
+		if len(args) < 2 {
+			return fmt.Errorf("no compose file specified. Usage: custom validate <file.yaml>")
+		}
+		return a.handleCustomValidate(args[1])
+
+	default:
+		return fmt.Errorf("unknown custom command '%s'. Available commands: add, list, remove, validate", args[0])
+	}
+}
+
+func (a *App) handleCustomAdd(registry *models.CustomServiceRegistry, filePath string) error {
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return fmt.Errorf("compose file '%s' does not exist", filePath)
+	}
+
+	// Read file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read compose file: %v", err)
+	}
+
+	// Validate the compose file
+	validator := validation.NewComposeValidator([]string{}) // Pass empty known services list
+	result := validator.ValidateComposeContent(string(content))
+	
+	if len(result.Errors) > 0 {
+		fmt.Printf("%sValidation errors found:%s\n", colorRed, colorReset)
+		for _, err := range result.Errors {
+			fmt.Printf("  - %s\n", err.Message)
+		}
+		return fmt.Errorf("compose file validation failed")
+	}
+
+	// Show warnings if any
+	if len(result.Warnings) > 0 {
+		fmt.Printf("%sValidation warnings:%s\n", colorYellow, colorReset)
+		for _, warning := range result.Warnings {
+			fmt.Printf("  - %s\n", warning.Message)
+		}
+	}
+
+	filename := filepath.Base(filePath)
+	name := strings.TrimSuffix(filename, filepath.Ext(filename))
+	description := fmt.Sprintf("Custom service from %s", filename)
+
+	// Add to registry
+	metadata, err := registry.AddCustomService(name, description, string(content))
+	if err != nil {
+		return fmt.Errorf("failed to add custom service: %v", err)
+	}
+
+	// Check for clashes and show warnings
+	clashes := registry.GetServiceClashes()
+	if len(clashes) > 0 {
+		fmt.Printf("%sService name clashes detected:%s\n", colorYellow, colorReset)
+		for _, clash := range clashes {
+			if clash.CustomServiceID == metadata.ID {
+				fmt.Printf("  - Custom service '%s' will take precedence over built-in service\n", clash.ServiceName)
+			}
+		}
+	}
+
+	fmt.Printf("%sSuccessfully added custom service '%s' (ID: %s)%s\n", colorGreen, metadata.Name, metadata.ID, colorReset)
+	
+	if len(result.Suggestions) > 0 {
+		fmt.Printf("%sSuggestions for improvement:%s\n", colorBlue, colorReset)
+		for _, suggestion := range result.Suggestions {
+			fmt.Printf("  - %s\n", suggestion.Message)
+		}
+	}
+
+	return nil
+}
+
+func (a *App) handleCustomList(registry *models.CustomServiceRegistry) error {
+	allMetadata := registry.ListCustomServices()
+	
+	if len(allMetadata) == 0 {
+		fmt.Printf("%sNo custom services found%s\n", colorYellow, colorReset)
+		return nil
+	}
+
+	fmt.Printf("%sCustom Services:%s\n", colorGreen, colorReset)
+	for _, metadata := range allMetadata {
+		fmt.Printf("\n  %sID:%s %s\n", colorBlue, colorReset, metadata.ID)
+		fmt.Printf("  %sName:%s %s\n", colorBlue, colorReset, metadata.Name)
+		if metadata.Description != "" {
+			fmt.Printf("  %sDescription:%s %s\n", colorBlue, colorReset, metadata.Description)
+		}
+		fmt.Printf("  %sFile:%s %s\n", colorBlue, colorReset, metadata.Filename)
+		fmt.Printf("  %sServices:%s %s\n", colorBlue, colorReset, strings.Join(metadata.Services, ", "))
+		fmt.Printf("  %sCreated:%s %s\n", colorBlue, colorReset, metadata.CreatedAt.Format("2006-01-02 15:04:05"))
+		
+		if len(metadata.Warnings) > 0 {
+			fmt.Printf("  %sWarnings:%s\n", colorYellow, colorReset)
+			for _, warning := range metadata.Warnings {
+				fmt.Printf("    - %s\n", warning)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (a *App) handleCustomRemove(registry *models.CustomServiceRegistry, serviceName string) error {
+	// Find service by name or ID
+	allMetadata := registry.ListCustomServices()
+	var targetID string
+	var targetMetadata *models.CustomServiceMetadata
+	
+	for _, metadata := range allMetadata {
+		if metadata.Name == serviceName || metadata.ID == serviceName {
+			targetID = metadata.ID
+			targetMetadata = metadata
+			break
+		}
+		// Also check if any of the services in the compose file match
+		for _, svc := range metadata.Services {
+			if svc == serviceName {
+				targetID = metadata.ID
+				targetMetadata = metadata
+				break
+			}
+		}
+		if targetID != "" {
+			break
+		}
+	}
+
+	if targetID == "" {
+		return fmt.Errorf("custom service '%s' not found", serviceName)
+	}
+
+	// Confirm deletion
+	fmt.Printf("%sAre you sure you want to remove custom service '%s' (ID: %s)? [y/N]: %s", 
+		colorYellow, targetMetadata.Name, targetID, colorReset)
+	
+	var response string
+	fmt.Scanln(&response)
+	response = strings.ToLower(strings.TrimSpace(response))
+	
+	if response != "y" && response != "yes" {
+		fmt.Printf("%sRemoval cancelled%s\n", colorYellow, colorReset)
+		return nil
+	}
+
+	// Remove the service
+	if err := registry.RemoveCustomService(targetID); err != nil {
+		return fmt.Errorf("failed to remove custom service: %v", err)
+	}
+
+	fmt.Printf("%sSuccessfully removed custom service '%s'%s\n", colorGreen, targetMetadata.Name, colorReset)
+	return nil
+}
+
+func (a *App) handleCustomValidate(filePath string) error {
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return fmt.Errorf("compose file '%s' does not exist", filePath)
+	}
+
+	// Read file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read compose file: %v", err)
+	}
+
+	// Validate the compose file
+	validator := validation.NewComposeValidator([]string{}) // Pass empty known services list
+	result := validator.ValidateComposeContent(string(content))
+
+	// Display results
+	if len(result.Errors) > 0 {
+		fmt.Printf("%sValidation Errors:%s\n", colorRed, colorReset)
+		for _, err := range result.Errors {
+			fmt.Printf("  ❌ %s\n", err.Message)
+		}
+	}
+
+	if len(result.Warnings) > 0 {
+		fmt.Printf("%sValidation Warnings:%s\n", colorYellow, colorReset)
+		for _, warning := range result.Warnings {
+			fmt.Printf("  ⚠️  %s\n", warning.Message)
+		}
+	}
+
+	if len(result.Suggestions) > 0 {
+		fmt.Printf("%sSuggestions:%s\n", colorBlue, colorReset)
+		for _, suggestion := range result.Suggestions {
+			fmt.Printf("  💡 %s\n", suggestion.Message)
+		}
+	}
+
+	if len(result.Errors) == 0 {
+		fmt.Printf("%s✅ Compose file is valid!%s\n", colorGreen, colorReset)
+	} else {
+		fmt.Printf("%s❌ Compose file validation failed%s\n", colorRed, colorReset)
+		return fmt.Errorf("validation failed")
+	}
+
+	return nil
+}
+
 // WebUIFlags holds parsed web UI configuration flags
 type WebUIFlags struct {
 	Port      int
@@ -496,12 +729,8 @@ func usage() {
 	fmt.Printf(`insta-infra %s (built: %s)
 Usage: %s [options...] [services...]
 
-    (no args)                 Launch web UI (default)
+    (no args)                 Show this help message
     --ui, ui                  Launch web UI with browser
-    --web-server              Start web server without opening browser
-    --port <port>             Specify port for web server (default: auto-detect 9310-9320)
-    --no-browser              Start web server without opening browser
-    --host <host>             Host interface to bind to (default: localhost)
     <services>                Name of services to run
     -c, connect [service]     Connect to service
     -d, down [services...]    Shutdown services (if empty, shutdown all services)
@@ -509,22 +738,34 @@ Usage: %s [options...] [services...]
     -l, list                  List supported services
     -r, runtime [name]        Specify container runtime (docker or podman)
     -v, version               Show version information
+    custom <command>          Manage custom compose files
+      add <file.yaml>         Add custom compose file
+      list                    List custom services
+      remove <service-name>   Remove custom service
+      validate <file.yaml>    Validate compose file
+	--web-server              Start web server without opening browser
+    --port <port>             Specify port for web server (default: auto-detect 9310-9320)
+    --no-browser              Start web server without opening browser
+    --host <host>             Host interface to bind to (default: localhost)
 
 Examples:
-    %s                      Launch web UI (default)
-    %s --ui                 Launch web UI with browser
-    %s --web-server         Start web server on available port
-    %s --port 9310          Start web UI on specific port
-    %s --no-browser         Start web server without opening browser
+    %s                           Show this help message
+    %s --ui                      Launch web UI with browser
+    %s -l                        List supported services
+    %s postgres                  Spin up Postgres
+    %s -c postgres               Connect to Postgres
+    %s -d postgres               Bring Postgres down
+    %s -p postgres               Run Postgres with persisted data
+    %s -r docker postgres        Run Postgres using Docker
+    %s -r podman postgres        Run Postgres using Podman
+    %s custom add my-app.yaml    Add custom compose file
+    %s custom list               List custom services
+    %s custom validate app.yaml  Validate compose file
+	%s --web-server              Start web server
+    %s --port 9310               Start web UI on specific port
+    %s --no-browser              Start web server without opening browser
     %s --port 9311 --no-browser  Start server on port 9311 without browser
-    %s -l                   List supported services
-    %s postgres             Spin up Postgres
-    %s -c postgres          Connect to Postgres
-    %s -d postgres          Bring Postgres down
-    %s -p postgres          Run Postgres with persisted data
-    %s -r docker postgres   Run Postgres using Docker
-    %s -r podman postgres   Run Postgres using Podman
-`, version, buildTime, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+`, version, buildTime, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 func main() {
@@ -539,18 +780,8 @@ func main() {
 	runtime := flag.String("runtime", webUIFlags.Runtime, "Explicitly set container runtime (docker/podman)")
 
 	if len(remainingArgs) < 1 {
-		// Default behavior: launch UI mode
-		app, err := NewApp(*runtime)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
-			os.Exit(1)
-		}
-
-		server := NewAPIServer(app)
-		if err := startWebUIWithFlags(server, webUIFlags); err != nil {
-			fmt.Fprintf(os.Stderr, "%sError starting web UI: %v%s\n", colorRed, err, colorReset)
-			os.Exit(1)
-		}
+		// Default behavior: show help
+		usage()
 		return
 	}
 
@@ -627,6 +858,23 @@ func main() {
 
 		downCmd.Parse(remainingArgs[1:])
 		if err := app.stopServices(downCmd.Args()); err != nil {
+			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+
+	case "custom":
+		app, err := NewApp(*runtime)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
+			os.Exit(1)
+		}
+
+		if len(remainingArgs) < 2 {
+			fmt.Fprintf(os.Stderr, "%sError: No custom command specified. Use 'custom add', 'custom list', 'custom remove', or 'custom validate'%s\n", colorRed, colorReset)
+			os.Exit(1)
+		}
+
+		if err := app.handleCustomCommand(remainingArgs[1:]); err != nil {
 			fmt.Fprintf(os.Stderr, "%sError: %v%s\n", colorRed, err, colorReset)
 			os.Exit(1)
 		}

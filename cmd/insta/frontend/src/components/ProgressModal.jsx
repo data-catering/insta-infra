@@ -148,10 +148,10 @@ const ProgressModal = ({ isOpen, onClose, serviceName, imageName = '' }) => {
 
   return createPortal(
     <div className="connection-modal-overlay" onClick={(e) => e.target === e.currentTarget && handleCancel()}>
-      <div className="connection-modal progress-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="connection-modal progress-modal" role="dialog" aria-labelledby="progress-modal-title" aria-describedby="progress-modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="connection-modal-header">
-          <div className="connection-modal-title">
+          <div className="connection-modal-title" id="progress-modal-title">
             {getStatusIcon(progress.status)}
             <span>Downloading Image - {serviceName}</span>
           </div>
@@ -163,7 +163,7 @@ const ProgressModal = ({ isOpen, onClose, serviceName, imageName = '' }) => {
         </div>
 
         {/* Content */}
-        <div className="connection-modal-content progress-content">
+        <div className="connection-modal-content progress-content" id="progress-modal-content">
           {/* Image Information */}
           <div className="progress-info">
             <div className="progress-info-item">
@@ -193,6 +193,11 @@ const ProgressModal = ({ isOpen, onClose, serviceName, imageName = '' }) => {
             <div className="progress-bar-container">
               <div 
                 className="progress-bar"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={Math.round(progress.progress)}
+                aria-label={`Download progress: ${progress.progress.toFixed(1)}%`}
                 style={{ width: `${Math.max(0, Math.min(100, progress.progress))}%` }}
               />
             </div>

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/data-catering/insta-infra/v2/cmd/insta/handlers"
 	"github.com/data-catering/insta-infra/v2/cmd/insta/internal"
 	"github.com/data-catering/insta-infra/v2/internal/core/container"
 	"github.com/gin-gonic/gin"
@@ -65,6 +66,9 @@ type APIServer struct {
 
 	// WebSocket broadcaster
 	wsBroadcaster *WebSocketBroadcaster
+	
+	// Custom service handler
+	customHandler *handlers.CustomServiceHandler
 }
 
 // APIInfo represents the API information endpoint response
@@ -116,6 +120,9 @@ func NewAPIServer(app *App) *APIServer {
 
 	// Create WebSocket broadcaster first
 	wsBroadcaster := NewWebSocketBroadcaster(logger)
+	
+	// Create custom service handler
+	customHandler := handlers.NewCustomServiceHandler(app.instaDir, logger)
 
 	server := &APIServer{
 		app:            app,
@@ -124,6 +131,7 @@ func NewAPIServer(app *App) *APIServer {
 		logger:         logger,
 		ctx:            ctx,
 		wsBroadcaster:  wsBroadcaster,
+		customHandler:  customHandler,
 	}
 
 	// Initialize handlers with progress callback
@@ -287,6 +295,18 @@ func (s *APIServer) setupRoutes() {
 	app := v1.Group("/app")
 	{
 		app.POST("/shutdown", s.shutdownApplication)
+	}
+
+	// Custom Service Management endpoints
+	custom := v1.Group("/custom")
+	{
+		custom.POST("/compose", s.uploadCustomCompose)
+		custom.GET("/compose", s.listCustomCompose)
+		custom.GET("/compose/:id", s.getCustomCompose)
+		custom.PUT("/compose/:id", s.updateCustomCompose)
+		custom.DELETE("/compose/:id", s.deleteCustomCompose)
+		custom.POST("/validate", s.validateCustomCompose)
+		custom.GET("/stats", s.getCustomServiceStats)
 	}
 
 	// WebSocket endpoint for real-time updates
@@ -1691,4 +1711,41 @@ func (s *APIServer) sendEnhancedErrorResponse(c *gin.Context, statusCode int, er
 	}
 
 	c.JSON(statusCode, response)
+}
+
+// Custom Service Handler Methods
+
+// uploadCustomCompose delegates to the custom service handler
+func (s *APIServer) uploadCustomCompose(c *gin.Context) {
+	s.customHandler.UploadCustomCompose(c)
+}
+
+// listCustomCompose delegates to the custom service handler
+func (s *APIServer) listCustomCompose(c *gin.Context) {
+	s.customHandler.ListCustomCompose(c)
+}
+
+// getCustomCompose delegates to the custom service handler
+func (s *APIServer) getCustomCompose(c *gin.Context) {
+	s.customHandler.GetCustomCompose(c)
+}
+
+// updateCustomCompose delegates to the custom service handler
+func (s *APIServer) updateCustomCompose(c *gin.Context) {
+	s.customHandler.UpdateCustomCompose(c)
+}
+
+// deleteCustomCompose delegates to the custom service handler
+func (s *APIServer) deleteCustomCompose(c *gin.Context) {
+	s.customHandler.DeleteCustomCompose(c)
+}
+
+// validateCustomCompose delegates to the custom service handler
+func (s *APIServer) validateCustomCompose(c *gin.Context) {
+	s.customHandler.ValidateCustomCompose(c)
+}
+
+// getCustomServiceStats delegates to the custom service handler
+func (s *APIServer) getCustomServiceStats(c *gin.Context) {
+	s.customHandler.GetCustomServiceStats(c)
 }

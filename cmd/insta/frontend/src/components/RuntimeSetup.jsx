@@ -23,19 +23,22 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
     try {
       const dockerPath = await getCustomDockerPath();
       const podmanPath = await getCustomPodmanPath();
-      setCustomDockerPath(dockerPath || '');
-      setCustomPodmanPath(podmanPath || '');
+      setCustomDockerPath(typeof dockerPath === 'string' ? dockerPath : '');
+      setCustomPodmanPath(typeof podmanPath === 'string' ? podmanPath : '');
     } catch (err) {
-              setError('Failed to load custom paths: ' + (err?.message || err));
+      setError('Failed to load custom paths: ' + (err?.message || err));
     }
   };
 
   const loadAppLogs = async () => {
     try {
-      const logs = await getAppLogs();
-      setAppLogs(logs);
+      const response = await getAppLogs();
+      // Backend returns {logs: [...], total_logs: N}, we need just the logs array
+      const logs = response?.logs || response;
+      // Ensure logs is always an array
+      setAppLogs(Array.isArray(logs) ? logs : []);
     } catch (err) {
-              setError('Failed to load application logs: ' + (err?.message || err));
+      setError('Failed to load application logs: ' + (err?.message || err));
     }
   };
 
@@ -599,7 +602,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
                         />
                         <button
                           onClick={handleSetCustomDockerPath}
-                          disabled={!customDockerPath.trim()}
+                          disabled={!customDockerPath || typeof customDockerPath !== 'string' || !customDockerPath.trim()}
                           className="button button-primary"
                           style={{ fontSize: '0.75rem', padding: '6px 12px' }}
                         >
@@ -640,7 +643,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
                         />
                         <button
                           onClick={handleSetCustomPodmanPath}
-                          disabled={!customPodmanPath.trim()}
+                          disabled={!customPodmanPath || typeof customPodmanPath !== 'string' || !customPodmanPath.trim()}
                           className="button button-primary"
                           style={{ fontSize: '0.75rem', padding: '6px 12px' }}
                         >
@@ -695,7 +698,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
                         fontSize: '0.75rem',
                         color: '#e2e8f0'
                       }}>
-                        {appLogs.length === 0 ? (
+                        {!appLogs || !Array.isArray(appLogs) || appLogs.length === 0 ? (
                           <p style={{ margin: '0', color: '#94a3b8', fontStyle: 'italic' }}>
                             No logs available. Click "Refresh" to load logs.
                           </p>

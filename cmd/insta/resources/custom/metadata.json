@@ -1,0 +1,31 @@
+{
+  "services": {
+    "custom_test_service_1754202252": {
+      "id": "custom_test_service_1754202252",
+      "name": "test-service",
+      "description": "",
+      "filename": "test-service.yaml",
+      "created_at": "2025-08-03T16:24:12.104764+10:00",
+      "updated_at": "2025-08-03T16:17:26.802586226+10:00",
+      "services": [
+        "my-service"
+      ],
+      "warnings": null
+    },
+    "test-456": {
+      "id": "test-456",
+      "name": "Test Service",
+      "description": "Test custom service",
+      "filename": "test.yaml",
+      "created_at": "2025-08-03T16:00:00Z",
+      "updated_at": "2025-08-03T16:23:01.238829913+10:00",
+      "services": [
+        "test-service"
+      ],
+      "warnings": []
+    }
+  },
+  "last_sync": "2025-08-05T20:22:25.209073+10:00",
+  "version": "1.0",
+  "clashes": []
+}

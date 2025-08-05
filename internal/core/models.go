@@ -750,3 +750,36 @@ var Services = map[string]Service{
 		},
 	},
 }
+
+// RegisterCustomService adds a custom service to the Services registry
+func RegisterCustomService(serviceName string, service Service) {
+	Services[serviceName] = service
+}
+
+// UnregisterCustomService removes a custom service from the Services registry
+func UnregisterCustomService(serviceName string) {
+	delete(Services, serviceName)
+}
+
+// GetAllServiceTypes returns all unique service types
+func GetAllServiceTypes() []string {
+	types := make(map[string]bool)
+	for _, service := range Services {
+		types[service.Type] = true
+	}
+	
+	var result []string
+	for serviceType := range types {
+		result = append(result, serviceType)
+	}
+	return result
+}
+
+// IsCustomService checks if a service name represents a custom service
+func IsCustomService(serviceName string) bool {
+	service, exists := Services[serviceName]
+	if !exists {
+		return false
+	}
+	return service.Type == "Custom"
+}
