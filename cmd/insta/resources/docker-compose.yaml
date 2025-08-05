@@ -1612,7 +1612,7 @@ services:
       retries: 3
       test: [CMD, redis-cli, --raw, incr, ping]
       timeout: 5s
-    image: "redis:${REDIS_VERSION:-8.0.3}"
+    image: "redis:${REDIS_VERSION:-8.2.0}"
     ports:
       - "6379:6379"
   solace:
