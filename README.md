@@ -49,7 +49,7 @@ make install
 ### Using Go
 
 ```bash
-go install github.com/data-catering/insta-infra/v2/cmd/insta@v2.1.3
+go install github.com/data-catering/insta-infra/v2/cmd/insta@v3.0.0
 ```
 
 ### Manual Installation
@@ -58,20 +58,20 @@ If you prefer to install manually from release archives:
 
 1. Visit the [GitHub releases page](https://github.com/data-catering/insta-infra/releases)
 2. Download the appropriate archive for your system:
-   - For macOS ARM64: `insta-v2.1.3-darwin-arm64.tar.gz`
-   - For macOS Intel: `insta-v2.1.3-darwin-amd64.tar.gz`
-   - For Linux ARM64: `insta-v2.1.3-linux-arm64.tar.gz`
-   - For Linux Intel: `insta-v2.1.3-linux-amd64.tar.gz`
-   - For Windows ARM64: `insta-v2.1.3-windows-arm64.zip`
-   - For Windows Intel: `insta-v2.1.3-windows-amd64.zip`
+   - For macOS ARM64: `insta-v3.0.0-darwin-arm64.tar.gz`
+   - For macOS Intel: `insta-v3.0.0-darwin-amd64.tar.gz`
+   - For Linux ARM64: `insta-v3.0.0-linux-arm64.tar.gz`
+   - For Linux Intel: `insta-v3.0.0-linux-amd64.tar.gz`
+   - For Windows ARM64: `insta-v3.0.0-windows-arm64.zip`
+   - For Windows Intel: `insta-v3.0.0-windows-amd64.zip`
 
 3. Extract the archive:
    ```bash
    # For .tar.gz files
-   tar -xzf insta-v2.1.3-<os>-<arch>.tar.gz
+   tar -xzf insta-v3.0.0-<os>-<arch>.tar.gz
    
    # For .zip files (Windows)
-   unzip insta-v2.1.3-windows-<arch>.zip
+   unzip insta-v3.0.0-windows-<arch>.zip
    ```
 
 4. Move the binary to a directory in your PATH:
