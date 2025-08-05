@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/data-catering/insta-infra/v2/internal/core"
 )
 
 func TestExtractDataFiles(t *testing.T) {
@@ -80,7 +82,7 @@ func TestListServices(t *testing.T) {
 	app := &App{}
 
 	// Make sure the services are defined
-	if len(Services) == 0 {
+	if len(core.Services) == 0 {
 		t.Fatal("No services defined")
 	}
 

@@ -4,23 +4,31 @@
 
 A simple, fast CLI tool for spinning up data infrastructure services using Docker or Podman.
 
+> [!NOTE]
+> [Check out the demo UI](https://data-catering.github.io/insta-infra/demo/ui/index.html)
+
 ## Features
 
-- Run data infrastructure services with a single command
+- Run any service and it's dependencies with a single command
 - Supports both Docker and Podman container runtimes
-- Embed all configuration files in the binary for easy distribution
-- Optional data persistence
-- Connect to services with pre-configured environment variables
+- Single binary for easy distribution
+- Optional data persistence and data setup scripts
 
 ## Installation
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | sh
+```
+OR
+```bash
+wget -q -O - https://raw.githubusercontent.com/data-catering/insta-infra/main/install.sh | sh
+```
 
 ### Using Homebrew
 
 ```bash
-# Add the tap
+# Add the tap and install
 brew tap data-catering/insta-infra
-
-# Install insta-infra
 brew install insta-infra
 ```
 
@@ -30,15 +38,13 @@ brew install insta-infra
 # Clone the repository
 git clone https://github.com/data-catering/insta-infra.git
 cd insta-infra
-
-# Build and install
 make install
 ```
 
 ### Using Go
 
 ```bash
-go install github.com/data-catering/insta-infra/v2/cmd/insta@v2.1.3
+go install github.com/data-catering/insta-infra/v2/cmd/insta@v3.0.0
 ```
 
 ### Manual Installation
@@ -47,20 +53,20 @@ If you prefer to install manually from release archives:
 
 1. Visit the [GitHub releases page](https://github.com/data-catering/insta-infra/releases)
 2. Download the appropriate archive for your system:
-   - For macOS ARM64: `insta-v2.1.3-darwin-arm64.tar.gz`
-   - For macOS Intel: `insta-v2.1.3-darwin-amd64.tar.gz`
-   - For Linux ARM64: `insta-v2.1.3-linux-arm64.tar.gz`
-   - For Linux Intel: `insta-v2.1.3-linux-amd64.tar.gz`
-   - For Windows ARM64: `insta-v2.1.3-windows-arm64.zip`
-   - For Windows Intel: `insta-v2.1.3-windows-amd64.zip`
+   - For macOS ARM64: `insta-v3.0.0-darwin-arm64.tar.gz`
+   - For macOS Intel: `insta-v3.0.0-darwin-amd64.tar.gz`
+   - For Linux ARM64: `insta-v3.0.0-linux-arm64.tar.gz`
+   - For Linux Intel: `insta-v3.0.0-linux-amd64.tar.gz`
+   - For Windows ARM64: `insta-v3.0.0-windows-arm64.zip`
+   - For Windows Intel: `insta-v3.0.0-windows-amd64.zip`
 
 3. Extract the archive:
    ```bash
    # For .tar.gz files
-   tar -xzf insta-v2.1.3-<os>-<arch>.tar.gz
+   tar -xzf insta-v3.0.0-<os>-<arch>.tar.gz
    
    # For .zip files (Windows)
-   unzip insta-v2.1.3-windows-<arch>.zip
+   unzip insta-v3.0.0-windows-<arch>.zip
    ```
 
 4. Move the binary to a directory in your PATH:
@@ -111,12 +117,78 @@ insta -d
 insta -r docker postgres
 insta -r podman postgres
 
+# Add a custom service defined in a docker compose file
+insta custom add my-custom-docker-compose.yaml
+
+# Run a custom service
+insta my-custom-service
+
+# List custom services
+insta custom list
+
+# Validate a custom service defined in a docker compose file
+insta custom validate my-custom-docker-compose.yaml
+
 # Show help
 insta -h
 
 # Show version
 insta -v
 ```
+
+## Web UI
+
+```bash
+insta --ui
+```
+
+[Check out the demo UI](https://data-catering.github.io/insta-infra/demo/ui/index.html).
+
+### Features
+
+- **Visual Service Management**: See all available services in an intuitive grid layout
+- **One-Click Actions**: Start, stop, and manage services with simple button clicks
+- **Real-Time Status**: Live updates of service status with color-coded indicators
+- **Connection Details**: Easy access to connection strings, credentials, and web UIs
+- **Data Persistence**: Toggle data persistence with checkboxes
+- **Browser Integration**: Direct "Open" buttons for web-based services
+- **Dependency Visualization**: Clear display of service dependencies
+
+## Configuration
+
+### Custom Container Runtime Paths
+
+If Docker or Podman is installed in a non-standard location, you can specify custom paths using environment variables:
+
+```bash
+# Custom Docker path
+export INSTA_DOCKER_PATH="/path/to/docker"
+insta postgres
+
+# Custom Podman path  
+export INSTA_PODMAN_PATH="/path/to/podman"
+insta -r podman postgres
+```
+
+This is particularly useful for:
+- **macOS GUI applications**: When Docker/Podman isn't in the standard PATH
+- **Custom installations**: When using alternative installation methods
+- **Enterprise environments**: When binaries are in non-standard locations
+- **Development setups**: When testing with different container runtime versions
+
+### Supported Installation Paths
+
+insta-infra automatically searches for Docker and Podman in these common locations:
+
+#### Docker
+- **macOS**: `/usr/local/bin/docker`, `/opt/homebrew/bin/docker`, `/Applications/Docker.app/Contents/Resources/bin/docker`
+- **Linux**: `/usr/bin/docker`, `/usr/local/bin/docker`, `/opt/docker/bin/docker`, `/snap/bin/docker`, `/var/lib/flatpak/exports/bin/docker`
+- **Windows**: `C:\Program Files\Docker\Docker\resources\bin\docker.exe`, `C:\ProgramData\chocolatey\bin\docker.exe`, `C:\tools\docker\docker.exe`
+
+#### Podman
+- **macOS**: `/usr/local/bin/podman`, `/opt/homebrew/bin/podman`
+- **Linux**: `/usr/bin/podman`, `/usr/local/bin/podman`, `/opt/podman/bin/podman`, `/snap/bin/podman`, `/var/lib/flatpak/exports/bin/podman`
+- **Windows**: `C:\Program Files\RedHat\Podman\podman.exe`, `C:\ProgramData\chocolatey\bin\podman.exe`, `C:\tools\podman\podman.exe`
 
 ## Data Persistence
 
@@ -135,32 +207,73 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 ```
 .
 ├── cmd/
-│   └── insta/          # Main CLI application
-│       ├── container/  # Container runtime implementations
-│       ├── resources/  # Embedded resources
-│       │   ├── data/   # Service configuration files
-│       │   └── *.yaml  # Docker compose files
-│       ├── models.go   # Service definitions
-│       └── main.go     # CLI entry point
+│   ├── insta/          # Main CLI application
+│   │   ├── container/  # Container runtime implementations
+│   │   ├── resources/  # Embedded resources
+│   │   │   ├── data/   # Service configuration files
+│   │   │   └── *.yaml  # Docker compose files
+│   │   ├── models.go   # Service definitions
+│   │   └── main.go     # CLI entry point
+│   └── insta/          # Web UI application (Browser-based)
+│       ├── frontend/   # React frontend
+│       │   ├── src/    # React components and styles
+│       │   └── dist/   # Built frontend assets
+│       ├── webserver.go # HTTP API server
+│       └── main.go     # Web UI entry point
+├── internal/
+│   └── core/           # Shared business logic
+│       ├── models.go   # Service definitions (shared)
+│       └── service.go  # Service management logic
 ├── tests/              # Integration tests
+├── docs/               # Documentation and images
 ├── Makefile            # Build and development tasks
 └── README.md           # Documentation
 ```
 
 ### Development Workflow
 
+#### CLI Development
+
 1. Clone the repository
-2. Make changes
+2. Make changes to CLI code in `cmd/insta/`
 3. Run tests: `make test`
 4. Build: `make build`
 5. Run: `./insta`
 
+#### Web UI Development
+
+1. Clone the repository
+2. Install dependencies: `cd cmd/insta/frontend && npm install`
+3. Start development mode: `make dev-web`
+4. Make changes to:
+   - **Go backend**: `cmd/insta/webserver.go`
+   - **React frontend**: `cmd/insta/frontend/src/`
+   - **Shared logic**: `internal/core/`
+5. Build for production: `make build-web`
+
+#### Full Development Environment
+
+```bash
+# Install all dependencies
+make deps
+
+# Run all tests
+make test
+
+# Build both CLI and Web UI
+make build-all
+
+# Clean build artifacts
+make clean
+```
+
 ### Adding a New Service
 
 1. Add service configuration to [`docker-compose.yaml`](cmd/insta/resources/docker-compose.yaml)
-2. Add service definition to [`models.go`](cmd/insta/models.go)
+2. Add service definition to [`internal/core/models.go`](internal/core/models.go)
 3. Add any necessary initialization scripts to [`cmd/insta/resources/data/<service_name>/`](cmd/insta/resources/data/)
 4. Update tests
+5. Test in both CLI and Web UI
 
 ## Services
 
@@ -193,36 +306,3 @@ This will store data in `~/.insta/data/<service_name>/persist/`.
 | Tracing                     | jaeger                                                                                                                                 |
 | Web Server                  | httpbin, httpd                                                                                                                         |
 | Workflow                    | maestro, temporal                                                                                                                      |
-
-## Updating
-
-### Using Package Managers
-
-If you installed via a package manager, you can update using the standard update commands:
-
-```bash
-# Debian/Ubuntu
-sudo apt update && sudo apt upgrade
-
-# RHEL/CentOS/Fedora
-sudo dnf update
-# or
-sudo yum update
-
-# Arch Linux
-sudo pacman -Syu
-
-# macOS (Homebrew)
-brew upgrade
-
-# Windows (Chocolatey)
-choco upgrade insta
-```
-
-### Manual Update
-
-If you prefer to update manually:
-
-1. Download the latest release from the [GitHub releases page](https://github.com/data-catering/insta-infra/releases)
-2. Replace your existing binary with the new one
-3. Make sure the binary is executable: `chmod +x insta`

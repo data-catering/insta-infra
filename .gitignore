@@ -1,18 +1,178 @@
-# IDE
+# IDE and Editor files
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Go build artifacts
-build
+build/
 /insta
-release
+
+cmd/insta/insta
+cmd/insta/insta-test
+release/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test and coverage files
+*.test
+*.out
+coverage.html
+coverage.out
+coverage/
+*.cover
+*.coverprofile
 
 # Data persistence
 cmd/insta/resources/data/*/persist/
 
+# Frontend build artifacts
+cmd/insta/frontend/dist/
+cmd/insta/frontend/build/
+cmd/insta/frontend/node_modules/
+cmd/insta/frontend/*.md5
+cmd/insta/frontend/coverage/
+cmd/insta/frontend/.nyc_output/
+cmd/insta/frontend/test-results/
+cmd/insta/frontend/.cache/
+cmd/insta/frontend/.parcel-cache/
+cmd/insta/frontend/.vite/
+cmd/insta/ui/dist
+
+# Playwright test artifacts
+cmd/insta/frontend/playwright-report/
+cmd/insta/frontend/test-results-playwright/
+**/e2e/**/*-snapshots/
+**/*test-results*/
+
+# Build artifacts
+app.syso
+/instaui
+
+
+# Node.js dependencies and artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+*.tar.gz
+
+# Package manager files (when not needed - root level only)
+/package.json
+/package-lock.json
+/yarn.lock
+
 # Temporary files
 *.tmp
+*.temp
 *.log
-node_modules
-package.json
-package-lock.json
+*.pid
+*.seed
+*.pid.lock
+
+# Runtime data
+pids/
+logs/
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Test artifacts
+test-results/
+coverage/
+.nyc_output/
+junit.xml
+*.lcov
+
+# E2E test artifacts
+**/test-results/
+**/playwright-report/
+**/*-snapshots/
+**/*.spec.js-snapshots/
+**/*.test.js-snapshots/
+
+# Test screenshots and artifacts
+**/*.png
+**/*.webm
+**/error-context.md
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Compiled binary addons
+build/Release/
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+
+# parcel-bundler cache
+.cache/
+.parcel-cache/
+
+# Vite cache
+.vite/
+
+# Storybook build outputs
+storybook-static/
+
+# PnP (Yarn 2+)
+.pnp/
+.pnp.js
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
