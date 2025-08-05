@@ -9,11 +9,10 @@ A simple, fast CLI tool for spinning up data infrastructure services using Docke
 
 ## Features
 
-- Run data infrastructure services with a single command
+- Run any service and it's dependencies with a single command
 - Supports both Docker and Podman container runtimes
-- Embed all configuration files in the binary for easy distribution
-- Optional data persistence
-- Connect to services with pre-configured environment variables
+- Single binary for easy distribution
+- Optional data persistence and data setup scripts
 
 ## Installation
 
@@ -28,10 +27,8 @@ wget -q -O - https://raw.githubusercontent.com/data-catering/insta-infra/main/in
 ### Using Homebrew
 
 ```bash
-# Add the tap
+# Add the tap and install
 brew tap data-catering/insta-infra
-
-# Install insta-infra
 brew install insta-infra
 ```
 
@@ -41,8 +38,6 @@ brew install insta-infra
 # Clone the repository
 git clone https://github.com/data-catering/insta-infra.git
 cd insta-infra
-
-# Build and install
 make install
 ```
 
@@ -121,6 +116,18 @@ insta -d
 # Explicitly start a service in docker or podman
 insta -r docker postgres
 insta -r podman postgres
+
+# Add a custom service defined in a docker compose file
+insta custom add my-custom-docker-compose.yaml
+
+# Run a custom service
+insta my-custom-service
+
+# List custom services
+insta custom list
+
+# Validate a custom service defined in a docker compose file
+insta custom validate my-custom-docker-compose.yaml
 
 # Show help
 insta -h
