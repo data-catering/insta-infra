@@ -26,7 +26,7 @@
     "css:clean": "node scripts/css-analyzer.cjs clean"
   },
   "dependencies": {
-    "lucide-react": "^0.511.0",
+    "lucide-react": "^0.536.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "reactflow": "^11.11.4"
