@@ -197,7 +197,7 @@ services:
 		if err != nil {
 			t.Fatalf("failed to validate compose file: %v, output: %s", err, output)
 		}
-		
+
 		outputStr := string(output)
 		if !strings.Contains(outputStr, "Compose file is valid!") {
 			t.Errorf("expected validation success message, got: %s", outputStr)
@@ -213,20 +213,22 @@ services:
 		if err != nil {
 			t.Fatalf("failed to add custom service: %v, output: %s", err, output)
 		}
-		
+
 		outputStr := string(output)
 		if !strings.Contains(outputStr, "Successfully added custom service") {
 			t.Errorf("expected success message, got: %s", outputStr)
 		}
-		
+
 		// Extract service ID from output for later use
 		lines := strings.Split(outputStr, "\n")
 		for _, line := range lines {
 			if strings.Contains(line, "Successfully added custom service") {
 				// Extract ID from line like: "Successfully added custom service 'test-custom-service' (ID: custom_123)"
-				parts := strings.Split(line, "(ID: ")
-				if len(parts) > 1 {
-					serviceID = strings.TrimSpace(strings.TrimSuffix(parts[1], ")"))
+				if idx := strings.Index(line, "(ID: "); idx != -1 {
+					endIdx := strings.Index(line[idx:], ")")
+					if endIdx != -1 {
+						serviceID = strings.TrimSpace(line[idx+5 : idx+endIdx])
+					}
 				}
 			}
 		}
@@ -240,7 +242,7 @@ services:
 		if err != nil {
 			t.Fatalf("failed to list custom services: %v, output: %s", err, output)
 		}
-		
+
 		outputStr := string(output)
 		if !strings.Contains(outputStr, "test-custom-service") {
 			t.Errorf("expected to find test-custom-service in list, got: %s", outputStr)
@@ -299,7 +301,7 @@ services:
 			if err != nil {
 				t.Fatalf("failed to remove custom service: %v, output: %s", err, output)
 			}
-			
+
 			outputStr := string(output)
 			if !strings.Contains(outputStr, "Successfully removed custom service") {
 				t.Errorf("expected removal success message, got: %s", outputStr)
@@ -314,7 +316,7 @@ services:
 			if err != nil {
 				t.Fatalf("failed to list custom services after removal: %v", err)
 			}
-			
+
 			outputStr := string(output)
 			// Check that the specific service ID is no longer in the list
 			if serviceID != "" && strings.Contains(outputStr, serviceID) {
@@ -337,7 +339,7 @@ func TestCustomServiceErrorHandling(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for invalid custom command")
 		}
-		
+
 		outputStr := string(output)
 		if !strings.Contains(outputStr, "unknown custom command") {
 			t.Errorf("expected error message about unknown command, got: %s", outputStr)
@@ -352,7 +354,7 @@ func TestCustomServiceErrorHandling(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for nonexistent file")
 		}
-		
+
 		outputStr := string(output)
 		if !strings.Contains(outputStr, "does not exist") {
 			t.Errorf("expected error message about file not existing, got: %s", outputStr)
@@ -364,7 +366,7 @@ func TestCustomServiceErrorHandling(t *testing.T) {
 		invalidFile := "./invalid.yaml"
 		invalidContent := `invalid: yaml: content:
 		malformed`
-		
+
 		if err := os.WriteFile(invalidFile, []byte(invalidContent), 0644); err != nil {
 			t.Fatalf("failed to create invalid file: %v", err)
 		}
@@ -376,7 +378,7 @@ func TestCustomServiceErrorHandling(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for invalid YAML")
 		}
-		
+
 		outputStr := string(output)
 		if !strings.Contains(outputStr, "Validation Errors") {
 			t.Errorf("expected validation error message, got: %s", outputStr)
@@ -403,7 +405,7 @@ func TestCustomServiceErrorHandling(t *testing.T) {
 				if err == nil {
 					t.Errorf("expected error for missing arguments in %s", tt.name)
 				}
-				
+
 				outputStr := string(output)
 				if !strings.Contains(outputStr, "Error:") {
 					t.Errorf("expected error message for %s, got: %s", tt.name, outputStr)
@@ -449,7 +451,7 @@ func TestCustomServiceUIIntegration(t *testing.T) {
 				t.Logf("curl not available or endpoint unreachable: %v", err)
 				continue
 			}
-			
+
 			statusCode := strings.TrimSpace(string(resp))
 			if statusCode != "200" && statusCode != "405" { // 405 for methods not allowed is OK
 				t.Errorf("endpoint %s returned status %s", endpoint, statusCode)
