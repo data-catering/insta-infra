@@ -1,14 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import VersionDisplay from '../VersionDisplay'
-
-// Mock the API client
-vi.mock('../../api/client', () => ({
-  getApiInfo: vi.fn(),
-}))
-
-import * as client from '../../api/client'
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
 // Mock the ErrorMessage hook
 const mockAddError = vi.fn()
@@ -35,19 +29,17 @@ describe('VersionDisplay Component', () => {
 
   describe('Version Loading', () => {
     it('should show loading state initially', () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockImplementation(() => new Promise(() => {})) // Never resolves
+      mockApiClient.getApiInfo.mockImplementation(() => new Promise(() => {})) // Never resolves
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       expect(screen.getByText(/loading version/i)).toBeInTheDocument()
     })
 
     it('should display version when API call succeeds', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({ version: '1.2.3' })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: '1.2.3' })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/insta-infra ui version: 1\.2\.3/i)).toBeInTheDocument()
@@ -55,10 +47,9 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should display unknown when version is not provided', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({}) // No version field
+      mockApiClient.getApiInfo.mockResolvedValue({}) // No version field
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/insta-infra ui version: unknown/i)).toBeInTheDocument()
@@ -66,10 +57,9 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should handle null version gracefully', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({ version: null })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: null })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/insta-infra ui version: unknown/i)).toBeInTheDocument()
@@ -79,10 +69,9 @@ describe('VersionDisplay Component', () => {
 
   describe('Error Handling', () => {
     it('should show error message when API call fails', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockRejectedValue(new Error('Network error'))
+      mockApiClient.getApiInfo.mockRejectedValue(new Error('Network error'))
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/error fetching version/i)).toBeInTheDocument()
@@ -90,13 +79,10 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should call error handler when API fails', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      
       // Mock the error handler
+      mockApiClient.getApiInfo.mockRejectedValue(new Error('Network error'))
       
-      getApiInfo.mockRejectedValue(new Error('Network error'))
-      
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(mockAddError).toHaveBeenCalledWith(
@@ -115,12 +101,9 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should provide retry action in error handler', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
+      mockApiClient.getApiInfo.mockRejectedValue(new Error('Network error'))
       
-      
-      getApiInfo.mockRejectedValue(new Error('Network error'))
-      
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(mockAddError).toHaveBeenCalled()
@@ -134,15 +117,12 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should retry when retry action is clicked', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      
-      
       // First call fails, second call succeeds
-      getApiInfo
+      mockApiClient.getApiInfo
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce({ version: '1.2.3' })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(mockAddError).toHaveBeenCalled()
@@ -156,16 +136,15 @@ describe('VersionDisplay Component', () => {
         expect(screen.getByText(/insta-infra ui version: 1\.2\.3/i)).toBeInTheDocument()
       })
       
-      expect(getApiInfo).toHaveBeenCalledTimes(2)
+      expect(mockApiClient.getApiInfo).toHaveBeenCalledTimes(2)
     })
   })
 
   describe('Component Styling', () => {
     it('should apply correct styling', () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({ version: '1.2.3' })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: '1.2.3' })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       const versionDiv = screen.getByText(/loading version/i).parentElement
       
@@ -173,10 +152,9 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should maintain styling after version loads', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({ version: '1.2.3' })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: '1.2.3' })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/insta-infra ui version: 1\.2\.3/i)).toBeInTheDocument()
@@ -190,10 +168,9 @@ describe('VersionDisplay Component', () => {
 
   describe('Version Text Format', () => {
     it('should format version text correctly', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({ version: '2.1.0-beta' })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: '2.1.0-beta' })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText('Insta-Infra UI Version: 2.1.0-beta')).toBeInTheDocument()
@@ -201,10 +178,9 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should handle empty string version', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({ version: '' })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: '' })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/insta-infra ui version: unknown/i)).toBeInTheDocument()
@@ -212,11 +188,10 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should handle very long version strings', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
       const longVersion = 'v1.2.3-alpha.1+build.12345.abcdef.very.long.version.string'
-      getApiInfo.mockResolvedValue({ version: longVersion })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: longVersion })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(`Insta-Infra UI Version: ${longVersion}`)).toBeInTheDocument()
@@ -226,20 +201,18 @@ describe('VersionDisplay Component', () => {
 
   describe('API Integration', () => {
     it('should call getApiInfo on mount', () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({ version: '1.0.0' })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: '1.0.0' })
       
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
-      expect(getApiInfo).toHaveBeenCalledTimes(1)
-      expect(getApiInfo).toHaveBeenCalledWith()
+      expect(mockApiClient.getApiInfo).toHaveBeenCalledTimes(1)
+      expect(mockApiClient.getApiInfo).toHaveBeenCalledWith()
     })
 
     it('should not call getApiInfo multiple times unnecessarily', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
-      getApiInfo.mockResolvedValue({ version: '1.0.0' })
+      mockApiClient.getApiInfo.mockResolvedValue({ version: '1.0.0' })
       
-      const { rerender } = render(<VersionDisplay />)
+      const { rerender } = renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/1\.0\.0/)).toBeInTheDocument()
@@ -248,18 +221,16 @@ describe('VersionDisplay Component', () => {
       // Rerender shouldn't trigger another API call
       rerender(<VersionDisplay />)
       
-      expect(getApiInfo).toHaveBeenCalledTimes(1)
+      expect(mockApiClient.getApiInfo).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('Error Details', () => {
     it('should include timestamp in error details', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
       
+      mockApiClient.getApiInfo.mockRejectedValue(new Error('Test error'))
       
-      getApiInfo.mockRejectedValue(new Error('Test error'))
-      
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(mockAddError).toHaveBeenCalled()
@@ -271,12 +242,9 @@ describe('VersionDisplay Component', () => {
     })
 
     it('should handle errors without message property', async () => {
-      const getApiInfo = vi.mocked(client.getApiInfo)
+      mockApiClient.getApiInfo.mockRejectedValue('String error')
       
-      
-      getApiInfo.mockRejectedValue('String error')
-      
-      render(<VersionDisplay />)
+      renderWithProviders(<VersionDisplay />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(mockAddError).toHaveBeenCalled()

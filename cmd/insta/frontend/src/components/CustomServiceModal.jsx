@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { uploadCustomService, updateCustomService, validateCustomCompose } from '../api/client';
+import { useApiClient } from '../contexts/ApiContext';
 
 function CustomServiceModal({ 
   isOpen, 
@@ -9,6 +9,7 @@ function CustomServiceModal({
   editingService = null,
   isEditing = false 
 }) {
+  const { uploadCustomService, updateCustomService, validateCustomCompose } = useApiClient();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');

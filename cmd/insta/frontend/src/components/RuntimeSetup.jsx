@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { getRuntimeStatus, startRuntime, reinitializeRuntime, setCustomDockerPath, setCustomPodmanPath, getCustomDockerPath, getCustomPodmanPath, getAppLogs, WaitForRuntimeReady, ReinitializeRuntime } from '../api/client';
+import { useApiClient } from '../contexts/ApiContext';
 
 const RuntimeSetup = ({ onRuntimeReady }) => {
+  const { getRuntimeStatus, startRuntime, reinitializeRuntime, setCustomDockerPath, setCustomPodmanPath, getCustomDockerPath, getCustomPodmanPath, getAppLogs, WaitForRuntimeReady, ReinitializeRuntime } = useApiClient();
   const [runtimeStatus, setRuntimeStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [startupProgress, setStartupProgress] = useState('');
   const [error, setError] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [customDockerPath, setCustomDockerPath] = useState('');
-  const [customPodmanPath, setCustomPodmanPath] = useState('');
+  const [customDockerPath, setCustomDockerPathState] = useState('');
+  const [customPodmanPath, setCustomPodmanPathState] = useState('');
   const [pathError, setPathError] = useState('');
   const [showLogs, setShowLogs] = useState(false);
   const [appLogs, setAppLogs] = useState([]);
@@ -23,8 +24,8 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
     try {
       const dockerPath = await getCustomDockerPath();
       const podmanPath = await getCustomPodmanPath();
-      setCustomDockerPath(typeof dockerPath === 'string' ? dockerPath : '');
-      setCustomPodmanPath(typeof podmanPath === 'string' ? podmanPath : '');
+              setCustomDockerPathState(typeof dockerPath === 'string' ? dockerPath : '');
+        setCustomPodmanPathState(typeof podmanPath === 'string' ? podmanPath : '');
     } catch (err) {
       setError('Failed to load custom paths: ' + (err?.message || err));
     }
@@ -166,8 +167,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
   const handleClearCustomDockerPath = async () => {
     try {
       setPathError('');
-      setCustomDockerPath('');
-      setCustomDockerPath('');
+      setCustomDockerPathState('');
       // Refresh runtime status after clearing custom path
       await checkRuntimeStatus();
     } catch (err) {
@@ -178,8 +178,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
   const handleClearCustomPodmanPath = async () => {
     try {
       setPathError('');
-      setCustomPodmanPath('');
-      setCustomPodmanPath('');
+      setCustomPodmanPathState('');
       // Refresh runtime status after clearing custom path
       await checkRuntimeStatus();
     } catch (err) {
@@ -588,7 +587,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
                         <input
                           type="text"
                           value={customDockerPath}
-                          onChange={(e) => setCustomDockerPath(e.target.value)}
+                          onChange={(e) => setCustomDockerPathState(e.target.value)}
                           placeholder="/opt/homebrew/bin/docker"
                           style={{
                             flex: 1,
@@ -629,7 +628,7 @@ const RuntimeSetup = ({ onRuntimeReady }) => {
                         <input
                           type="text"
                           value={customPodmanPath}
-                          onChange={(e) => setCustomPodmanPath(e.target.value)}
+                          onChange={(e) => setCustomPodmanPathState(e.target.value)}
                           placeholder="/opt/homebrew/bin/podman"
                           style={{
                             flex: 1,

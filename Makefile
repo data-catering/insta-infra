@@ -15,6 +15,7 @@ help:
 	@echo "  make build-web   Build browser-based Web UI binary (recommended)"
 	@echo "  make build-frontend Build frontend assets only (for embed)"
 	@echo "  make build-all   Build both CLI and Web UI"
+	@echo "  make build-demo  Build demo UI"
 	@echo "  make dev-web     Start browser-based Web UI in development mode"
 	@echo "  make deps        Install all dependencies (Go, Node.js)"
 	@echo "  make test        Run all tests (Go + Frontend)"
@@ -101,6 +102,10 @@ build-frontend:
 		echo "Frontend dependencies not installed. Run 'make deps' first."; \
 		exit 1; \
 	fi
+
+build-demo:
+	@echo "Building demo UI..."
+	@cd cmd/insta/frontend && npm run build:demo
 
 fmt:
 	@echo "Running go fmt..."

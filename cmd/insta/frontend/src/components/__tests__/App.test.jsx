@@ -1,32 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import App from '../../App'
-
-// Mock the API client
-vi.mock('../../api/client', () => ({
-  getAllServiceStatuses: vi.fn(),
-  getRunningServices: vi.fn(),
-  getRuntimeStatus: vi.fn(),
-  getCurrentRuntime: vi.fn(),
-  stopAllServices: vi.fn(),
-  listServices: vi.fn(),
-  openURL: vi.fn(),
-  getAppLogs: vi.fn(),
-  restartRuntime: vi.fn(),
-  shutdownApplication: vi.fn(),
-  wsClient: {
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-  },
-  WS_MSG_TYPES: {
-    SERVICE_STATUS_UPDATE: 'service_status_update',
-    SERVICE_STARTED: 'service_started',
-    SERVICE_STOPPED: 'service_stopped',
-    SERVICE_ERROR: 'service_error'
-  }
-}))
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
 // Mock child components to simplify testing
 vi.mock('../AppHeader', () => ({
@@ -98,25 +73,15 @@ describe('App Component - Basic Tests', () => {
     vi.clearAllMocks()
     
     // Setup default successful API responses
-    const { 
-      getRuntimeStatus, 
-      getCurrentRuntime, 
-      listServices, 
-      getAllServiceStatuses, 
-      getRunningServices,
-      wsClient 
-    } = await import('../../api/client')
-    
-    getRuntimeStatus.mockResolvedValue({ canProceed: true, runtime: 'docker' })
-    getCurrentRuntime.mockResolvedValue({ runtime: 'docker' })
-    listServices.mockResolvedValue(mockServices)
-    getAllServiceStatuses.mockResolvedValue({})
-    getRunningServices.mockResolvedValue({})
-    
-    // Mock WebSocket client
-    wsClient.connect.mockImplementation(() => {})
-    wsClient.subscribe.mockImplementation(() => {})
-    wsClient.disconnect.mockImplementation(() => {})
+    // Reset mock functions
+    mockApiClient.getRuntimeStatus.mockResolvedValue({ canProceed: true, runtime: 'docker' });
+    mockApiClient.getCurrentRuntime.mockResolvedValue({ runtime: 'docker' });
+    mockApiClient.listServices.mockResolvedValue(mockServices);
+    mockApiClient.getAllServiceStatuses.mockResolvedValue({});
+    mockApiClient.getRunningServices.mockResolvedValue({});
+    mockApiClient.wsClient.connect.mockImplementation(() => {});
+    mockApiClient.wsClient.subscribe.mockImplementation(() => {});
+    mockApiClient.wsClient.disconnect.mockImplementation(() => {});
     
     // Mock console methods
     vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -130,7 +95,7 @@ describe('App Component - Basic Tests', () => {
   })
 
   it('should render main app structure', async () => {
-    render(<App />)
+    renderWithProviders(<App />, { apiClient: mockApiClient })
     
     await waitFor(() => {
       expect(screen.getByTestId('app-header')).toBeInTheDocument()
@@ -141,17 +106,16 @@ describe('App Component - Basic Tests', () => {
   })
 
   it('should call runtime status check on mount', async () => {
-    const { getRuntimeStatus } = await import('../../api/client')
     
-    render(<App />)
+    renderWithProviders(<App />, { apiClient: mockApiClient })
     
     await waitFor(() => {
-      expect(getRuntimeStatus).toHaveBeenCalled()
+      expect(mockApiClient.getRuntimeStatus).toHaveBeenCalled()
     })
   })
 
   it('should render footer with runtime info', async () => {
-    render(<App />)
+    renderWithProviders(<App />, { apiClient: mockApiClient })
     
     await waitFor(() => {
       expect(screen.getByText('Using docker')).toBeInTheDocument()

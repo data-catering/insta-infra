@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Layers, Clock, Wifi } from 'lucide-react';
-import { wsClient, WS_MSG_TYPES } from '../api/client';
+import { useApiClient } from '../contexts/ApiContext';
 
 const ProgressModal = ({ isOpen, onClose, serviceName, imageName = '' }) => {
+  const { wsClient, WS_MSG_TYPES } = useApiClient();
   const [progress, setProgress] = useState({
     status: 'idle',
     progress: 0,

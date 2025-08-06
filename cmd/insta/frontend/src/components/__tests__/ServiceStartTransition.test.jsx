@@ -1,26 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import ServiceItem, { ImageStatusProvider } from '../ServiceItem';
-import * as client from '../../api/client';
-
-// Mock the API client
-vi.mock('../../api/client', () => ({
-  startService: vi.fn(),
-  stopService: vi.fn(),
-  checkImageExists: vi.fn(() => Promise.resolve(true)),
-  getServiceConnection: vi.fn(),
-  wsClient: {
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    subscribeToServiceStatus: vi.fn(() => vi.fn()),
-  },
-  WS_MSG_TYPES: {
-    SERVICE_STATUS_UPDATE: 'service_status_update',
-    SERVICE_STARTED: 'service_started',
-    SERVICE_STOPPED: 'service_stopped',
-    SERVICE_ERROR: 'service_error',
-  }
-}));
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils';
 
 // Test helper to render ServiceItem with provider
 const renderServiceItem = (props = {}) => {
@@ -38,19 +20,23 @@ const renderServiceItem = (props = {}) => {
     ...props,
   };
 
-  return render(
+  return renderWithProviders(
     <ImageStatusProvider services={[defaultProps.service]}>
       <ServiceItem {...defaultProps} />
-    </ImageStatusProvider>
+    </ImageStatusProvider>,
+    { apiClient: mockApiClient }
   );
 };
 
 describe('ServiceItem Smooth Transitions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset API mocks to successful responses
-    vi.mocked(client.startService).mockResolvedValue({ status: 'success' });
-    vi.mocked(client.stopService).mockResolvedValue({ status: 'success' });
+    // Reset all mock functions
+    Object.keys(mockApiClient).forEach(key => {
+      if (typeof mockApiClient[key] === 'function') {
+        mockApiClient[key].mockClear();
+      }
+    });
   });
 
   it('should show smooth transition from stopped to starting to running', async () => {
@@ -67,11 +53,11 @@ describe('ServiceItem Smooth Transitions', () => {
 
     // Click start button
     const startButton = screen.getByRole('button', { name: /start/i });
-    fireEvent.click(startButton);
+    await userEvent.click(startButton);
 
     // Should call startService
     await waitFor(() => {
-      expect(client.startService).toHaveBeenCalledWith('postgres', false);
+      expect(mockApiClient.startService).toHaveBeenCalledWith('postgres', false);
     });
   });
 
@@ -79,7 +65,7 @@ describe('ServiceItem Smooth Transitions', () => {
     // Mock console.error to prevent test output noise
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     
-    vi.mocked(client.startService).mockRejectedValue(new Error('Service start failed'));
+    mockApiClient.startService.mockRejectedValue(new Error('Service start failed'));
 
     const mockOnStateChange = vi.fn();
     
@@ -89,11 +75,11 @@ describe('ServiceItem Smooth Transitions', () => {
     });
 
     const startButton = screen.getByRole('button', { name: /start/i });
-    fireEvent.click(startButton);
+    await userEvent.click(startButton);
 
     // Should call startService and fail
     await waitFor(() => {
-      expect(client.startService).toHaveBeenCalledWith('postgres', false);
+      expect(mockApiClient.startService).toHaveBeenCalledWith('postgres', false);
     });
     
     // Service should still be rendered (not crashed)
@@ -146,11 +132,11 @@ describe('ServiceItem Smooth Transitions', () => {
     expect(screen.getByText(/running/i)).toBeInTheDocument();
     
     const stopButton = screen.getByRole('button', { name: /stop/i });
-    fireEvent.click(stopButton);
+    await userEvent.click(stopButton);
 
     // Should call stopService
     await waitFor(() => {
-      expect(client.stopService).toHaveBeenCalledWith('postgres');
+      expect(mockApiClient.stopService).toHaveBeenCalledWith('postgres');
     });
   });
 }); 

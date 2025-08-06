@@ -1,17 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { 
-  startService, 
-  stopService, 
-  getServiceConnection,
-  openServiceConnection,
-  openURL, 
-  checkImageExists,
-  getAllImageStatuses, 
-  startImagePull, 
-  wsClient,
-  WS_MSG_TYPES,
-  restartRuntime
-} from "../api/client";
+import { useApiClient } from '../contexts/ApiContext';
 import { ScrollText, Download, CheckCircle, AlertCircle, RotateCcw, X } from 'lucide-react';
 import ProgressModal from './ProgressModal';
 import LogsModal from './LogsModal';
@@ -29,6 +17,7 @@ const ImageStatusContext = React.createContext();
 
 // Provider component for bulk image status management
 export const ImageStatusProvider = ({ children, services }) => {
+  const { getAllImageStatuses } = useApiClient();
   const [imageStatuses, setImageStatuses] = useState({});
   const [imageNames, setImageNames] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -79,7 +68,7 @@ export const ImageStatusProvider = ({ children, services }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [services?.length]); // Only depend on services length, not the full services array
+  }, [services?.length, getAllImageStatuses]); // Only depend on services length, not the full services array
 
   // Update individual image status
   const updateImageStatus = (serviceName, status, imageName = null) => {
@@ -278,6 +267,7 @@ const StuckContainerWarning = ({ containerName, runtimeName, onRestart, onDismis
 // Placeholder ServiceItem component
 // This will be expanded to show service details and actions
 function ServiceItem({ service, onServiceStateChange, statuses = {}, dependencyStatuses = {}, serviceStatuses = {}, currentRuntime }) {
+  const { startService, stopService, getServiceConnection, openServiceConnection, openURL, checkImageExists, getAllImageStatuses, startImagePull, wsClient, WS_MSG_TYPES, restartRuntime } = useApiClient();
   // Ensure service is a valid object
   if (!service || typeof service !== 'object') {
     console.warn('ServiceItem: Invalid service prop:', service);

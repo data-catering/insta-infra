@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { wsClient, WS_MSG_TYPES } from '../api/client';
+// WebSocket client is passed as a prop
 
-export const useWebSocket = ({ setStatuses, setDependencyStatuses, setLastUpdated }) => {
+export const useWebSocket = ({ setStatuses, setDependencyStatuses, setLastUpdated, wsClient, WS_MSG_TYPES }) => {
   // Initialize WebSocket client and set up real-time event handlers
   const initializeWebSocket = () => {
     try {

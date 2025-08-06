@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { getApiInfo } from '../api/client';
+import { useApiClient } from '../contexts/ApiContext';
 import { useErrorHandler } from './ErrorMessage';
 
 function VersionDisplay() {
     const [version, setVersion] = useState('Loading version...');
     const { addError } = useErrorHandler();
+    const { getApiInfo } = useApiClient();
 
     useEffect(() => {
         getApiInfo()

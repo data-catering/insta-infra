@@ -7,22 +7,25 @@ import RuntimeSetup from './components/RuntimeSetup';
 import ErrorMessage, { useErrorHandler, ToastContainer } from './components/ErrorMessage';
 import { useAppState } from './hooks/useAppState';
 import { useWebSocket } from './hooks/useWebSocket';
-import { 
-  getAllServiceStatuses,
-  getRunningServices,
-  getRuntimeStatus,
-  getCurrentRuntime,
-  stopAllServices,
-  listServices,
-  openURL,
-  getAppLogs,
-  restartRuntime,
-  shutdownApplication,
-  wsClient,
-  WS_MSG_TYPES
-} from "./api/client";
+import { useApiClient } from './contexts/ApiContext';
 
 function App() {
+  // Get API client from context
+  const apiClient = useApiClient();
+  const {
+    getAllServiceStatuses,
+    getRunningServices,
+    getRuntimeStatus,
+    getCurrentRuntime,
+    stopAllServices,
+    listServices,
+    openURL,
+    getAppLogs,
+    restartRuntime,
+    shutdownApplication,
+    wsClient,
+    WS_MSG_TYPES
+  } = apiClient;
   // Error handling
   const { errors, toasts, addError, addToast, removeError, removeToast, clearAllErrors } = useErrorHandler();
   
@@ -61,7 +64,7 @@ function App() {
   }, [copyFeedback]);
   
   // Initialize WebSocket
-  useWebSocket({ setStatuses, setDependencyStatuses, setLastUpdated });
+  useWebSocket({ setStatuses, setDependencyStatuses, setLastUpdated, wsClient, WS_MSG_TYPES });
 
   useEffect(() => {
     // Check runtime status first

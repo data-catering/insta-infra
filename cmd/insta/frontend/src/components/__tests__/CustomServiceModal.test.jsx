@@ -1,16 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import CustomServiceModal from '../CustomServiceModal'
-
-// Mock the API client
-vi.mock('../../api/client', () => ({
-  addCustomService: vi.fn(),
-  updateCustomService: vi.fn(),
-  validateComposeContent: vi.fn(),
-}))
-
-import * as client from '../../api/client'
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
 // Mock createPortal to render in the current container instead of document.body
 vi.mock('react-dom', async () => {
@@ -36,10 +28,12 @@ describe('CustomServiceModal Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     
-    // Mock API functions
-    client.addCustomService.mockResolvedValue({ success: true })
-    client.updateCustomService.mockResolvedValue({ success: true })
-    client.validateComposeContent.mockResolvedValue({ valid: true })
+    // Reset all mock functions
+    Object.keys(mockApiClient).forEach(key => {
+      if (typeof mockApiClient[key] === 'function') {
+        mockApiClient[key].mockClear();
+      }
+    });
 
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -47,13 +41,13 @@ describe('CustomServiceModal Component', () => {
 
   describe('Basic Rendering', () => {
     it('should render modal when isOpen is true', () => {
-      render(<CustomServiceModal {...defaultProps} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByText('Add Custom Service')).toBeInTheDocument()
     })
 
     it('should not render modal when isOpen is false', () => {
-      render(<CustomServiceModal {...defaultProps} isOpen={false} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} isOpen={false} />, { apiClient: mockApiClient })
       
       expect(screen.queryByText('Add Custom Service')).not.toBeInTheDocument()
     })
@@ -66,7 +60,7 @@ describe('CustomServiceModal Component', () => {
         content: 'services:\n  test:\n    image: nginx'
       }
 
-      render(<CustomServiceModal {...defaultProps} editingService={editingService} isEditing={true} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} editingService={editingService} isEditing={true} />, { apiClient: mockApiClient })
       
       expect(screen.getByText('Edit Custom Service')).toBeInTheDocument()
     })
@@ -74,7 +68,7 @@ describe('CustomServiceModal Component', () => {
 
   describe('Form Elements', () => {
     it('should have required form fields', () => {
-      render(<CustomServiceModal {...defaultProps} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByLabelText(/service name/i)).toBeInTheDocument()
       expect(screen.getByLabelText(/description/i)).toBeInTheDocument()
@@ -82,14 +76,14 @@ describe('CustomServiceModal Component', () => {
     })
 
     it('should have form action buttons', () => {
-      render(<CustomServiceModal {...defaultProps} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /add service/i })).toBeInTheDocument()
     })
 
     it('should have mode toggle buttons', () => {
-      render(<CustomServiceModal {...defaultProps} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByRole('button', { name: /text editor/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /file upload/i })).toBeInTheDocument()
@@ -99,7 +93,7 @@ describe('CustomServiceModal Component', () => {
   describe('User Interactions', () => {
     it('should call onClose when cancel button is clicked', async () => {
       const onCloseMock = vi.fn()
-      render(<CustomServiceModal {...defaultProps} onClose={onCloseMock} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} onClose={onCloseMock} />, { apiClient: mockApiClient })
       
       const cancelButton = screen.getByRole('button', { name: /cancel/i })
       await user.click(cancelButton)
@@ -109,7 +103,7 @@ describe('CustomServiceModal Component', () => {
 
     it('should call onClose when close button is clicked', async () => {
       const onCloseMock = vi.fn()
-      render(<CustomServiceModal {...defaultProps} onClose={onCloseMock} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} onClose={onCloseMock} />, { apiClient: mockApiClient })
       
       const closeButton = screen.getByRole('button', { name: /close modal/i })
       await user.click(closeButton)
@@ -118,7 +112,7 @@ describe('CustomServiceModal Component', () => {
     })
 
     it('should allow typing in service name field', async () => {
-      render(<CustomServiceModal {...defaultProps} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} />, { apiClient: mockApiClient })
       
       const nameInput = screen.getByLabelText(/service name/i)
       await user.type(nameInput, 'Test Service')
@@ -127,7 +121,7 @@ describe('CustomServiceModal Component', () => {
     })
 
     it('should allow typing in description field', async () => {
-      render(<CustomServiceModal {...defaultProps} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} />, { apiClient: mockApiClient })
       
       const descInput = screen.getByLabelText(/description/i)
       await user.type(descInput, 'Test description')
@@ -145,7 +139,7 @@ describe('CustomServiceModal Component', () => {
         content: 'services:\n  test:\n    image: nginx'
       }
 
-      render(<CustomServiceModal {...defaultProps} editingService={editingService} isEditing={true} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} editingService={editingService} isEditing={true} />, { apiClient: mockApiClient })
       
       expect(screen.getByDisplayValue('Test Service')).toBeInTheDocument()
       expect(screen.getByDisplayValue('Test description')).toBeInTheDocument()
@@ -160,7 +154,7 @@ describe('CustomServiceModal Component', () => {
         content: 'services:\n  test:\n    image: nginx'
       }
 
-      render(<CustomServiceModal {...defaultProps} editingService={editingService} isEditing={true} />)
+      renderWithProviders(<CustomServiceModal {...defaultProps} editingService={editingService} isEditing={true} />, { apiClient: mockApiClient })
       
       expect(screen.getByRole('button', { name: /update service/i })).toBeInTheDocument()
     })
