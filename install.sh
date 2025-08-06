@@ -34,7 +34,7 @@ detect_os_arch() {
 get_download_url() {
     ARTIFACT_NAME="insta-${OS}-${ARCH}"
     if [ "$OS" = "windows" ]; then
-        ARTIFACT_NAME="insta-windows-${ARCH}"
+        ARTIFACT_NAME="insta-windows-${ARCH}.exe"
     fi
     echo "https://github.com/${GITHUB_ORG}/${REPO}/releases/latest/download/${ARTIFACT_NAME}"
 }

@@ -29,9 +29,7 @@ help:
 	@echo "  make lint        Run linter"
 	@echo "  make vet         Run go vet"
 	@echo "  make fmt         Run go fmt"
-	@echo "  make release     Create release archive and packages"
-	@echo "  make packages    Build system packages (Debian, RPM, Arch)"
-	@echo "  make publish     Build and publish packages (requires environment variables)"
+	@echo "  make release     Create release archive"
 	@echo "  make install     Install binary to GOPATH/bin"
 	@echo "  make help        Show this help message"
 
@@ -123,21 +121,9 @@ fmt:
 		echo "YAML formatting complete."; \
 	fi
 
-packages:
+release: clean build-web
 	@chmod +x scripts/packaging.sh
-	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true BUILD_PACKAGES=true ./scripts/packaging.sh
-
-release: clean
-	@mkdir -p release
-	@for platform in $(PLATFORMS); do \
-		GOOS=$${platform%/*} GOARCH=$${platform##*/} CGO_ENABLED=0 VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true ./scripts/build.sh; \
-	done
-	@chmod +x scripts/packaging.sh
-	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true BUILD_PACKAGES=false ./scripts/packaging.sh
-
-publish: clean
-	@chmod +x scripts/packaging.sh
-	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) RELEASE=true PUBLISH=true ./scripts/packaging.sh
+	@VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) ./scripts/packaging.sh
 
 install: build
 	mv $(BINARY_NAME) $(GOPATH)/bin/

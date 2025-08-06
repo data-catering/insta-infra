@@ -28,15 +28,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y upx
 
-      - name: Install package build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y devscripts debhelper golang-go rpm build-essential
+
 
       - name: Build and package
         run: |
           chmod +x scripts/build.sh scripts/packaging.sh
-          BUILD_PACKAGES=true make release
+          make build-web
+          ./scripts/packaging.sh
 
       - name: Create Release
         id: create_release
@@ -46,12 +44,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            release/*.tar.gz
-            release/*.zip
+            release/insta-*
             release/checksums.txt
-            build/packages/*.deb
-            build/packages/*.rpm
-            build/packages/*.pkg.tar.zst
-            build/packages/*.nupkg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
