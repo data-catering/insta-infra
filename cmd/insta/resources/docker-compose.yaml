@@ -1143,7 +1143,7 @@ services:
       retries: 5
       test: [CMD-SHELL, curl, --fail, -I, http://localhost:3000/api/health || exit 1]
       timeout: 5s
-    image: "metabase/metabase:${METABASE_VERSION:-v0.55.10}"
+    image: "metabase/metabase:${METABASE_VERSION:-v0.55.11}"
     ports:
       - "3000:3000"
     volumes:
@@ -1159,7 +1159,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:9091/healthz"]
       timeout: 10s
-    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.5.16}"
+    image: "milvusdb/milvus:${MILVUS_VERSION:-v2.6.0}"
     ports:
       - "${MILVUS_PORT:-19530}:19530"
       - "9091:9091"
@@ -1191,7 +1191,7 @@ services:
       retries: 3
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       timeout: 5s
-    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v3.1.4}"
+    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v3.2.0}"
     ports:
       - "${MLFLOW_PORT:-5000}:5000"
   mlflow-serve:
@@ -1207,7 +1207,7 @@ services:
       retries: 3
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       timeout: 5s
-    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v3.1.4}"
+    image: "ghcr.io/mlflow/mlflow:${MLFLOW_VERSION:-v3.2.0}"
     ports:
       - "${MLFLOW_SERVE_PORT:-5001}:5001"
   mongodb:
@@ -1288,7 +1288,7 @@ services:
       retries: 5
       test: [CMD-SHELL, "cypher-shell -u neo4j -p test 'RETURN 1' || exit 1"]
       timeout: 10s
-    image: "neo4j:${NEO4J_VERSION:-2025.06.2}"
+    image: "neo4j:${NEO4J_VERSION:-2025.07.1}"
     ports:
       - "7474:7474"
       - "7687:7687"
