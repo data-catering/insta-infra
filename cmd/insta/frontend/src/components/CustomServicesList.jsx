@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listCustomServices, deleteCustomService, getCustomService } from '../api/client';
+import { useApiClient } from '../contexts/ApiContext';
 import CustomServiceModal from './CustomServiceModal';
 
 function CustomServicesList({ 
@@ -8,6 +8,7 @@ function CustomServicesList({
   onServiceDeleted,
   isVisible = true 
 }) {
+  const { listCustomServices, deleteCustomService, getCustomService } = useApiClient();
   const [customServices, setCustomServices] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);

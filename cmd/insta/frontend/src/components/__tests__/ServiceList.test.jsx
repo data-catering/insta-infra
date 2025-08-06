@@ -4,13 +4,15 @@ import userEvent from '@testing-library/user-event'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import ServiceList from '../ServiceList'
 import { ImageStatusProvider } from '../ServiceItem'
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
-// Helper to render ServiceList with ImageStatusProvider
+// Helper to render ServiceList with required providers
 const renderWithProvider = (ui, services = []) => {
-  return render(
+  return renderWithProviders(
     <ImageStatusProvider services={services}>
       {ui}
-    </ImageStatusProvider>
+    </ImageStatusProvider>,
+    { apiClient: mockApiClient }
   )
 }
 

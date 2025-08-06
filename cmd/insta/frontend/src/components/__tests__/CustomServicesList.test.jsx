@@ -1,16 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import CustomServicesList from '../CustomServicesList'
-
-// Mock the API client
-vi.mock('../../api/client', () => ({
-  listCustomServices: vi.fn(),
-  deleteCustomService: vi.fn(),
-  getCustomService: vi.fn(),
-}))
-
-import * as client from '../../api/client'
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
 // Mock CustomServiceModal
 vi.mock('../CustomServiceModal', () => ({
@@ -30,10 +22,12 @@ describe('CustomServicesList Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     
-    // Mock API functions
-    client.listCustomServices.mockResolvedValue([])
-    client.deleteCustomService.mockResolvedValue()
-    client.getCustomService.mockResolvedValue({ content: 'mock content' })
+    // Reset all mock functions
+    Object.keys(mockApiClient).forEach(key => {
+      if (typeof mockApiClient[key] === 'function') {
+        mockApiClient[key].mockClear();
+      }
+    });
 
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -41,7 +35,7 @@ describe('CustomServicesList Component', () => {
 
   describe('Basic Rendering', () => {
     it('should render the component when visible', async () => {
-      render(<CustomServicesList {...defaultProps} />)
+      renderWithProviders(<CustomServicesList {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText('Custom Services')).toBeInTheDocument()
@@ -49,13 +43,13 @@ describe('CustomServicesList Component', () => {
     })
 
     it('should not render when not visible', () => {
-      render(<CustomServicesList {...defaultProps} isVisible={false} />)
+      renderWithProviders(<CustomServicesList {...defaultProps} isVisible={false} />, { apiClient: mockApiClient })
       
       expect(screen.queryByText('Custom Services')).not.toBeInTheDocument()
     })
 
     it('should show empty state when no services exist', async () => {
-      render(<CustomServicesList {...defaultProps} />)
+      renderWithProviders(<CustomServicesList {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText('No custom services configured')).toBeInTheDocument()
@@ -65,7 +59,7 @@ describe('CustomServicesList Component', () => {
 
   describe('User Interactions', () => {
     it('should show modal when add button is clicked', async () => {
-      render(<CustomServicesList {...defaultProps} />)
+      renderWithProviders(<CustomServicesList {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         const addButton = screen.getByRole('button', { name: /add custom/i })
@@ -76,7 +70,7 @@ describe('CustomServicesList Component', () => {
     })
 
     it('should have add custom button', async () => {
-      render(<CustomServicesList {...defaultProps} />)
+      renderWithProviders(<CustomServicesList {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /add custom/i })).toBeInTheDocument()
@@ -99,9 +93,9 @@ describe('CustomServicesList Component', () => {
         }
       ]
       
-      client.listCustomServices.mockResolvedValue(mockServices)
+      mockApiClient.listCustomServices.mockResolvedValue(mockServices)
       
-      render(<CustomServicesList {...defaultProps} />)
+      renderWithProviders(<CustomServicesList {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText('Test Service')).toBeInTheDocument()

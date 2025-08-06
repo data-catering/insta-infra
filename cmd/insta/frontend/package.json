@@ -23,7 +23,8 @@
     "playwright:install-deps": "playwright install-deps",
     "css:analyze": "node scripts/css-analyzer.cjs analyze",
     "css:consolidate": "node scripts/css-analyzer.cjs consolidate",
-    "css:clean": "node scripts/css-analyzer.cjs clean"
+    "css:clean": "node scripts/css-analyzer.cjs clean",
+    "build:demo": "chmod +x scripts/build-demo.sh && ./scripts/build-demo.sh"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",

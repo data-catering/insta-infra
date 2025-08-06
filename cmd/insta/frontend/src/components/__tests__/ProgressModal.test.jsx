@@ -1,20 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import ProgressModal from '../ProgressModal'
-
-// Mock the API client
-vi.mock('../../api/client', () => ({
-  wsClient: {
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-  },
-  WS_MSG_TYPES: {
-    IMAGE_PULL_PROGRESS: 'image_pull_progress',
-    IMAGE_PULL_COMPLETE: 'image_pull_complete',
-    IMAGE_PULL_ERROR: 'image_pull_error',
-  }
-}))
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
 // Mock createPortal to render in the current container instead of document.body
 vi.mock('react-dom', async () => {
@@ -41,7 +29,7 @@ describe('ProgressModal Component', () => {
 
   describe('Basic Rendering', () => {
     it('should render modal when isOpen is true', () => {
-      render(<ProgressModal {...defaultProps} />)
+      renderWithProviders(<ProgressModal {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByRole('dialog')).toBeInTheDocument()
       expect(screen.getByText('Downloading Image - postgres')).toBeInTheDocument()
@@ -49,13 +37,13 @@ describe('ProgressModal Component', () => {
     })
 
     it('should not render modal when isOpen is false', () => {
-      render(<ProgressModal {...defaultProps} isOpen={false} />)
+      renderWithProviders(<ProgressModal {...defaultProps} isOpen={false} />, { apiClient: mockApiClient })
       
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
     it('should show service information', () => {
-      render(<ProgressModal {...defaultProps} />)
+      renderWithProviders(<ProgressModal {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByText('Service:')).toBeInTheDocument()
       expect(screen.getByText('Image:')).toBeInTheDocument()
@@ -67,7 +55,7 @@ describe('ProgressModal Component', () => {
 
   describe('Accessibility', () => {
     it('should have proper ARIA labels and roles', () => {
-      render(<ProgressModal {...defaultProps} />)
+      renderWithProviders(<ProgressModal {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByRole('dialog')).toBeInTheDocument()
       expect(screen.getByRole('progressbar')).toBeInTheDocument()
@@ -80,7 +68,7 @@ describe('ProgressModal Component', () => {
   describe('User Interactions', () => {
     it('should call onClose when close button is clicked', async () => {
       const onCloseMock = vi.fn()
-      render(<ProgressModal {...defaultProps} onClose={onCloseMock} />)
+      renderWithProviders(<ProgressModal {...defaultProps} onClose={onCloseMock} />, { apiClient: mockApiClient })
       
       // The close button doesn't have a label, so we'll use the X button class
       const closeButton = screen.getByRole('button', { name: '' })
@@ -91,7 +79,7 @@ describe('ProgressModal Component', () => {
 
     it('should call onClose when cancel button is clicked', async () => {
       const onCloseMock = vi.fn()
-      render(<ProgressModal {...defaultProps} onClose={onCloseMock} />)
+      renderWithProviders(<ProgressModal {...defaultProps} onClose={onCloseMock} />, { apiClient: mockApiClient })
       
       const cancelButton = screen.getByRole('button', { name: /cancel download/i })
       await user.click(cancelButton)
@@ -101,7 +89,7 @@ describe('ProgressModal Component', () => {
 
     it('should call onClose when clicking outside modal', async () => {
       const onCloseMock = vi.fn()
-      render(<ProgressModal {...defaultProps} onClose={onCloseMock} />)
+      renderWithProviders(<ProgressModal {...defaultProps} onClose={onCloseMock} />, { apiClient: mockApiClient })
       
       const overlay = screen.getByRole('dialog').parentElement
       await user.click(overlay)
@@ -112,7 +100,7 @@ describe('ProgressModal Component', () => {
 
   describe('Initial State', () => {
     it('should show initial idle state with 0% progress', () => {
-      render(<ProgressModal {...defaultProps} />)
+      renderWithProviders(<ProgressModal {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByText('Idle')).toBeInTheDocument()
       expect(screen.getByText('0.0%')).toBeInTheDocument()
@@ -120,7 +108,7 @@ describe('ProgressModal Component', () => {
     })
 
     it('should show progress bar with 0% width initially', () => {
-      render(<ProgressModal {...defaultProps} />)
+      renderWithProviders(<ProgressModal {...defaultProps} />, { apiClient: mockApiClient })
       
       const progressBar = screen.getByRole('progressbar')
       expect(progressBar).toHaveStyle('width: 0%')
@@ -129,14 +117,14 @@ describe('ProgressModal Component', () => {
 
   describe('Display Information', () => {
     it('should display service name in title and info section', () => {
-      render(<ProgressModal {...defaultProps} serviceName="mysql" />)
+      renderWithProviders(<ProgressModal {...defaultProps} serviceName="mysql" />, { apiClient: mockApiClient })
       
       expect(screen.getByText('Downloading Image - mysql')).toBeInTheDocument()
       expect(screen.getByText('mysql')).toBeInTheDocument()
     })
 
     it('should handle missing image name gracefully', () => {
-      render(<ProgressModal {...defaultProps} imageName="" />)
+      renderWithProviders(<ProgressModal {...defaultProps} imageName="" />, { apiClient: mockApiClient })
       
       expect(screen.getByText('Service:')).toBeInTheDocument()
       expect(screen.queryByText('Image:')).not.toBeInTheDocument()

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, Search, Filter, ScrollText, AlertCircle } from 'lucide-react';
-import { getServiceLogs, startServiceLogStream, stopServiceLogStream, wsClient, WS_MSG_TYPES } from '../api/client';
+import { useApiClient } from '../contexts/ApiContext';
 import { useErrorHandler } from './ErrorMessage';
 
 const LogsModal = ({ isOpen, onClose, serviceName, selectedDependency = null }) => {
+  const { getServiceLogs, startServiceLogStream, stopServiceLogStream, wsClient, WS_MSG_TYPES } = useApiClient();
   const [logs, setLogs] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');

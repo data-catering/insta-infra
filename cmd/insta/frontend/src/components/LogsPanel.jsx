@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { getAppLogEntries, getAppLogsSince } from '../api/client';
+import { useApiClient } from '../contexts/ApiContext';
 import { useErrorHandler } from './ErrorMessage';
 
 const LogsPanel = ({ isVisible, onToggle }) => {
+  const { getAppLogEntries, getAppLogsSince } = useApiClient();
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -25,8 +26,8 @@ const LogsPanel = ({ isVisible, onToggle }) => {
       setIsLoading(true);
       setError(null);
       const logEntries = await getAppLogEntries();
-      setLogs(logEntries || []);
-      if (logEntries && logEntries.length > 0) {
+      setLogs(logEntries.logs || []);
+      if (logEntries.logs && logEntries.logs.length > 0) {
         setLastUpdateTime(new Date().toISOString());
       }
     } catch (err) {
@@ -66,8 +67,8 @@ const LogsPanel = ({ isVisible, onToggle }) => {
 
     try {
       const newLogEntries = await getAppLogsSince(lastUpdateTime);
-      if (newLogEntries && newLogEntries.length > 0) {
-        setLogs(prevLogs => [...prevLogs, ...newLogEntries]);
+      if (newLogEntries.logs && newLogEntries.logs.length > 0) {
+        setLogs(prevLogs => [...prevLogs, ...newLogEntries.logs]);
         setLastUpdateTime(new Date().toISOString());
         // Scroll to bottom after a short delay to ensure DOM is updated
         setTimeout(scrollToBottom, 100);

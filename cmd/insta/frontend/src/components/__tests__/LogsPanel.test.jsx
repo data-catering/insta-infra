@@ -1,13 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import LogsPanel from '../LogsPanel'
-
-// Mock the API client
-vi.mock('../../api/client', () => ({
-  getAppLogEntries: vi.fn(),
-  getAppLogsSince: vi.fn(),
-}))
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
 describe('LogsPanel Component', () => {
   const user = userEvent.setup()
@@ -24,13 +19,13 @@ describe('LogsPanel Component', () => {
 
   describe('Basic Rendering', () => {
     it('should render panel when visible', () => {
-      render(<LogsPanel {...defaultProps} />)
+      renderWithProviders(<LogsPanel {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByText('Application Logs')).toBeInTheDocument()
     })
 
     it('should not render panel when not visible', () => {
-      render(<LogsPanel {...defaultProps} isVisible={false} />)
+      renderWithProviders(<LogsPanel {...defaultProps} isVisible={false} />, { apiClient: mockApiClient })
       
       expect(screen.queryByText('Application Logs')).not.toBeInTheDocument()
     })
@@ -39,7 +34,7 @@ describe('LogsPanel Component', () => {
   describe('User Interactions', () => {
     it('should call onToggle when close button is clicked', async () => {
       const onToggleMock = vi.fn()
-      render(<LogsPanel {...defaultProps} onToggle={onToggleMock} />)
+      renderWithProviders(<LogsPanel {...defaultProps} onToggle={onToggleMock} />, { apiClient: mockApiClient })
       
       const closeButton = screen.getByRole('button', { name: '✕' })
       await user.click(closeButton)
@@ -48,7 +43,7 @@ describe('LogsPanel Component', () => {
     })
 
     it('should have control buttons', () => {
-      render(<LogsPanel {...defaultProps} />)
+      renderWithProviders(<LogsPanel {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByRole('button', { name: '⏸️' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: '🗑️' })).toBeInTheDocument()
@@ -58,7 +53,7 @@ describe('LogsPanel Component', () => {
 
   describe('Panel Visibility', () => {
     it('should show loading state initially', () => {
-      render(<LogsPanel {...defaultProps} />)
+      renderWithProviders(<LogsPanel {...defaultProps} />, { apiClient: mockApiClient })
       
       expect(screen.getByText('Loading logs...')).toBeInTheDocument()
     })

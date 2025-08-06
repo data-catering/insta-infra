@@ -3,13 +3,15 @@ import { render, screen } from '@testing-library/react'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import RunningServices from '../RunningServices'
 import { ImageStatusProvider } from '../ServiceItem'
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
-// Helper to render RunningServices with ImageStatusProvider
+// Helper to render RunningServices with required providers
 const renderWithProvider = (ui, services = []) => {
-  return render(
+  return renderWithProviders(
     <ImageStatusProvider services={services}>
       {ui}
-    </ImageStatusProvider>
+    </ImageStatusProvider>,
+    { apiClient: mockApiClient }
   )
 }
 

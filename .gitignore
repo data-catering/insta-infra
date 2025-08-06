@@ -41,6 +41,7 @@ cmd/insta/resources/data/*/persist/
 
 # Frontend build artifacts
 cmd/insta/frontend/dist/
+cmd/insta/frontend/dist-demo/
 cmd/insta/frontend/build/
 cmd/insta/frontend/node_modules/
 cmd/insta/frontend/*.md5

@@ -2,6 +2,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import ServiceItem, { ImageStatusProvider } from '../ServiceItem'
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
 // Mock the API client
 vi.mock('../../api/client', () => ({
@@ -22,17 +23,24 @@ vi.mock('../../api/client', () => ({
   }
 }))
 
-// Helper to render ServiceItem with required provider
+// Note: Using mockApiClient from test-utils instead of module-level mocks
+
+// Helper to render ServiceItem with required providers
 const renderWithProvider = (ui, services = []) => {
-  return render(
+  return renderWithProviders(
     <ImageStatusProvider services={services}>
       {ui}
-    </ImageStatusProvider>
+    </ImageStatusProvider>,
+    { apiClient: mockApiClient }
   )
 }
 
 describe('ServiceItem Component - User Interactions', () => {
   const user = userEvent.setup()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
 
   const mockService = {
     name: 'postgres',
@@ -116,21 +124,23 @@ describe('ServiceItem Component - User Interactions', () => {
   describe('Service Starting Flow', () => {
     it('should start service when start button is clicked', async () => {
       const onStartSpy = vi.fn()
-      const { startService } = await import('../../api/client')
-      startService.mockResolvedValue({ status: 'success' })
+      // Mock checkImageExists to return true so startService gets called
+      mockApiClient.checkImageExists.mockResolvedValue(true)
+      mockApiClient.startService.mockResolvedValue({ status: 'success' })
 
       renderWithProvider(<ServiceItem {...defaultProps} onStart={onStartSpy} />, [mockService])
       
       const startButton = screen.getByRole('button', { name: /start/i })
       await user.click(startButton)
       
-      expect(startService).toHaveBeenCalledWith('postgres', false)
+      expect(mockApiClient.startService).toHaveBeenCalledWith('postgres', false)
     })
 
     it('should start service with persistence when persist button is toggled', async () => {
       const onStartSpy = vi.fn()
-      const { startService } = await import('../../api/client')
-      startService.mockResolvedValue({ status: 'success' })
+      // Mock checkImageExists to return true so startService gets called
+      mockApiClient.checkImageExists.mockResolvedValue(true)
+      mockApiClient.startService.mockResolvedValue({ status: 'success' })
       
       renderWithProvider(<ServiceItem {...defaultProps} onStart={onStartSpy} />, [mockService])
       
@@ -140,7 +150,7 @@ describe('ServiceItem Component - User Interactions', () => {
       const startButton = screen.getByRole('button', { name: /start/i })
       await user.click(startButton)
       
-      expect(startService).toHaveBeenCalledWith('postgres', true)
+      expect(mockApiClient.startService).toHaveBeenCalledWith('postgres', true)
     })
 
     it('should show loading state when starting service', async () => {
@@ -175,7 +185,7 @@ describe('ServiceItem Component - User Interactions', () => {
       
       // Should handle error gracefully without crashing
       await waitFor(() => {
-        expect(screen.getByText('postgres')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'postgres' })).toBeInTheDocument()
       })
     })
   })
@@ -184,15 +194,14 @@ describe('ServiceItem Component - User Interactions', () => {
     it('should stop service when stop button is clicked', async () => {
       const runningService = { ...mockService, status: 'running' }
       const onStopSpy = vi.fn()
-      const { stopService } = await import('../../api/client')
-      stopService.mockResolvedValue({ status: 'success' })
+      mockApiClient.stopService.mockResolvedValue({ status: 'success' })
       
       renderWithProvider(<ServiceItem {...defaultProps} service={runningService} onStop={onStopSpy} statuses={{ postgres: 'running' }} />, [runningService])
       
       const stopButton = screen.getByRole('button', { name: /stop/i })
       await user.click(stopButton)
       
-      expect(stopService).toHaveBeenCalledWith('postgres')
+      expect(mockApiClient.stopService).toHaveBeenCalledWith('postgres')
     })
 
     it('should show correct UI for running service', async () => {
@@ -207,8 +216,7 @@ describe('ServiceItem Component - User Interactions', () => {
 
   describe('Connection Information Modal', () => {
     it('should open connection modal when connect button is clicked', async () => {
-      const { getServiceConnection } = await import('../../api/client')
-      getServiceConnection.mockResolvedValue({
+      mockApiClient.getServiceConnection.mockResolvedValue({
         connection: {
           host: 'localhost',
           port: '5432',
@@ -224,13 +232,12 @@ describe('ServiceItem Component - User Interactions', () => {
       await user.click(connectButton)
       
       await waitFor(() => {
-        expect(getServiceConnection).toHaveBeenCalledWith('postgres')
+        expect(mockApiClient.getServiceConnection).toHaveBeenCalledWith('postgres')
       })
     })
 
     it('should close connection modal when close button is clicked', async () => {
-      const { getServiceConnection } = await import('../../api/client')
-      getServiceConnection.mockResolvedValue({
+      mockApiClient.getServiceConnection.mockResolvedValue({
         connection: {
           host: 'localhost',
           port: '5432'
@@ -250,8 +257,7 @@ describe('ServiceItem Component - User Interactions', () => {
     })
 
     it('should handle connection info when service has proper connection data', async () => {
-      const { getServiceConnection } = await import('../../api/client')
-      getServiceConnection.mockResolvedValue({
+      mockApiClient.getServiceConnection.mockResolvedValue({
         connection: {
           serviceName: 'postgres',
           available: true,
@@ -270,7 +276,7 @@ describe('ServiceItem Component - User Interactions', () => {
       
       await waitFor(() => {
         // Check that the connection modal opened successfully
-        expect(getServiceConnection).toHaveBeenCalledWith('postgres')
+        expect(mockApiClient.getServiceConnection).toHaveBeenCalledWith('postgres')
         // Just verify the modal is open and API was called, not the specific content
         expect(screen.getByText(/connection info/i)).toBeInTheDocument()
       })
@@ -327,8 +333,9 @@ describe('ServiceItem Component - User Interactions', () => {
 
   describe('Accessibility', () => {
     it('should have proper ARIA labels and keyboard navigation', async () => {
-      const { startService } = await import('../../api/client')
-      startService.mockResolvedValue({ status: 'success' })
+      // Mock checkImageExists to return true so startService gets called
+      mockApiClient.checkImageExists.mockResolvedValue(true)
+      mockApiClient.startService.mockResolvedValue({ status: 'success' })
       
       renderWithProvider(<ServiceItem {...defaultProps} />, [mockService])
       
@@ -341,14 +348,13 @@ describe('ServiceItem Component - User Interactions', () => {
       
       // Test clicking the button directly
       await user.click(startButton)
-      expect(startService).toHaveBeenCalled()
+      expect(mockApiClient.startService).toHaveBeenCalled()
     })
   })
 
   describe('Error Handling', () => {
     it('should handle network errors gracefully', async () => {
-      const { startService } = await import('../../api/client')
-      startService.mockRejectedValue(new Error('Network error'))
+      mockApiClient.startService.mockRejectedValue(new Error('Network error'))
 
       const onStartSpy = vi.fn()
       renderWithProvider(<ServiceItem {...defaultProps} onStart={onStartSpy} />, [mockService])
@@ -358,7 +364,7 @@ describe('ServiceItem Component - User Interactions', () => {
       
       // Should not crash and should still show the service
       await waitFor(() => {
-        expect(screen.getByText('postgres')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'postgres' })).toBeInTheDocument()
       })
     })
   })

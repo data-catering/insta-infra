@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import RuntimeSetup from '../RuntimeSetup'
+import { renderWithProviders, mockApiClient } from '../../test-utils/test-utils'
 
 // Mock the API client
 vi.mock('../../api/client', () => ({
@@ -57,11 +58,11 @@ describe('RuntimeSetup Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     
-    // Setup default mocked client functions
-    client.getRuntimeStatus.mockResolvedValue(mockRuntimeStatusNotReady)
-    client.getCustomDockerPath.mockResolvedValue('')
-    client.getCustomPodmanPath.mockResolvedValue('')
-    client.getAppLogs.mockResolvedValue([])
+    // Setup default mocked client functions using mockApiClient
+    mockApiClient.getRuntimeStatus.mockResolvedValue(mockRuntimeStatusNotReady)
+    mockApiClient.getCustomDockerPath.mockResolvedValue('')
+    mockApiClient.getCustomPodmanPath.mockResolvedValue('')
+    mockApiClient.getAppLogs.mockResolvedValue([])
     
     // Mock console methods
     vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -70,7 +71,7 @@ describe('RuntimeSetup Component', () => {
 
   describe('Basic Rendering', () => {
     it('should render main setup interface', async () => {
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/Container Runtime Setup/i)).toBeInTheDocument()
@@ -78,7 +79,7 @@ describe('RuntimeSetup Component', () => {
     })
 
     it('should show quick start section', async () => {
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/Quick Start/i)).toBeInTheDocument()
@@ -88,9 +89,9 @@ describe('RuntimeSetup Component', () => {
 
   describe('Ready State', () => {
     it('should show ready state when runtime is available', async () => {
-      client.getRuntimeStatus.mockResolvedValue(mockRuntimeStatusReady)
+      mockApiClient.getRuntimeStatus.mockResolvedValue(mockRuntimeStatusReady)
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByText(/Container Runtime Ready/i)).toBeInTheDocument()
@@ -98,9 +99,9 @@ describe('RuntimeSetup Component', () => {
     })
 
     it('should show continue button when runtime is ready', async () => {
-      client.getRuntimeStatus.mockResolvedValue(mockRuntimeStatusReady)
+      mockApiClient.getRuntimeStatus.mockResolvedValue(mockRuntimeStatusReady)
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /continue to services/i })).toBeInTheDocument()
@@ -108,10 +109,10 @@ describe('RuntimeSetup Component', () => {
     })
 
     it('should call onRuntimeReady when continue button is clicked', async () => {
-      client.getRuntimeStatus.mockResolvedValue(mockRuntimeStatusReady)
+      mockApiClient.getRuntimeStatus.mockResolvedValue(mockRuntimeStatusReady)
       const onRuntimeReadySpy = vi.fn()
       
-      render(<RuntimeSetup {...defaultProps} onRuntimeReady={onRuntimeReadySpy} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} onRuntimeReady={onRuntimeReadySpy} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         const continueButton = screen.getByRole('button', { name: /continue to services/i })
@@ -124,7 +125,7 @@ describe('RuntimeSetup Component', () => {
 
   describe('Advanced Options', () => {
     it('should toggle advanced options when button is clicked', async () => {
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       await waitFor(() => {
         const advancedButton = screen.getByRole('button', { name: /advanced options/i })
@@ -135,7 +136,7 @@ describe('RuntimeSetup Component', () => {
     })
 
     it('should show runtime status cards in advanced options', async () => {
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options
       await waitFor(() => {
@@ -149,7 +150,7 @@ describe('RuntimeSetup Component', () => {
 
   describe('Application Logs', () => {
     it('should toggle logs visibility', async () => {
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options first
       await waitFor(() => {
@@ -167,7 +168,7 @@ describe('RuntimeSetup Component', () => {
 
   describe('Help Links', () => {
     it('should show help links in advanced options', async () => {
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options
       await waitFor(() => {
@@ -185,7 +186,7 @@ describe('RuntimeSetup Component', () => {
       client.getCustomDockerPath.mockResolvedValue(null)
       client.getCustomPodmanPath.mockResolvedValue(null)
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options - this should not throw an error
       await waitFor(() => {
@@ -202,7 +203,7 @@ describe('RuntimeSetup Component', () => {
       client.getCustomDockerPath.mockResolvedValue(undefined)
       client.getCustomPodmanPath.mockResolvedValue(undefined)
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options - this should not throw an error
       await waitFor(() => {
@@ -219,7 +220,7 @@ describe('RuntimeSetup Component', () => {
       client.getCustomDockerPath.mockResolvedValue({ path: '/usr/bin/docker' })
       client.getCustomPodmanPath.mockResolvedValue({ path: '/usr/bin/podman' })
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options - this should not throw an error
       await waitFor(() => {
@@ -236,7 +237,7 @@ describe('RuntimeSetup Component', () => {
       client.getCustomDockerPath.mockResolvedValue(123)
       client.getCustomPodmanPath.mockResolvedValue(456)
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options - this should not throw an error
       await waitFor(() => {
@@ -252,12 +253,12 @@ describe('RuntimeSetup Component', () => {
   describe('Application Logs Map Error Reproduction', () => {
     it('should handle backend logs response object without throwing map error', async () => {
       // Mock API to return backend object structure (which causes the map error)
-      client.getAppLogs.mockResolvedValue({
+      mockApiClient.getAppLogs.mockResolvedValue({
         logs: ['Log message 1', 'Log message 2', 'Log message 3'],
         total_logs: 3
       })
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options
       await waitFor(() => {
@@ -287,9 +288,9 @@ describe('RuntimeSetup Component', () => {
 
     it('should handle null logs response without throwing map error', async () => {
       // Mock API to return null
-      client.getAppLogs.mockResolvedValue(null)
+      mockApiClient.getAppLogs.mockResolvedValue(null)
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options
       await waitFor(() => {
@@ -315,9 +316,9 @@ describe('RuntimeSetup Component', () => {
 
     it('should handle string logs response without throwing map error', async () => {
       // Mock API to return a string instead of array
-      client.getAppLogs.mockResolvedValue('This is a log string')
+      mockApiClient.getAppLogs.mockResolvedValue('This is a log string')
       
-      render(<RuntimeSetup {...defaultProps} />)
+      renderWithProviders(<RuntimeSetup {...defaultProps} />, { apiClient: mockApiClient })
       
       // Open advanced options
       await waitFor(() => {
