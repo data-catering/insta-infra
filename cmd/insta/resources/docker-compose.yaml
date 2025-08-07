@@ -1713,7 +1713,7 @@ services:
     expose:
       - 8233
       - 7233
-    image: "temporalio/server:${TEMPORAL_VERSION:-1.28.0.0}"
+    image: "temporalio/server:${TEMPORAL_VERSION:-1.28.1.0}"
     ports:
       - "8233:8233"
       - "7233:7233"
