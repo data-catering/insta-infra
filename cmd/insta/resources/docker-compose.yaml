@@ -267,7 +267,7 @@ services:
       - "CVAT_USER=${CVAT_USER:-admin}"
       - "CVAT_PASSWORD=${CVAT_PASSWORD:-admin}"
       - "CVAT_EMAIL=${CVAT_EMAIL:-admin@example.com}"
-    image: "cvat/server:${CVAT_VERSION:-v2.42.0}"
+    image: "cvat/server:${CVAT_VERSION:-v2.43.0}"
     volumes:
       - "./data/cvat/init.sh:/tmp/scripts/init.sh"
   cvat-opa:
@@ -296,7 +296,7 @@ services:
       start_period: 10s # Give time for DB migrations and startup
       test: [CMD-SHELL, python manage.py health_check]
       timeout: 3s
-    image: "cvat/server:${CVAT_VERSION:-v2.42.0}"
+    image: "cvat/server:${CVAT_VERSION:-v2.43.0}"
     labels:
       traefik.enable: "true"
       traefik.http.routers.cvat.entrypoints: web
