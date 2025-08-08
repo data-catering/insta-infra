@@ -532,7 +532,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8888/status/health || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-33.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-34.0.0}"
     ports:
       - "8888:8888"
   druid-broker:
@@ -554,7 +554,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8082/druid/broker/v1/loadstatus || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-33.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-34.0.0}"
     ports:
       - "8082:8082"
   druid-coordinator:
@@ -574,7 +574,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8081/status/health || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-33.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-34.0.0}"
     ports:
       - "8081:8081"
   druid-historical:
@@ -596,7 +596,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8083/druid/historical/v1/readiness || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-33.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-34.0.0}"
     ports:
       - "8083:8083"
   druid-middlemanager:
@@ -618,7 +618,7 @@ services:
       retries: 3
       test: "wget --no-verbose --tries=1 --spider http://localhost:8091/status/health || exit 1"
       timeout: 5s
-    image: "apache/druid:${DRUID_VERSION:-33.0.0}"
+    image: "apache/druid:${DRUID_VERSION:-34.0.0}"
     ports:
       - "8091:8091"
       - "8100-8105:8100-8105"
