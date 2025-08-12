@@ -1088,7 +1088,7 @@ services:
       - "MARIADB_PASSWORD=${MARIADB_PASSWORD:-password}"
       - MARIADB_ROOT_PASSWORD=root
       - MARIADB_DATABASE=customer
-    image: "mariadb:${MARIADB_VERSION:-11.8.2}"
+    image: "mariadb:${MARIADB_VERSION:-11.8.3}"
     ports:
       - "3306:3306"
     restart: always
