@@ -854,7 +854,7 @@ services:
       retries: 3
       test: [CMD, curl, --fail, "http://localhost:5601/api/status"]
       timeout: 5s
-    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-9.1.1}"
+    image: "docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-9.1.2}"
     ports:
       - "5601:5601"
     restart: always
