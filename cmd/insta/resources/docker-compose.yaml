@@ -1663,7 +1663,7 @@ services:
       - "9000:9000"
   spanner:
     container_name: spanner
-    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.40}"
+    image: "gcr.io/cloud-spanner-emulator/emulator:${SPANNER_VERSION:-1.5.41}"
     ports:
       - "9010:9010"
       - "9020:9020"
