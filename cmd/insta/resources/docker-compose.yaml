@@ -1557,7 +1557,7 @@ services:
       retries: 3
       test: [CMD, ray, status]
       timeout: 10s
-    image: "rayproject/ray:${RAY_VERSION:-2.49.0-aarch64}"
+    image: "rayproject/ray:${RAY_VERSION:-2.49.1-aarch64}"
     ports:
       - "${RAY_PORT:-8265}:8265"
       - "6379:6379"
