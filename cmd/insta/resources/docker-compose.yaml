@@ -1786,6 +1786,6 @@ services:
       retries: 3
       test: "nc -z localhost 2181 || exit -1"
       timeout: 5s
-    image: "zookeeper:${ZOOKEEPER_VERSION:-3.9.3}"
+    image: "zookeeper:${ZOOKEEPER_VERSION:-3.9.4}"
     ports:
       - "2181:2181"
