@@ -27,7 +27,7 @@
     "build:demo": "chmod +x scripts/build-demo.sh && ./scripts/build-demo.sh"
   },
   "dependencies": {
-    "lucide-react": "^0.543.0",
+    "lucide-react": "^0.544.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "reactflow": "^11.11.4"
