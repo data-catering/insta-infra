@@ -1143,7 +1143,7 @@ services:
       retries: 5
       test: [CMD-SHELL, curl, --fail, -I, http://localhost:3000/api/health || exit 1]
       timeout: 5s
-    image: "metabase/metabase:${METABASE_VERSION:-v0.56.5}"
+    image: "metabase/metabase:${METABASE_VERSION:-v0.56.6}"
     ports:
       - "3000:3000"
     volumes:
