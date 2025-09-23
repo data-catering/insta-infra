@@ -1275,7 +1275,7 @@ services:
       retries: 3
       test: [CMD, /bin/sh, -c, "curl -f http://localhost:8222/healthz"]
       timeout: 5s
-    image: "nats:${NATS_VERSION:-2.11.9}"
+    image: "nats:${NATS_VERSION:-2.12.0}"
     ports:
       - "${NATS_PORT:-4222}:4222"
       - "8222:8222"
