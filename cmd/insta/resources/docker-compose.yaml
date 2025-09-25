@@ -1310,7 +1310,7 @@ services:
       start_period: 30s
       test: [CMD, curl, --fail, "http://localhost:8080/health"]
       timeout: 10s
-    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.9.10}"
+    image: "docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION:-1.9.11}"
     ports:
       - "8080:8080"
   openmetadata-server:
