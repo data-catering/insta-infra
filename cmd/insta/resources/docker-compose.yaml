@@ -410,7 +410,7 @@ services:
     entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
     environment:
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-MetadataAuditEvent_v4,MetadataChangeEvent_v4,FailedMetadataChangeEvent_v4,MetadataChangeLog_Versioned_v1,MetadataChangeLog_Timeseries_v1,MetadataChangeProposal_v1,FailedMetadataChangeProposal_v1,PlatformEvent_v1,DataHubUpgradeHistory_v1}"
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.0}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.1}"
     volumes:
       - "./data/kafka/init.sh:/tmp/scripts/init.sh"
   datahub-upgrade:
@@ -807,7 +807,7 @@ services:
     entrypoint: [/bin/sh, -c, /tmp/scripts/init.sh]
     environment:
       - "KAFKA_TOPICS=${KAFKA_TOPICS:-accounts,transactions}"
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.0}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.1}"
     volumes:
       - "./data/kafka/init.sh:/tmp/scripts/init.sh"
   kafka-server:
@@ -824,7 +824,7 @@ services:
       retries: 5
       test: [CMD-SHELL, /bin/sh, -c, kafka-topics, --bootstrap-server, "kafka:29092", --list]
       timeout: 5s
-    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.0}"
+    image: "confluentinc/confluent-local:${KAFKA_VERSION:-8.0.1}"
     ports:
       - "9092:9092"
   keycloak:
