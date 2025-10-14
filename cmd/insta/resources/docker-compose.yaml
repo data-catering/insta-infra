@@ -1359,7 +1359,7 @@ services:
       retries: 5
       test: [CMD, curl, --fail, "https://localhost:9200", -ku, "admin:${OPENSEARCH_PASSWORD:-!BigData#1}"]
       timeout: 5s
-    image: "opensearchproject/opensearch:${OPENSEARCH_VERSION:-3.2.0}"
+    image: "opensearchproject/opensearch:${OPENSEARCH_VERSION:-3.3.0}"
     ports:
       - "9600:9600"
       - "9200:9200"
