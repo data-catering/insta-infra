@@ -1670,7 +1670,7 @@ services:
   sqlite:
     command: [tail, -f, /dev/null]
     container_name: sqlite
-    image: "keinos/sqlite3:${SQLITE_VERSION:-3.50.4}"
+    image: "keinos/sqlite3:${SQLITE_VERSION:-3.51.0}"
     volumes:
       - "./data/sqlite:/opt/data"
   superset:
