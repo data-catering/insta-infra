@@ -318,7 +318,7 @@ services:
       retries: 3
       test: [CMD, nginx, -t]
       timeout: 5s
-    image: "cvat/ui:${CVAT_VERSION:-v2.49.0}"
+    image: "cvat/ui:${CVAT_VERSION:-v2.50.0}"
     labels:
       traefik.enable: "true"
       traefik.http.routers.cvat-ui.entrypoints: web
