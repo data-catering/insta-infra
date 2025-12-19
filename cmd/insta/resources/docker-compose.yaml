@@ -1686,7 +1686,7 @@ services:
     env_file: ./data/superset/docker/.env
     healthcheck:
       disable: true
-    image: "apache/superset:${SUPERSET_VERSION:-v5.0.0}"
+    image: "apache/superset:${SUPERSET_VERSION:-6.0.0}"
     user: root
     volumes:
       - "./data/superset/docker:/app/docker"
@@ -1699,7 +1699,7 @@ services:
       retries: 3
       test: [CMD, curl, --output, /dev/null, --silent, --head, --fail, "http://localhost:8088/health"]
       timeout: 5s
-    image: "apache/superset:${SUPERSET_VERSION:-v5.0.0}"
+    image: "apache/superset:${SUPERSET_VERSION:-6.0.0}"
     ports:
       - "8088:8088"
     user: root
