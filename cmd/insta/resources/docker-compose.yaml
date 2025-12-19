@@ -1774,7 +1774,7 @@ services:
       retries: 3
       test: [CMD, curl, -f, "http://localhost:8080/v1/.well-known/ready"]
       timeout: 5s
-    image: "semitechnologies/weaviate:${WEAVIATE_VERSION:-1.35.0}"
+    image: "semitechnologies/weaviate:${WEAVIATE_VERSION:-1.35.1}"
     ports:
       - "${WEAVIATE_PORT:-8080}:8080"
   zookeeper:
