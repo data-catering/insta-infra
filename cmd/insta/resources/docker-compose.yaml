@@ -1459,7 +1459,7 @@ services:
     entrypoint: [/opt/prefect/app/start_flows.sh]
     environment:
       - "PREFECT_API_URL=http://host.docker.internal:4200/api"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.6.8-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.6.9-python3.11}"
     volumes:
       - "./data/prefect/flows:/root/flows"
       - "./data/prefect/start_flows.sh:/opt/prefect/app/start_flows.sh"
@@ -1475,7 +1475,7 @@ services:
       - "PREFECT_API_URL=http://127.0.0.1:4200/api"
       - PREFECT_SERVER_API_HOST=0.0.0.0
       - "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/prefect"
-    image: "prefecthq/prefect:${PREFECT_VERSION:-3.6.8-python3.11}"
+    image: "prefecthq/prefect:${PREFECT_VERSION:-3.6.9-python3.11}"
     ports:
       - "4200:4200"
     restart: always
