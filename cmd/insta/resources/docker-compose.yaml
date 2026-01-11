@@ -492,7 +492,7 @@ services:
       start_period: 5s
       test: [CMD, python, /opt/healthcheck/doccano_healthcheck.py]
       timeout: 5s
-    image: "doccano/doccano:${DOCCANO_VERSION:-1.8.4}"
+    image: "doccano/doccano:${DOCCANO_VERSION:-1.8.5}"
     ports:
       - "${DOCCANO_PORT:-8000}:8000"
     volumes:
