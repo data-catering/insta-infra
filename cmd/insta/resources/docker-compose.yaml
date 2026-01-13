@@ -638,7 +638,7 @@ services:
         condition: service_healthy
     entrypoint: /tmp/entrypoint.sh
     env_file: ./data/elasticsearch/.env
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.2.3}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.2.4}"
     volumes:
       - "./data/elasticsearch/data/entrypoint.sh:/tmp/entrypoint.sh"
       - "./data/elasticsearch/data/lib.sh:/tmp/lib.sh"
@@ -651,7 +651,7 @@ services:
       retries: 5
       test: "curl -sS --fail http://elasticsearch:9200/_cluster/health?wait_for_status=yellow&timeout=0s"
       timeout: 5s
-    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.2.3}"
+    image: "docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-9.2.4}"
     ports:
       - "9200:9200"
       - "9300:9300"
