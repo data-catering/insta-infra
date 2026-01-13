@@ -179,7 +179,7 @@ services:
       clickhouse-server:
         condition: service_healthy
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.12.2}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.12.3}"
     user: "101:101"
     volumes:
       - "./data/clickhouse/init.sh:/tmp/scripts/init.sh"
@@ -195,7 +195,7 @@ services:
       test: "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"
       timeout: 5s
     hostname: clickhouse
-    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.12.2}"
+    image: "clickhouse/clickhouse-server:${CLICKHOUSE_VERSION:-25.12.3}"
     ports:
       - "8123:8123"
       - "9000:9000"
