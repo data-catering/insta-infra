@@ -834,7 +834,7 @@ services:
       postgres:
         condition: service_completed_successfully
     env_file: ./data/keycloak/.env
-    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.5.0}"
+    image: "quay.io/keycloak/keycloak:${KEYCLOACK_VERSION:-26.5.1}"
     ports:
       - "8082:8080"
     restart: unless-stopped
