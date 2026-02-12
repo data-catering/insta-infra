@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
       - name: Install eslint eslint-plugin-yml
-        run: npm install eslint @eslint/js eslint-plugin-yml
+        run: npm ci
       - name: Format docker-compose.yaml
         run: npx eslint "cmd/insta/resources/docker-compose.yaml" --fix
       - name: Format docker-compose-persist.yaml
