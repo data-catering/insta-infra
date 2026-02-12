@@ -77,8 +77,6 @@ lerna-debug.log*
 *.tar.gz
 
 # Package manager files (when not needed - root level only)
-/package.json
-/package-lock.json
 /yarn.lock
 
 # Temporary files
