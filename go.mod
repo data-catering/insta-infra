@@ -2,7 +2,7 @@ module github.com/data-catering/insta-infra/v2
 
 go 1.23.0
 
-toolchain go1.25.6
+toolchain go1.26.0
 
 require github.com/stretchr/testify v1.11.1
 
