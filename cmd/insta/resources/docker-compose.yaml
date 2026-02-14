@@ -1251,7 +1251,7 @@ services:
         condition: service_healthy
     environment:
       - "MYSQL_PASSWORD=${MYSQL_PASSWORD:-root}"
-    image: "mysql:${MYSQL_VERSION:-9.5.0}"
+    image: "mysql:${MYSQL_VERSION:-9.6.0}"
     volumes:
       - "./data/mysql/init.sh:/tmp/scripts/init.sh"
       - "${MYSQL_DATA:-./data/mysql/data}:/tmp/data"
@@ -1264,7 +1264,7 @@ services:
       retries: 3
       test: [CMD, mysqladmin, ping, -h, localhost, -u, root, -p$$MYSQL_ROOT_PASSWORD]
       timeout: 5s
-    image: "mysql:${MYSQL_VERSION:-9.5.0}"
+    image: "mysql:${MYSQL_VERSION:-9.6.0}"
     ports:
       - "3306:3306"
   nats:
