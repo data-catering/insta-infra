@@ -1217,7 +1217,7 @@ services:
       - mongodb-server
     environment:
       - "CONN_STR=mongodb://${MONGODB_USER:-user}:${MONGODB_PASSWORD:-password}@mongodb-server"
-    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.2.4-ubi8}"
+    image: "mongodb/mongodb-community-server:${MONGODB_VERSION:-8.2.5-ubi8}"
     volumes:
       - "./data/mongodb:/opt/app"
   mongodb-server:
