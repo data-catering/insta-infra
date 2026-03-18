@@ -720,7 +720,6 @@ func (sm *ServiceManager) isRelatedContainer(mainService, otherService string) b
 	// Example: postgres-data is related to postgres
 	return len(otherService) > len(mainService) &&
 		otherService[:len(mainService)] == mainService &&
-		len(otherService) > len(mainService) &&
 		otherService[len(mainService)] == '-'
 }
 
