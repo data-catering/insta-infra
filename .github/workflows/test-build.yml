@@ -41,6 +41,7 @@ jobs:
         run: make test
 
   build:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -152,9 +153,9 @@ jobs:
           path: insta*
 
   release:
+    if: false
     runs-on: ubuntu-latest
     needs: [build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -172,7 +173,7 @@ jobs:
           echo "- **Date:** $(date -u)" >> release-info.md
           echo "- **Unified Binaries:** insta-* (includes both CLI and Web UI)" >> release-info.md
           echo "  - Linux AMD64: insta-linux-amd64" >> release-info.md
-          echo "  - macOS Intel: insta-darwin-amd64" >> release-info.md  
+          echo "  - macOS Intel: insta-darwin-amd64" >> release-info.md
           echo "  - macOS Apple Silicon: insta-darwin-arm64" >> release-info.md
           echo "  - Windows AMD64: insta-windows-amd64" >> release-info.md
           echo "" >> release-info.md
