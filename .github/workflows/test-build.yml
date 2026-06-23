@@ -18,7 +18,7 @@ jobs:
           cache: true
 
       - name: Cache Go modules
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
@@ -71,7 +71,7 @@ jobs:
           cache: true
 
       - name: Cache Go modules
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
@@ -89,7 +89,7 @@ jobs:
 
       - name: Cache apt packages (Linux)
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: /var/cache/apt/archives
           key: ${{ runner.os }}-apt-upx-${{ hashFiles('.github/workflows/test-build.yml') }}
@@ -99,7 +99,7 @@ jobs:
 
       - name: Cache Homebrew (macOS)
         if: startsWith(matrix.os, 'macos')
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/Library/Caches/Homebrew
@@ -112,7 +112,7 @@ jobs:
 
       - name: Cache Chocolatey (Windows)
         if: matrix.os == 'windows-latest'
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~\AppData\Local\Temp\chocolatey
